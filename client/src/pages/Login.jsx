@@ -3,15 +3,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { MdRestaurantMenu } from 'react-icons/md';
 import toast from 'react-hot-toast';
+import { GoogleLogin } from '@react-oauth/google';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = async (e) => {
+  const handleAuthSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     try {
@@ -75,12 +77,45 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="mb-8">
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">Welcome Back</h2>
-              <p className="text-surface-400 text-sm sm:text-base">Please enter your details to sign in.</p>
+            <div className="mb-8 relative">
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">
+                Welcome Back
+              </h2>
+              <p className="text-surface-400 text-sm sm:text-base">
+                Please enter your details to sign in.
+              </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="mb-6 flex justify-center">
+              <GoogleLogin
+                onSuccess={async (credentialResponse) => {
+                  setLoading(true);
+                  try {
+                    const data = await googleLogin(credentialResponse.credential);
+                    toast.success(`Welcome, ${data.user.name}!`);
+                    navigate('/');
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || 'Google sign-in failed');
+                  } finally {
+                    setLoading(false);
+                  }
+                }}
+                onError={() => {
+                  toast.error('Google Login connection failed');
+                }}
+                theme="filled_black"
+                shape="circle"
+                text="continue_with"
+              />
+            </div>
+            
+            <div className="relative flex py-4 items-center mb-4">
+              <div className="flex-grow border-t border-surface-700/50"></div>
+              <span className="flex-shrink-0 mx-4 text-surface-500 text-xs font-semibold uppercase tracking-wider">or sign in with email</span>
+              <div className="flex-grow border-t border-surface-700/50"></div>
+            </div>
+
+            <form onSubmit={handleAuthSubmit} className="space-y-5">
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-semibold text-surface-300 mb-2">Campus Email</label>
@@ -114,7 +149,7 @@ export default function Login() {
                 className="btn-primary w-full py-3 sm:py-3.5 text-base rounded-xl mt-2 relative overflow-hidden group"
                 id="login-submit"
               >
-                <span className="relative z-10">{loading ? 'Verifying...' : 'Sign In'}</span>
+                <span className="relative z-10">{loading ? 'Processing...' : 'Sign In'}</span>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
               </button>
             </form>
@@ -148,6 +183,7 @@ export default function Login() {
                 ))}
               </div>
             </div>
+            
           </div>
         </div>
       </div>

@@ -42,8 +42,22 @@ export function AuthProvider({ children }) {
     return data;
   };
 
-  const register = async (formData) => {
-    const { data } = await authAPI.register(formData);
+  const googleLogin = async (idToken) => {
+    const { data } = await authAPI.googleLogin({ idToken });
+    setToken(data.token);
+    setUser(data.user);
+    localStorage.setItem('unifeast_token', data.token);
+    localStorage.setItem('unifeast_user', JSON.stringify(data.user));
+    return data;
+  };
+
+  const requestRegisterOtp = async (formData) => {
+    const { data } = await authAPI.requestRegisterOtp(formData);
+    return data;
+  };
+
+  const verifyRegisterOtp = async (attemptToken, otp) => {
+    const { data } = await authAPI.verifyRegisterOtp({ attemptToken, otp });
     setToken(data.token);
     setUser(data.user);
     localStorage.setItem('unifeast_token', data.token);
@@ -65,7 +79,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, login, googleLogin, requestRegisterOtp, verifyRegisterOtp, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

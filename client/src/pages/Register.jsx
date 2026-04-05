@@ -1,28 +1,53 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { MdRestaurantMenu } from 'react-icons/md';
+import { MdRestaurantMenu, MdArrowBack } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '' });
   const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
+  const [step, setStep] = useState(1);
+  const [attemptToken, setAttemptToken] = useState('');
+  const [otp, setOtp] = useState('');
+
+  const { requestRegisterOtp, verifyRegisterOtp } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (form.password !== form.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
     setLoading(true);
+
     try {
-      await register({ name: form.name, email: form.email, password: form.password, phone: form.phone });
-      toast.success('Account created successfully!');
-      navigate('/');
+      if (step === 1) {
+        if (form.password !== form.confirmPassword) {
+            toast.error('Passwords do not match');
+            setLoading(false);
+            return;
+        }
+        
+        const data = await requestRegisterOtp({ 
+            name: form.name, 
+            email: form.email, 
+            password: form.password, 
+            phone: form.phone 
+        });
+
+        setAttemptToken(data.attemptToken);
+        toast.success(data.message);
+        if (data.devOtp) {
+           console.log("DEV OTP Helper:", data.devOtp);
+           toast("Developer OTP: " + data.devOtp, { duration: 6000, icon: '🔧' });
+        }
+        setStep(2);
+
+      } else {
+        const data = await verifyRegisterOtp(attemptToken, otp);
+        toast.success(`Welcome, ${data.user.name}!`);
+        navigate('/');
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Registration failed');
     } finally {
@@ -74,51 +99,86 @@ export default function Register() {
               </div>
             </div>
 
-            <div className="mb-8">
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">Create an Account</h2>
-              <p className="text-surface-400 text-sm sm:text-base">Join the smartest canteen network.</p>
+            <div className="mb-8 relative">
+              {step === 2 && (
+                <button 
+                  type="button"
+                  onClick={() => setStep(1)}
+                  className="absolute -top-1 -left-2 p-2 hover:bg-surface-800 rounded-lg text-surface-400 hover:text-white transition-colors"
+                >
+                  <MdArrowBack size={20} />
+                </button>
+              )}
+              <h2 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">
+                 {step === 1 ? 'Create an Account' : 'Verify Email'}
+              </h2>
+              <p className="text-surface-400 text-sm sm:text-base">
+                 {step === 1 ? 'Join the smartest canteen network.' : 'Enter the verification OTP sent to your email.'}
+              </p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-surface-300 mb-2">Full Name</label>
-                <input name="name" value={form.name} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="John Doe" required id="register-name" />
-              </div>
+              {step === 1 && (
+                  <>
+                      <div>
+                        <label className="block text-sm font-semibold text-surface-300 mb-2">Full Name</label>
+                        <input name="name" value={form.name} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="John Doe" required id="register-name" />
+                      </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-surface-300 mb-2">Campus Email</label>
-                  <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="you@iiit.ac.in" required id="register-email" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-surface-300 mb-2">Phone <span className="text-surface-500 font-normal">(optional)</span></label>
-                  <input name="phone" type="tel" value={form.phone} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="9876543210" id="register-phone" />
-                </div>
-              </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-surface-300 mb-2">Campus Email</label>
+                          <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="you@iiit.ac.in" required id="register-email" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-surface-300 mb-2">Phone <span className="text-surface-500 font-normal">(optional)</span></label>
+                          <input name="phone" type="tel" value={form.phone} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="9876543210" id="register-phone" />
+                        </div>
+                      </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-semibold text-surface-300 mb-2">Password</label>
-                  <input name="password" type="password" value={form.password} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="••••••••" required minLength={6} id="register-password" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-surface-300 mb-2">Confirm Password</label>
-                  <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="••••••••" required id="register-confirm" />
-                </div>
-              </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-surface-300 mb-2">Password</label>
+                          <input name="password" type="password" value={form.password} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="••••••••" required minLength={6} id="register-password" />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-semibold text-surface-300 mb-2">Confirm Password</label>
+                          <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="••••••••" required id="register-confirm" />
+                        </div>
+                      </div>
+                  </>
+              )}
+
+              {step === 2 && (
+                  <div>
+                    <label className="block text-sm font-semibold text-surface-300 mb-2">One-Time Password</label>
+                    <input
+                      type="text"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value)}
+                      className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl text-center text-xl tracking-widest font-mono"
+                      placeholder="000000"
+                      maxLength={6}
+                      required
+                      id="register-otp"
+                    />
+                  </div>
+              )}
 
               <button type="submit" disabled={loading} className="btn-primary w-full py-3 sm:py-3.5 text-base rounded-xl mt-2 relative overflow-hidden group" id="register-submit">
-                <span className="relative z-10">{loading ? 'Creating Account...' : 'Create Account'}</span>
+                <span className="relative z-10">{loading ? 'Processing...' : (step === 1 ? 'Continue' : 'Create Account')}</span>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
               </button>
             </form>
 
-            <div className="mt-8 text-center border-t border-surface-700/30 pt-6">
-              <p className="text-surface-400 text-sm">
-                Already have an account?{' '}
-                <Link to="/login" className="text-primary-400 hover:text-primary-300 font-bold transition-colors">Sign in</Link>
-              </p>
-            </div>
+            {step === 1 && (
+                <div className="mt-8 text-center border-t border-surface-700/30 pt-6">
+                <p className="text-surface-400 text-sm">
+                    Already have an account?{' '}
+                    <Link to="/login" className="text-primary-400 hover:text-primary-300 font-bold transition-colors">Sign in</Link>
+                </p>
+                </div>
+            )}
           </div>
         </div>
       </div>

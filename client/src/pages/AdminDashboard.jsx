@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { adminAPI, orderAPI } from '../api';
+import { adminAPI } from '../api';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { HiOutlineUserGroup, HiOutlineCollection, HiOutlineCurrencyRupee, HiOutlineClipboardList } from 'react-icons/hi';
 import toast from 'react-hot-toast';
@@ -74,18 +74,19 @@ export default function AdminDashboard() {
 
   return (
     <div className="animate-fadeIn">
-      <div className="mb-6">
-        <h1 className="text-2xl sm:text-3xl font-bold">⚙️ <span className="text-primary-400">Admin</span> Dashboard</h1>
-        <p className="text-surface-400 mt-1">Manage UniFeast platform</p>
+      {/* Header */}
+      <div className="mb-6 md:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight">⚙️ <span className="text-primary-400">Admin</span> Dashboard</h1>
+        <p className="text-surface-400 mt-2 text-sm">Manage UniFeast platform</p>
       </div>
 
       {/* Tab switches */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 sm:gap-3 mb-6 md:mb-8">
         {['overview', 'users'].map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${tab === t ? 'tab-active' : 'bg-surface-800/40 text-surface-400 hover:bg-surface-700/40 border border-surface-700/30'}`}
+            className={`px-4 sm:px-5 py-2.5 rounded-xl text-sm font-medium transition-all min-h-[44px] ${tab === t ? 'tab-active' : 'bg-surface-800/40 text-surface-400 hover:bg-surface-700/40 border border-surface-700/30'}`}
             id={`admin-tab-${t}`}
           >
             {t === 'overview' ? '📊 Overview' : '👥 Users'}
@@ -96,24 +97,24 @@ export default function AdminDashboard() {
       {tab === 'overview' ? (
         <>
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6 md:mb-8">
             {[
               { label: 'Total Users', value: stats.totalUsers || 0, icon: <HiOutlineUserGroup className="w-6 h-6" />, color: 'text-blue-400' },
               { label: 'Menu Items', value: stats.totalMenuItems || 0, icon: <HiOutlineCollection className="w-6 h-6" />, color: 'text-purple-400' },
               { label: "Today's Orders", value: stats.todayOrders || 0, icon: <HiOutlineClipboardList className="w-6 h-6" />, color: 'text-amber-400' },
               { label: "Today's Revenue", value: `₹${stats.todayRevenue || 0}`, icon: <HiOutlineCurrencyRupee className="w-6 h-6" />, color: 'text-green-400' },
             ].map(s => (
-              <div key={s.label} className="glass-card-static p-5 text-center">
+              <div key={s.label} className="glass-card-static p-4 md:p-5 text-center">
                 <div className={`${s.color} flex justify-center mb-2`}>{s.icon}</div>
-                <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+                <p className={`text-xl md:text-2xl font-bold ${s.color}`}>{s.value}</p>
                 <p className="text-xs text-surface-500 mt-1">{s.label}</p>
               </div>
             ))}
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid gap-4 md:gap-6 md:grid-cols-2">
             {/* Popular Items */}
-            <div className="glass-card-static p-5">
+            <div className="glass-card-static p-4 md:p-6">
               <h3 className="text-sm font-semibold text-surface-400 mb-4 uppercase tracking-wider">Popular Items Today</h3>
               {stats.popularItems?.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
@@ -129,7 +130,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Users by Role */}
-            <div className="glass-card-static p-5">
+            <div className="glass-card-static p-4 md:p-6">
               <h3 className="text-sm font-semibold text-surface-400 mb-4 uppercase tracking-wider">Users by Role</h3>
               {roleData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
@@ -145,43 +146,42 @@ export default function AdminDashboard() {
           </div>
         </>
       ) : (
-        /* Users Tab */
         <>
-          <div className="flex gap-2 mb-4">
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
             {['', 'student', 'kitchen', 'admin'].map(r => (
               <button
                 key={r}
                 onClick={() => setUserFilter(r)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${userFilter === r ? 'bg-primary-500 text-white' : 'bg-surface-800/50 text-surface-400'}`}
+                className={`px-4 py-2 rounded-lg text-xs font-medium transition-all min-h-[40px] whitespace-nowrap ${userFilter === r ? 'bg-primary-500 text-white' : 'bg-surface-800/50 text-surface-400'}`}
               >
                 {r || 'All'}
               </button>
             ))}
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {users.map(u => (
-              <div key={u._id} className="glass-card-static p-4 flex items-center justify-between" id={`user-${u._id}`}>
+              <div key={u._id} className="glass-card-static p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3" id={`user-${u._id}`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold">
+                  <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold shrink-0">
                     {u.name?.charAt(0)?.toUpperCase()}
                   </div>
-                  <div>
-                    <p className="font-medium text-surface-200">{u.name}</p>
-                    <p className="text-xs text-surface-500">{u.email}</p>
+                  <div className="min-w-0">
+                    <p className="font-medium text-surface-200 truncate">{u.name}</p>
+                    <p className="text-xs text-surface-500 truncate">{u.email}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-13 sm:ml-0">
                   <select
                     value={u.role}
                     onChange={(e) => handleRoleChange(u._id, e.target.value)}
-                    className="input-field py-1 px-2 text-xs w-24"
+                    className="input-field py-2 px-3 text-xs w-28 rounded-lg min-h-[40px]"
                   >
                     <option value="student">Student</option>
                     <option value="kitchen">Kitchen</option>
                     <option value="admin">Admin</option>
                   </select>
-                  <button onClick={() => handleDeleteUser(u._id, u.name)} className="btn-danger py-1.5 px-3 text-xs">
+                  <button onClick={() => handleDeleteUser(u._id, u.name)} className="btn-danger py-2 px-4 text-xs min-h-[40px]">
                     Delete
                   </button>
                 </div>
@@ -193,4 +193,3 @@ export default function AdminDashboard() {
     </div>
   );
 }
-

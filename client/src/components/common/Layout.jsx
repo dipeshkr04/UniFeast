@@ -7,11 +7,11 @@ export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <main className="pt-16 min-h-screen">
-        <div className="p-4 sm:p-6 lg:p-8 max-w-[1200px] mx-auto">
+      <main className="min-h-screen" style={{ paddingTop: '80px' }}>
+        <div style={{ paddingLeft: 'clamp(16px, 4vw, 64px)', paddingRight: 'clamp(16px, 4vw, 64px)', paddingTop: '16px', paddingBottom: '24px', maxWidth: '1440px', marginLeft: 'auto', marginRight: 'auto' }}>
           <Outlet />
         </div>
       </main>

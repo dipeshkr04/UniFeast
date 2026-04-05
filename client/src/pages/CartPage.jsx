@@ -4,6 +4,7 @@ import { orderAPI } from '../api';
 import { HiOutlineTrash, HiPlus, HiMinus, HiArrowLeft } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, clearCart, totalAmount, totalItems } = useCart();
@@ -32,11 +33,11 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="animate-fadeIn text-center py-20">
-        <div className="text-6xl mb-4">🛒</div>
+      <div className="animate-fadeIn text-center py-16 md:py-24">
+        <div className="text-6xl mb-6">🛒</div>
         <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
-        <p className="text-surface-400 mb-6">Add some delicious items from the menu!</p>
-        <button onClick={() => navigate('/')} className="btn-primary" id="go-to-menu">
+        <p className="text-surface-400 mb-8 max-w-xs mx-auto">Add some delicious items from the menu!</p>
+        <button onClick={() => navigate('/')} className="btn-primary min-h-[44px] px-6 py-3" id="go-to-menu">
           Browse Menu
         </button>
       </div>
@@ -44,99 +45,149 @@ export default function CartPage() {
   }
 
   return (
-    <div className="animate-fadeIn max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => navigate('/')} className="p-2 rounded-lg hover:bg-white/5">
-          <HiArrowLeft className="w-5 h-5" />
+    <div className="animate-fadeIn">
+      {/* Header */}
+      <div className="flex items-center gap-3 sm:gap-4 mb-6 md:mb-8">
+        <button onClick={() => navigate('/')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors bg-white/5 border border-white/10 shrink-0">
+          <HiArrowLeft className="w-5 h-5 text-surface-200" />
         </button>
         <div>
-          <h1 className="text-2xl font-bold">Your Cart</h1>
-          <p className="text-surface-400 text-sm">{totalItems} item{totalItems > 1 ? 's' : ''}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight">Your Cart</h1>
+          <p className="text-surface-400 mt-1 text-sm">{totalItems} item{totalItems > 1 ? 's' : ''} • Review your order below</p>
         </div>
       </div>
 
-      {/* Cart items */}
-      <div className="space-y-3 mb-6">
-        {items.map(({ menuItem, quantity }) => (
-          <div key={menuItem._id} className="glass-card-static p-4 flex items-center gap-4" id={`cart-item-${menuItem._id}`}>
-            <div className="w-16 h-16 rounded-xl bg-surface-800 flex items-center justify-center text-2xl flex-shrink-0">
-              {menuItem.category === 'snacks' ? '🥟' :
-               menuItem.category === 'meals' ? '🍛' :
-               menuItem.category === 'beverages' ? '☕' : '🍮'}
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-semibold text-surface-100 truncate">{menuItem.name}</h3>
-              <p className="text-sm text-surface-400">₹{menuItem.price} × {quantity}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => updateQuantity(menuItem._id, quantity - 1)}
-                className="w-8 h-8 rounded-lg bg-surface-700/50 flex items-center justify-center hover:bg-surface-600/50"
-              >
-                <HiMinus className="w-4 h-4" />
-              </button>
-              <span className="w-6 text-center font-semibold">{quantity}</span>
-              <button
-                onClick={() => updateQuantity(menuItem._id, quantity + 1)}
-                className="w-8 h-8 rounded-lg bg-surface-700/50 flex items-center justify-center hover:bg-surface-600/50"
-              >
-                <HiPlus className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="text-right ml-2">
-              <p className="font-bold text-primary-400">₹{menuItem.price * quantity}</p>
-              <button
-                onClick={() => removeItem(menuItem._id)}
-                className="text-xs text-red-400 hover:text-red-300 mt-1 flex items-center gap-1"
-              >
-                <HiOutlineTrash className="w-3 h-3" /> Remove
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
+        {/* Left Column: Cart Items & Instructions */}
+        <div className="flex-1 w-full space-y-6 md:space-y-8">
+          {/* Cart items */}
+          <div className="space-y-3 md:space-y-4">
+            <AnimatePresence mode="popLayout">
+              {items.map(({ menuItem, quantity }) => (
+                <motion.div 
+                  key={menuItem._id}
+                  layout
+                  initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                  animate={{ opacity: 1, scale: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9, x: -20 }}
+                  className="glass-card-static p-4 md:p-5 flex items-center gap-3 sm:gap-4 relative group" 
+                  id={`cart-item-${menuItem._id}`}
+                >
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-surface-800/80 flex items-center justify-center text-2xl sm:text-3xl shrink-0 border border-surface-700/50">
+                    {menuItem.category === 'snacks' ? '🥟' :
+                     menuItem.category === 'meals' ? '🍛' :
+                     menuItem.category === 'beverages' ? '☕' : '🍮'}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm sm:text-base font-bold text-surface-50 truncate">{menuItem.name}</h3>
+                    <p className="text-xs sm:text-sm font-medium text-primary-400">₹{menuItem.price} <span className="text-surface-500 font-normal">each</span></p>
+                  </div>
 
-      {/* Special instructions */}
-      <div className="glass-card-static p-4 mb-4">
-        <label className="block text-sm text-surface-400 mb-1.5">Special Instructions (optional)</label>
-        <textarea
-          value={instructions}
-          onChange={(e) => setInstructions(e.target.value)}
-          className="input-field resize-none"
-          rows={2}
-          placeholder="Any special requests..."
-          maxLength={300}
-          id="special-instructions"
-        />
-      </div>
+                  <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                    {/* Quantity Controls */}
+                    <div className="flex items-center gap-1 p-1 bg-surface-800/60 rounded-xl border border-surface-700/50">
+                      <button
+                        onClick={() => updateQuantity(menuItem._id, quantity - 1)}
+                        className="w-8 h-8 rounded-lg bg-surface-700/50 flex items-center justify-center hover:bg-surface-600 text-surface-300 transition-all"
+                      >
+                        <HiMinus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-7 text-center font-bold text-surface-100 text-sm">{quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(menuItem._id, quantity + 1)}
+                        className="w-8 h-8 rounded-lg bg-surface-700/50 flex items-center justify-center hover:bg-surface-600 text-surface-300 transition-all"
+                      >
+                        <HiPlus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
-      {/* Order Summary */}
-      <div className="glass-card-static p-5">
-        <h3 className="font-semibold mb-3 text-surface-300 text-sm uppercase tracking-wider">Order Summary</h3>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between text-surface-300">
-            <span>Subtotal</span>
-            <span>₹{totalAmount}</span>
+                    {/* Price & Remove */}
+                    <div className="text-right hidden sm:block min-w-[70px]">
+                      <p className="text-base font-bold text-white">₹{(menuItem.price * quantity).toFixed(0)}</p>
+                      <button
+                        onClick={() => removeItem(menuItem._id)}
+                        className="text-xs text-surface-500 hover:text-red-400 flex items-center gap-1 transition-colors mt-0.5"
+                      >
+                        <HiOutlineTrash className="w-3 h-3" /> Remove
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Mobile remove button */}
+                  <button
+                    onClick={() => removeItem(menuItem._id)}
+                    className="sm:hidden w-8 h-8 flex items-center justify-center text-surface-500 hover:text-red-400 transition-colors shrink-0"
+                  >
+                    <HiOutlineTrash className="w-4 h-4" />
+                  </button>
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
-          <div className="flex justify-between text-surface-400">
-            <span>Platform fee</span>
-            <span className="text-green-400">Free</span>
-          </div>
-          <div className="border-t border-surface-700 pt-2 flex justify-between text-lg font-bold">
-            <span>Total</span>
-            <span className="text-primary-400">₹{totalAmount}</span>
+
+          {/* Special instructions */}
+          <div className="glass-card-static p-4 md:p-6">
+            <h3 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
+              <span className="text-base">📝</span>
+              Special Instructions
+            </h3>
+            <textarea
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              className="input-field resize-none bg-surface-900/50 border-surface-700/50 focus:border-primary-500/50 rounded-xl px-4 py-3"
+              rows={3}
+              placeholder="E.g., No onions, extra spicy, etc."
+              maxLength={300}
+              id="special-instructions"
+            />
+            <p className="text-right text-xs text-surface-500 mt-2">{instructions.length}/300</p>
           </div>
         </div>
-        <button
-          onClick={handlePlaceOrder}
-          disabled={loading}
-          className="btn-primary w-full mt-4 py-3 text-base"
-          id="place-order-btn"
-        >
-          {loading ? '⏳ Placing Order...' : `🍽️ Place Order — ₹${totalAmount}`}
-        </button>
+
+        {/* Right Column: Order Summary (Sticky) */}
+        <div className="w-full lg:w-[360px] lg:sticky lg:top-20">
+          <div className="glass-card-static p-5 md:p-6 border border-surface-700/50">
+            <h3 className="font-bold text-lg mb-5 text-white">Order Summary</h3>
+            
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between text-surface-300">
+                <span>Subtotal ({totalItems} items)</span>
+                <span className="text-surface-100">₹{totalAmount}</span>
+              </div>
+              <div className="flex justify-between text-surface-300">
+                <span>Platform Fee</span>
+                <span className="text-success text-xs font-semibold">FREE</span>
+              </div>
+              
+              <div className="border-t border-surface-700/50 pt-4 mt-4">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-surface-200 font-medium">Total</span>
+                  <span className="text-2xl font-black text-primary-400">₹{totalAmount}</span>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handlePlaceOrder}
+              disabled={loading}
+              className="btn-primary w-full mt-6 py-3.5 text-base rounded-xl relative overflow-hidden group min-h-[48px]"
+              id="place-order-btn"
+            >
+              <span className="relative z-10 flex items-center justify-center gap-2">
+                {loading ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Placing Order...
+                  </>
+                ) : (
+                  `Place Order — ₹${totalAmount}`
+                )}
+              </span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
 }
-

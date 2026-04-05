@@ -1,0 +1,1 @@
+npm i axios react react-dom react-hot-toast react-icons react-is react-router-dom recharts socket.io-client zustand react-hook-form zod @hookform/resolvers date-fns framer-motion lucide-react

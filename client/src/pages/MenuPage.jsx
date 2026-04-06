@@ -61,7 +61,7 @@ export default function MenuPage() {
   };
 
   return (
-    <div className="animate-fadeIn">
+    <div className="animate-fadeIn flex flex-col gap-4">
       {/* Header */}
       <div className="mb-4">
         <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight">
@@ -77,23 +77,23 @@ export default function MenuPage() {
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="input-field pl-12 py-3 px-4 rounded-xl w-full"
+          className="input-field pr-4 !pl-12 py-3 rounded-xl w-full"
           placeholder="Search for food, drinks..."
           id="menu-search"
         />
       </div>
 
       {/* Category Tabs */}
-      <div className="flex gap-2 mb-5 overflow-x-auto pb-2 scrollbar-none">
+      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
         {categories.map(cat => (
           <button
             key={cat.key}
             onClick={() => setCategory(cat.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all min-h-[44px]
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all min-w-[6.5rem] min-h-[2.5rem] justify-center shrink-0
               ${category === cat.key ? 'tab-active' : 'bg-surface-800/40 text-surface-400 hover:bg-surface-700/40 border border-surface-700/30'}`}
             id={`cat-${cat.key || 'all'}`}
           >
-            <span>{cat.icon}</span>
+            <span className="px-2">{cat.icon}</span>
             <span>{cat.label}</span>
           </button>
         ))}

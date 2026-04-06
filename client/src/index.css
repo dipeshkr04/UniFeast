@@ -59,11 +59,14 @@
 html {
   scroll-behavior: smooth;
   overflow-x: hidden;
+  background-color: #020617; /* match var(--color-surface-950) */
 }
 
 body {
   font-family: var(--font-sans);
   background: linear-gradient(135deg, var(--color-surface-950) 0%, #0a0f1a 50%, #0d0f18 100%);
+  background-attachment: fixed;
+  background-color: #020617;
   color: var(--color-surface-100);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;

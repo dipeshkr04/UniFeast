@@ -56,9 +56,9 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-8 relative overflow-hidden">
-      <div className="absolute top-20 -left-32 w-96 h-96 bg-primary-500/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-20 -right-32 w-96 h-96 bg-accent-500/8 rounded-full blur-[120px]" />
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 sm:py-16 relative">
+      <div className="absolute top-20 -left-32 w-96 h-96 bg-primary-500/10 rounded-full blur-[120px] -z-10" />
+      <div className="absolute bottom-20 -right-32 w-96 h-96 bg-accent-500/8 rounded-full blur-[120px] -z-10" />
 
       <div className="w-full max-w-md lg:max-w-4xl animate-fadeIn relative z-10">
         <div className="glass-card overflow-hidden flex flex-col lg:flex-row shadow-2xl border-surface-700/50">

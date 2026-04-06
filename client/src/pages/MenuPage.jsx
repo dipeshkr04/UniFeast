@@ -134,12 +134,7 @@ export default function MenuPage() {
                       item.category === 'beverages' ? '☕' : '🍮'
                     }</span>
                   )}
-                  {/* Poolable badge */}
-                  {item.isPoolable && (
-                    <div className="absolute top-2 right-2 badge badge-info text-[10px]">
-                      Poolable
-                    </div>
-                  )}
+
                   {/* Prep time */}
                   <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 bg-black/60 rounded-lg text-[10px] sm:text-xs text-white backdrop-blur-sm">
                     <HiOutlineClock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />

@@ -45,9 +45,7 @@ exports.joinOrCreatePool = async (req, res) => {
     if (!menuItem) {
       return res.status(404).json({ success: false, message: 'Menu item not found' });
     }
-    if (!menuItem.isPoolable) {
-      return res.status(400).json({ success: false, message: 'This item does not support pooling' });
-    }
+
 
     // Find or create pool
     const { pool, isNew } = await findOrCreatePool(menuItemId, menuItem.price);

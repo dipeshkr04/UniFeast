@@ -46,10 +46,6 @@ const menuItemSchema = new mongoose.Schema({
     type: String,
     trim: true,
   }],
-  isPoolable: {
-    type: Boolean,
-    default: true,
-  },
 }, {
   timestamps: true,
 });

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 
 const emptyForm = {
   name: '', description: '', price: '', category: 'snacks', prepTime: '',
-  isAvailable: true, isPoolable: true,
+  isAvailable: true,
   nutrition: { calories: '', protein: '', carbs: '', fat: '', fiber: '' },
   tags: '',
 };
@@ -38,7 +38,7 @@ export default function MenuManage() {
       fd.append('category', form.category);
       fd.append('prepTime', form.prepTime);
       fd.append('isAvailable', form.isAvailable);
-      fd.append('isPoolable', form.isPoolable);
+
       fd.append('nutrition', JSON.stringify({
         calories: Number(form.nutrition.calories) || 0,
         protein: Number(form.nutrition.protein) || 0,
@@ -72,7 +72,7 @@ export default function MenuManage() {
       category: item.category,
       prepTime: item.prepTime,
       isAvailable: item.isAvailable,
-      isPoolable: item.isPoolable,
+
       nutrition: { ...item.nutrition },
       tags: item.tags?.join(', ') || '',
     });
@@ -130,14 +130,11 @@ export default function MenuManage() {
               </select>
             </div>
             <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="input-field py-3 px-4 rounded-xl" placeholder="Description" rows={2} id="form-desc" />
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input-field py-3 px-4 rounded-xl" placeholder="Price ₹" required id="form-price" />
               <input type="number" value={form.prepTime} onChange={e => setForm({ ...form, prepTime: e.target.value })} className="input-field py-3 px-4 rounded-xl" placeholder="Prep (min)" required id="form-prep" />
               <label className="flex items-center gap-2 text-sm text-surface-300 min-h-[44px]">
                 <input type="checkbox" checked={form.isAvailable} onChange={e => setForm({ ...form, isAvailable: e.target.checked })} className="rounded" /> Available
-              </label>
-              <label className="flex items-center gap-2 text-sm text-surface-300 min-h-[44px]">
-                <input type="checkbox" checked={form.isPoolable} onChange={e => setForm({ ...form, isPoolable: e.target.checked })} className="rounded" /> Poolable
               </label>
             </div>
             <p className="text-xs text-surface-500 uppercase tracking-wider font-semibold pt-2">Nutrition (per serving)</p>

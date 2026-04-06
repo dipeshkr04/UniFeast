@@ -58,14 +58,19 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  background-color: #020617; /* match var(--color-surface-950) */
 }
 
 body {
   font-family: var(--font-sans);
   background: linear-gradient(135deg, var(--color-surface-950) 0%, #0a0f1a 50%, #0d0f18 100%);
+  background-attachment: fixed;
+  background-color: #020617;
   color: var(--color-surface-100);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
 }
 
 /* ═══ Scrollbar ═════════════════════════════ */
@@ -89,6 +94,7 @@ body {
 .glass-card {
   background: rgba(30, 41, 59, 0.45);
   backdrop-filter: blur(16px);
+  padding: 1rem;
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(148, 163, 184, 0.1);
   border-radius: 16px;

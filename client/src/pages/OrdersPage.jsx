@@ -3,6 +3,7 @@ import { orderAPI } from '../api';
 import { useSocket } from '../contexts/SocketContext';
 import { HiOutlineClock, HiOutlineRefresh } from 'react-icons/hi';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'badge-warning', emoji: '⏳' },
@@ -80,23 +81,24 @@ export default function OrdersPage() {
 
   return (
     <div className="animate-fadeIn">
-      <div className="flex items-center justify-between mb-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">My <span className="text-primary-400">Orders</span></h1>
-          <p className="text-surface-400 mt-1">Track your orders in real-time</p>
+          <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight">My <span className="text-primary-400">Orders</span></h1>
+          <p className="text-surface-400 mt-2 text-sm">Track your orders in real-time</p>
         </div>
-        <button onClick={fetchOrders} className="btn-secondary flex items-center gap-2 text-sm" id="refresh-orders">
+        <button onClick={fetchOrders} className="btn-secondary flex items-center gap-2 text-sm min-h-[44px] px-4 py-2.5 self-start" id="refresh-orders">
           <HiOutlineRefresh className="w-4 h-4" /> Refresh
         </button>
       </div>
 
       {/* Status Filters */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+      <div className="flex gap-2 mb-6 md:mb-8 overflow-x-auto pb-3 scrollbar-none">
         {['', 'pending', 'preparing', 'ready', 'completed'].map(s => (
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium whitespace-nowrap transition-all
+            className={`px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all min-h-[44px]
               ${filter === s ? 'tab-active' : 'bg-surface-800/40 text-surface-400 hover:bg-surface-700/40 border border-surface-700/30'}`}
             id={`filter-${s || 'all'}`}
           >
@@ -107,83 +109,91 @@ export default function OrdersPage() {
 
       {/* Orders List */}
       {loading ? (
-        <div className="space-y-4">
-          {[1,2,3].map(i => <div key={i} className="skeleton h-32" />)}
+        <div className="grid gap-4 md:gap-6 md:grid-cols-2">
+          {[1,2,3,4].map(i => <div key={i} className="skeleton h-44 rounded-2xl" />)}
         </div>
       ) : orders.length === 0 ? (
-        <div className="text-center py-16 glass-card-static">
+        <div className="text-center py-16 md:py-20 glass-card-static max-w-md mx-auto">
           <div className="text-5xl mb-4">📭</div>
-          <p className="text-surface-400 text-lg">No orders found</p>
+          <h3 className="text-lg font-bold mb-2">No orders found</h3>
+          <p className="text-surface-400 text-sm">You haven't placed any orders yet, or they don't match this filter.</p>
         </div>
       ) : (
-        <div className="space-y-4 stagger-children">
-          {orders.map(order => {
-            const cfg = statusConfig[order.status] || statusConfig.pending;
-            const timeLeft = getTimeLeft(order.estimatedReadyAt);
-            const isActive = ['pending', 'queued', 'preparing'].includes(order.status);
+        <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
+          <AnimatePresence mode="popLayout">
+            {orders.map(order => {
+              const cfg = statusConfig[order.status] || statusConfig.pending;
+              const timeLeft = getTimeLeft(order.estimatedReadyAt);
+              const isActive = ['pending', 'queued', 'preparing'].includes(order.status);
 
-            return (
-              <div
-                key={order._id}
-                className={`glass-card-static p-5 ${isActive ? 'border-l-4 border-l-primary-500' : ''}`}
-                id={`order-${order._id}`}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className={`badge ${cfg.color}`}>{cfg.emoji} {cfg.label}</span>
-                      {order.isPooled && <span className="badge badge-info">🤝 Pooled</span>}
-                    </div>
-                    <p className="text-xs text-surface-500">
-                      #{order._id.slice(-6).toUpperCase()} • {new Date(order.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xl font-bold text-primary-400">₹{order.totalAmount}</p>
-                    {isActive && timeLeft && (
-                      <div className="flex items-center gap-1 text-sm text-accent-400 mt-1">
-                        <HiOutlineClock className="w-4 h-4 animate-pulse" />
-                        <span className="font-mono font-semibold">{timeLeft}</span>
+              return (
+                <motion.div
+                  layout
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  key={order._id}
+                  className={`glass-card-static p-4 md:p-6 flex flex-col relative overflow-hidden ${isActive ? 'border-l-4 border-l-primary-500' : ''}`}
+                  id={`order-${order._id}`}
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className={`badge ${cfg.color}`}>{cfg.emoji} {cfg.label}</span>
+                        {order.isPooled && <span className="badge badge-info">🤝 Pooled</span>}
                       </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Items */}
-                <div className="space-y-1.5">
-                  {order.items.map((item, i) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="text-surface-300">
-                        {item.name || item.menuItem?.name} × {item.quantity}
-                      </span>
-                      <span className="text-surface-400">₹{item.price * item.quantity}</span>
+                      <p className="text-xs text-surface-400 font-medium">
+                        #{order._id.slice(-6).toUpperCase()} • {new Date(order.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </p>
                     </div>
-                  ))}
-                </div>
-
-                {/* ETA bar for active orders */}
-                {isActive && order.estimatedTime && (
-                  <div className="mt-3 pt-3 border-t border-surface-700/50">
-                    <div className="flex items-center justify-between text-xs text-surface-400 mb-1.5">
-                      <span>Estimated Time</span>
-                      <span className="font-semibold text-surface-200">{order.estimatedTime} min</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-surface-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full gradient-primary transition-all duration-1000"
-                        style={{
-                          width: `${Math.min(100, Math.max(5, (1 - (new Date(order.estimatedReadyAt) - new Date()) / (order.estimatedTime * 60000)) * 100))}%`
-                        }}
-                      />
+                    <div className="text-right shrink-0 ml-4">
+                      <p className="text-xl font-bold text-primary-400">₹{order.totalAmount}</p>
+                      {isActive && timeLeft && (
+                        <div className="flex items-center gap-1 text-sm text-accent-400 mt-1">
+                          <HiOutlineClock className="w-4 h-4 animate-pulse" />
+                          <span className="font-mono font-semibold text-xs">{timeLeft}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
-                )}
-              </div>
-            );
-          })}
+
+                  {/* Items */}
+                  <div className="space-y-1.5 mb-4 flex-1">
+                    {order.items.map((item, i) => (
+                      <div key={i} className="flex justify-between items-center text-sm py-1.5 px-3 rounded-lg bg-surface-800/30 border border-surface-700/20">
+                        <span className="text-surface-200 flex items-center gap-2">
+                          <span className="text-xs text-surface-400 font-mono">{item.quantity}x</span>
+                          {item.name || item.menuItem?.name}
+                        </span>
+                        <span className="text-surface-400 font-mono text-xs">₹{item.price * item.quantity}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* ETA bar for active orders */}
+                  {isActive && order.estimatedTime && (
+                    <div className="pt-4 border-t border-surface-700/50 mt-auto">
+                      <div className="flex items-center justify-between text-xs text-surface-400 mb-2">
+                        <span className="font-semibold uppercase tracking-wider">Progress</span>
+                        <span className="font-bold text-surface-200">{order.estimatedTime} min</span>
+                      </div>
+                      <div className="w-full h-2 bg-surface-800/80 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full gradient-primary relative"
+                          style={{
+                            width: `${Math.min(100, Math.max(5, (1 - (new Date(order.estimatedReadyAt) - new Date()) / (order.estimatedTime * 60000)) * 100))}%`,
+                            transition: 'width 1s linear'
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
     </div>
   );
 }
-

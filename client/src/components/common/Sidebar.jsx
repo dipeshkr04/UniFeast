@@ -2,9 +2,9 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   HiOutlineHome, HiOutlineClipboardList, HiOutlineUserGroup,
-  HiOutlineChartBar, HiOutlineCog, HiOutlineCollection
+  HiOutlineChartBar
 } from 'react-icons/hi';
-import { MdRestaurantMenu, MdOutlineFastfood, MdOutlineKitchen } from 'react-icons/md';
+import { MdRestaurantMenu, MdOutlineKitchen } from 'react-icons/md';
 import { IoNutritionOutline } from 'react-icons/io5';
 
 const studentLinks = [
@@ -46,12 +46,12 @@ export default function Sidebar({ open, onClose }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-16 left-0 bottom-0 w-64 z-40 bg-[#0F111A]/95 backdrop-blur-2xl border-r border-surface-700/50 shadow-2xl transition-transform duration-300 ease-in-out
+        className={`fixed top-14 sm:top-16 left-0 bottom-0 w-64 sm:w-72 z-40 bg-[#0F111A]/95 backdrop-blur-2xl border-r border-surface-700/50 shadow-2xl transition-transform duration-300 ease-in-out
           ${open ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}
       >
-        <div className="flex flex-col h-full p-4 overflow-y-auto scrollbar-none">
+        <div className="flex flex-col h-full p-4 md:p-6 overflow-y-auto scrollbar-none">
           {/* Navigation */}
-          <nav className="flex-1 space-y-1.5 mt-2">
+          <nav className="flex-1 space-y-1 mt-4">
             <p className="text-[11px] uppercase tracking-widest text-surface-500 font-bold mb-4 px-3">
               Navigation
             </p>
@@ -62,9 +62,9 @@ export default function Sidebar({ open, onClose }) {
                 onClick={onClose}
                 end={link.to === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300 relative overflow-hidden group
+                  `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 relative overflow-hidden group min-h-[44px]
                   ${isActive
-                    ? 'text-primary-400 bg-primary-500/10 font-semibold blur-bg shadow-inner'
+                    ? 'text-primary-400 bg-primary-500/10 font-semibold'
                     : 'text-surface-400 hover:text-surface-100 hover:bg-surface-800/40'
                   }`
                 }
@@ -72,12 +72,10 @@ export default function Sidebar({ open, onClose }) {
               >
                 {({ isActive }) => (
                   <>
-                    {/* Active Tab Indicator Line */}
                     {isActive && (
-                      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-primary-400 to-accent-500 rounded-r-md shadow-[0_0_10px_rgba(var(--color-primary-500)/0.5)]" />
+                      <div className="absolute left-0 top-2 bottom-2 w-1 bg-gradient-to-b from-primary-400 to-accent-500 rounded-r-md" />
                     )}
-                    
-                    <link.icon className={`w-5 h-5 flex-shrink-0 transition-transform duration-300 ${isActive ? 'scale-110 drop-shadow-md' : 'group-hover:scale-110'}`} />
+                    <link.icon className={`w-5 h-5 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`} />
                     <span className="tracking-wide">{link.label}</span>
                   </>
                 )}
@@ -87,8 +85,8 @@ export default function Sidebar({ open, onClose }) {
 
           {/* Bottom user card */}
           <div className="mt-6 pt-4 border-t border-surface-700/50">
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-surface-800/30 hover:bg-surface-800/60 border border-surface-700/30 transition-colors">
-              <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold shadow-lg shadow-primary-500/20">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-surface-800/30 border border-surface-700/30">
+              <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold shadow-lg shadow-primary-500/20 shrink-0">
                 {user?.name?.charAt(0)?.toUpperCase()}
               </div>
               <div className="overflow-hidden">

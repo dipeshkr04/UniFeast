@@ -84,16 +84,17 @@ export default function MenuPage() {
       </div>
 
       {/* Category Tabs */}
-      <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-none">
+      <div className="flex  gap-10 overflow-x-auto pb-2 scrollbar-none">
         {categories.map(cat => (
           <button
             key={cat.key}
             onClick={() => setCategory(cat.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all min-w-[6.5rem] min-h-[2.5rem] justify-center shrink-0
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all min-w-[6.5rem] min-h-[2.5rem]
+              justify-center
               ${category === cat.key ? 'tab-active' : 'bg-surface-800/40 text-surface-400 hover:bg-surface-700/40 border border-surface-700/30'}`}
             id={`cat-${cat.key || 'all'}`}
           >
-            <span className="px-2">{cat.icon}</span>
+            <span className='px-2'>{cat.icon}</span>
             <span>{cat.label}</span>
           </button>
         ))}

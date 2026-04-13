@@ -155,7 +155,7 @@ export default function PoolsPage() {
                 <button
                   onClick={() => handleJoinPool(pool.menuItem?._id)}
                   disabled={joining === pool.menuItem?._id || pool.currentSize >= pool.maxSize}
-                  className="btn-success w-full text-sm min-h-[44px]"
+                  className="btn-primary w-full text-sm min-h-[44px]"
                   id={`join-pool-${pool._id}`}
                 >
                   {joining === pool.menuItem?._id ? 'Joining...' : pool.currentSize >= pool.maxSize ? 'Pool Full' : '🤝 Join This Pool'}

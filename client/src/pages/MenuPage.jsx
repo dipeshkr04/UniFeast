@@ -4,6 +4,7 @@ import { useCart } from '../contexts/CartContext';
 import { HiOutlineSearch, HiOutlineClock, HiOutlineFire, HiPlus, HiMinus } from 'react-icons/hi';
 import { MdOutlineLocalDining } from 'react-icons/md';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const categories = [
   { key: '', label: 'All', icon: '🍽️' },
@@ -18,7 +19,6 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
-  const [selectedItem, setSelectedItem] = useState(null);
   const [pools, setPools] = useState({});
   const { addItem, items: cartItems } = useCart();
 
@@ -33,6 +33,8 @@ export default function MenuPage() {
       if (search) params.search = search;
       const { data } = await menuAPI.getAll(params);
       setItems(data.data);
+      // Fetch pool status for all items incrementally
+      data.data.forEach(item => checkPool(item._id));
     } catch (err) {
       toast.error('Failed to load menu');
     } finally {
@@ -61,145 +63,175 @@ export default function MenuPage() {
   };
 
   return (
-    <div className="animate-fadeIn flex flex-col gap-4">
-      {/* Header */}
-      <div className="mb-4">
-        <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight">
-          <span className="text-primary-400">Campus</span> Menu
-        </h1>
-        <p className="text-surface-400 mt-1 text-sm">Fresh food from IIIT Nagpur canteen</p>
-      </div>
-
-      {/* Search */}
-      <div className="relative mb-4">
-        <HiOutlineSearch className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-surface-500" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="input-field pr-4 !pl-12 py-3 rounded-xl w-full"
-          placeholder="Search for food, drinks..."
-          id="menu-search"
-        />
+    <div className="flex flex-col gap-8 max-w-7xl mx-auto">
+      {/* Header section */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
+        <div>
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black leading-tight tracking-tight text-white drop-shadow-2xl">
+              Discover <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-accent-500">Flavors</span>
+            </h1>
+            <p className="text-surface-400 font-medium tracking-wide uppercase text-xs sm:text-sm mt-3">Elite Culinary Experience • IIIT Nagpur</p>
+          </motion.div>
+        </div>
+        
+        {/* Search */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }} 
+          animate={{ opacity: 1, y: 0 }}
+          className="relative w-full md:w-96 group"
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-accent-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity" />
+          <HiOutlineSearch className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-surface-400 z-10" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full bg-[#09090b]/80 border border-white/10 text-white rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary-500/50 backdrop-blur-xl relative z-10 text-sm font-medium transition-all"
+            placeholder="Search for amazing food..."
+          />
+        </motion.div>
       </div>
 
       {/* Category Tabs */}
-      <div className="flex  gap-10 overflow-x-auto pb-2 scrollbar-none">
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        transition={{ delay: 0.1 }}
+        className="flex gap-4 overflow-x-auto pb-4 scrollbar-none"
+      >
         {categories.map(cat => (
           <button
             key={cat.key}
             onClick={() => setCategory(cat.key)}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all min-w-[6.5rem] min-h-[2.5rem]
-              justify-center
-              ${category === cat.key ? 'tab-active' : 'bg-surface-800/40 text-surface-400 hover:bg-surface-700/40 border border-surface-700/30'}`}
-            id={`cat-${cat.key || 'all'}`}
+            className={`flex items-center gap-3 px-6 py-3.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-300
+              ${category === cat.key ? 'bg-primary-500 text-white shadow-[0_0_20px_rgba(255,71,20,0.4)] scale-105' : 'bg-white/5 text-surface-400 hover:text-white hover:bg-white/10 border border-white/5'}`}
           >
-            <span className='px-2'>{cat.icon}</span>
-            <span>{cat.label}</span>
+            <span className='text-lg'>{cat.icon}</span>
+            <span className="tracking-wide">{cat.label}</span>
           </button>
         ))}
-      </div>
+      </motion.div>
 
       {/* Menu Grid */}
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="glass-card-static p-4">
-              <div className="skeleton h-32 sm:h-40 mb-3 rounded-xl" />
-              <div className="skeleton h-5 w-3/4 mb-2" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="glass-card-static p-4 border border-white/5">
+              <div className="skeleton h-48 mb-4 rounded-2xl" />
+              <div className="skeleton h-6 w-3/4 mb-3" />
               <div className="skeleton h-4 w-1/2" />
             </div>
           ))}
         </div>
       ) : items.length === 0 ? (
-        <div className="text-center py-16 glass-card-static max-w-md mx-auto">
-          <MdOutlineLocalDining className="w-16 h-16 text-surface-600 mx-auto mb-4" />
-          <p className="text-surface-400 text-lg font-medium">No items found</p>
-          <p className="text-surface-500 text-sm mt-2">Try a different search or category</p>
-        </div>
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
+          className="text-center py-24 glass-card max-w-2xl mx-auto border border-white/5 bg-[#09090b]/40"
+        >
+          <MdOutlineLocalDining className="w-24 h-24 text-surface-700 mx-auto mb-6" />
+          <p className="text-white text-2xl font-black">No items found</p>
+          <p className="text-surface-400 text-base font-medium mt-3">We couldn't find anything matching your criteria.</p>
+        </motion.div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {items.map(item => {
-            const qty = getCartQty(item._id);
-            const pool = pools[item._id];
-            return (
-              <div key={item._id} className="glass-card overflow-hidden group" id={`menu-item-${item._id}`}>
-                {/* Image placeholder */}
-                <div className="h-28 sm:h-36 lg:h-40 bg-gradient-to-br from-surface-800 to-surface-700 flex items-center justify-center relative overflow-hidden">
-                  {item.imageUrl ? (
-                    <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-4xl sm:text-5xl">{
-                      item.category === 'snacks' ? '🥟' :
-                      item.category === 'meals' ? '🍛' :
-                      item.category === 'beverages' ? '☕' : '🍮'
-                    }</span>
-                  )}
-
-                  {/* Prep time */}
-                  <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 bg-black/60 rounded-lg text-[10px] sm:text-xs text-white backdrop-blur-sm">
-                    <HiOutlineClock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    <span>{item.prepTime} min</span>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div className="p-3 sm:p-4">
-                  <h3 className="font-semibold text-surface-100 text-sm sm:text-base leading-snug truncate">{item.name}</h3>
-                  <p className="text-[11px] sm:text-xs text-surface-500 mt-1 line-clamp-2 leading-relaxed hidden sm:block">{item.description}</p>
-
-                  {/* Nutrition mini */}
-                  <div className="flex items-center gap-2 mt-2 mb-3">
-                    <div className="flex items-center gap-1 text-[11px] sm:text-xs text-surface-400">
-                      <HiOutlineFire className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-400" />
-                      <span>{item.nutrition?.calories || 0} cal</span>
-                    </div>
-                    <div className="text-[10px] sm:text-xs text-surface-500 hidden sm:block">
-                      P:{item.nutrition?.protein || 0}g • C:{item.nutrition?.carbs || 0}g • F:{item.nutrition?.fat || 0}g
-                    </div>
-                  </div>
-
-                  {/* Pool indicator */}
-                  {pool && (
-                    <div className="mb-3 p-2 rounded-lg bg-info/10 border border-info/20 text-[11px] sm:text-xs text-blue-300">
-                      🤝 Pool active — {pool.currentSize} students, save {pool.savingsPercent}%
-                    </div>
-                  )}
-
-                  {/* Price + Add */}
-                  <div className="flex items-center justify-between pt-2 border-t border-surface-700/30">
-                    <div className="text-lg sm:text-xl font-bold text-primary-400">₹{item.price}</div>
-                    {qty > 0 ? (
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => addItem(item, -1)}
-                          className="w-8 h-8 rounded-lg bg-surface-700/50 flex items-center justify-center hover:bg-surface-600/50 transition-colors"
-                        >
-                          <HiMinus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="w-5 text-center font-bold text-sm">{qty}</span>
-                        <button
-                          onClick={() => handleAddToCart(item)}
-                          className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center hover:opacity-90 transition-opacity"
-                        >
-                          <HiPlus className="w-3.5 h-3.5 text-white" />
-                        </button>
-                      </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8 stagger-children">
+          <AnimatePresence>
+            {items.map(item => {
+              const qty = getCartQty(item._id);
+              const pool = pools[item._id];
+              return (
+                <motion.div 
+                  layout
+                  initial={{ opacity: 0, y: 30 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.9 }}
+                  key={item._id} 
+                  className="glass-card group flex flex-col justify-between border border-white/5 hover:border-primary-500/30 bg-[#09090b]/60"
+                >
+                  <div className="relative h-48 sm:h-56 mb-5 overflow-hidden rounded-2xl bg-surface-900 border border-white/5 isolation-auto">
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     ) : (
-                      <button
-                        onClick={() => handleAddToCart(item)}
-                        className="btn-primary py-2 px-3 sm:px-4 text-xs sm:text-sm flex items-center gap-1 min-h-[36px] sm:min-h-[40px]"
-                        id={`add-${item._id}`}
-                      >
-                        <HiPlus className="w-3.5 h-3.5" />
-                        Add
-                      </button>
+                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-surface-800 to-surface-900 transition-transform duration-700 group-hover:scale-110">
+                        <span className="text-6xl drop-shadow-2xl">{
+                          item.category === 'snacks' ? '🥟' :
+                          item.category === 'meals' ? '🍛' :
+                          item.category === 'beverages' ? '☕' : '🍮'
+                        }</span>
+                      </div>
+                    )}
+
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent opacity-80" />
+
+                    {/* Prep time badge */}
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/10 text-xs font-bold text-white shadow-lg">
+                      <HiOutlineClock className="w-4 h-4 text-primary-400" />
+                      <span>{item.prepTime}m</span>
+                    </div>
+
+                    {/* Pools active badge */}
+                    {pool && (
+                      <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-info/20 backdrop-blur-md rounded-full border border-info/30 text-[10px] font-black text-blue-300 uppercase tracking-wider animate-pulse-glow shadow-lg">
+                        🤝 Pool {pool.savingsPercent}% OFF
+                      </div>
                     )}
                   </div>
-                </div>
-              </div>
-            );
-          })}
+
+                  <div className="flex-1 flex flex-col justify-between">
+                    <div>
+                      <h3 className="text-xl font-black text-white leading-tight mb-2 group-hover:text-primary-400 transition-colors line-clamp-1">{item.name}</h3>
+                      <p className="text-xs text-surface-400 leading-relaxed line-clamp-2 min-h-[2.5rem] font-medium">{item.description}</p>
+
+                      <div className="flex items-center gap-3 mt-4 mb-5">
+                        <div className="flex items-center gap-1.5 text-xs text-white font-bold bg-white/5 py-1 px-2.5 rounded-md border border-white/5">
+                          <HiOutlineFire className="w-4 h-4 text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)]" />
+                          <span>{item.nutrition?.calories || 0} kcal</span>
+                        </div>
+                        <div className="text-[10px] text-surface-500 font-bold uppercase tracking-widest flex gap-2">
+                          <span>P:{item.nutrition?.protein || 0}</span>
+                          <span>C:{item.nutrition?.carbs || 0}</span>
+                          <span>F:{item.nutrition?.fat || 0}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-auto">
+                      <div className="text-2xl font-black text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">
+                        <span className="text-primary-500 text-lg mr-0.5">₹</span>{item.price}
+                      </div>
+
+                      {qty > 0 ? (
+                        <div className="flex items-center gap-2 bg-white/5 rounded-xl border border-white/10 p-1 backdrop-blur-sm">
+                          <button
+                            onClick={() => addItem(item, -1)}
+                            className="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center hover:bg-surface-700 transition-colors text-white hover:text-red-400"
+                          >
+                            <HiMinus className="w-4 h-4" />
+                          </button>
+                          <span className="w-6 text-center font-black text-white">{qty}</span>
+                          <button
+                            onClick={() => handleAddToCart(item)}
+                            className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center hover:opacity-90 transition-opacity text-white shadow-[0_0_10px_rgba(255,71,20,0.5)]"
+                          >
+                            <HiPlus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleAddToCart(item)}
+                          className="btn-primary py-2.5 px-5 text-sm flex items-center gap-2 group-hover:shadow-[0_0_20px_rgba(255,71,20,0.5)] transition-all overflow-hidden relative"
+                        >
+                          <HiPlus className="w-4 h-4" />
+                          <span className="font-bold tracking-wide">Add</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
     </div>

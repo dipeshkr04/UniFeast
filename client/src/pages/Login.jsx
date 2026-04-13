@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { MdRestaurantMenu } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import { GoogleLogin } from '@react-oauth/google';
+import { motion } from 'framer-motion';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -33,160 +34,179 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 sm:py-16 relative">
-      {/* Background effects */}
-      <div className="absolute top-20 -left-32 w-96 h-96 bg-primary-500/10 rounded-full blur-[120px]" />
-      <div className="absolute bottom-20 -right-32 w-96 h-96 bg-accent-500/8 rounded-full blur-[120px]" />
-
-      <div className="w-full max-w-md lg:max-w-4xl animate-fadeIn relative z-10">
-        <div className="glass-card overflow-hidden flex flex-col lg:flex-row shadow-2xl border-surface-700/50">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#050505] overflow-hidden selection:bg-primary-500/30">
+      
+      {/* Left Branding Panel (Full Bleed) */}
+      <motion.div 
+        initial={{ opacity: 0, x: -50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
+        className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-primary-600 via-primary-500 to-primary-900 p-12 xl:p-20 text-white flex-col relative overflow-hidden"
+      >
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-white/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-black/40 rounded-full blur-[120px]" />
+        
+        <div className="relative z-10 flex-1 flex flex-col justify-center items-center text-center">
+          <motion.div 
+             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.8 }}
+             className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/10 backdrop-blur-md shadow-2xl border border-white/20 mb-10"
+          >
+            <MdRestaurantMenu className="w-10 h-10 text-white drop-shadow-md" />
+          </motion.div>
+          <motion.h1 
+             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8 }}
+             className="text-5xl xl:text-6xl font-black tracking-tight mb-8 leading-tight"
+          >
+            Uni<span className="text-white/80">Feast</span>
+          </motion.h1>
+          <motion.p 
+             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.8 }}
+             className="text-white/80 text-xl leading-relaxed max-w-md mx-auto mb-10 font-medium"
+          >
+            The most advanced ecosystem to order, track, and pool your campus meals effortlessly.
+          </motion.p>
           
-          {/* Left Branding Panel — hidden on mobile/tablet, shown on lg+ */}
-          <div className="hidden lg:flex lg:w-5/12 gradient-primary p-8 xl:p-12 text-white flex-col relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3" />
-            
-            <div className="relative z-10 flex-1 flex flex-col">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md shadow-xl border border-white/20 mb-8">
-                <MdRestaurantMenu className="w-7 h-7 text-white drop-shadow-md" />
-              </div>
-              <h1 className="text-3xl xl:text-4xl font-extrabold tracking-tight mb-4 leading-tight">
-                Uni<span className="drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">Feast</span>
-              </h1>
-              <p className="text-primary-100 text-base xl:text-lg leading-relaxed max-w-xs mb-auto">
-                The smartest way to order, track, and pool your canteen meals seamlessly.
-              </p>
-              
-              <div className="mt-auto border-t border-white/20 pt-6">
-                <p className="text-sm font-semibold tracking-widest uppercase text-primary-100">IIIT Nagpur Campus</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Form Panel */}
-          <div className="lg:w-7/12 p-6 sm:p-8 lg:p-10 xl:p-12 bg-surface-900/60 backdrop-blur-xl flex flex-col justify-center">
-            
-            {/* Mobile logo — shown only below lg */}
-            <div className="lg:hidden flex items-center gap-3 mb-8">
-              <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl gradient-primary shadow-lg">
-                <MdRestaurantMenu className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold leading-tight">Uni<span className="text-primary-400">Feast</span></h1>
-                <p className="text-[10px] text-surface-500 tracking-wider uppercase">IIIT Nagpur</p>
-              </div>
-            </div>
-
-            <div className="mb-8 relative">
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">
-                Welcome Back
-              </h2>
-              <p className="text-surface-400 text-sm sm:text-base">
-                Please enter your details to sign in.
-              </p>
-            </div>
-
-            <div className="mb-6 flex justify-center">
-              <GoogleLogin
-                onSuccess={async (credentialResponse) => {
-                  setLoading(true);
-                  try {
-                    const data = await googleLogin(credentialResponse.credential);
-                    toast.success(`Welcome, ${data.user.name}!`);
-                    navigate('/');
-                  } catch (err) {
-                    toast.error(err.response?.data?.message || 'Google sign-in failed');
-                  } finally {
-                    setLoading(false);
-                  }
-                }}
-                onError={() => {
-                  toast.error('Google Login connection failed');
-                }}
-                theme="filled_black"
-                shape="circle"
-                text="continue_with"
-              />
-            </div>
-            
-            <div className="relative flex py-4 items-center mb-4">
-              <div className="flex-grow border-t border-surface-700/50"></div>
-              <span className="flex-shrink-0 mx-4 text-surface-500 text-xs font-semibold uppercase tracking-wider">or sign in with email</span>
-              <div className="flex-grow border-t border-surface-700/50"></div>
-            </div>
-
-            <form onSubmit={handleAuthSubmit} className="space-y-5">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-semibold text-surface-300 mb-2">Campus Email</label>
-                  <input
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl"
-                    placeholder="you@iiit.ac.in"
-                    required
-                    id="login-email"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-surface-300 mb-2">Password</label>
-                  <input
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl"
-                    placeholder="••••••••"
-                    required
-                    id="login-password"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary w-full py-3 sm:py-3.5 text-base rounded-xl mt-2 relative overflow-hidden group"
-                id="login-submit"
-              >
-                <span className="relative z-10">{loading ? 'Processing...' : 'Sign In'}</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-              </button>
-            </form>
-
-            <div className="mt-8 text-center border-t border-surface-700/30 pt-6">
-              <p className="text-surface-400 text-sm">
-                Don't have an account?{' '}
-                <Link to="/register" className="text-primary-400 hover:text-primary-300 font-bold transition-colors">
-                  Sign up
-                </Link>
-              </p>
-            </div>
-
-            {/* Quick login buttons */}
-            <div className="mt-6 pt-6 border-t border-surface-700/30">
-              <p className="text-xs text-surface-500 text-center mb-4 uppercase tracking-widest font-bold">Quick Demo Access</p>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { label: 'Student', email: 'student@iiit.ac.in', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20' },
-                  { label: 'Kitchen', email: 'kitchen@iiit.ac.in', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20' },
-                  { label: 'Admin', email: 'admin@iiit.ac.in', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20' },
-                ].map(({ label, email: e, color }) => (
-                  <button
-                    key={label}
-                    onClick={() => quickLogin(e)}
-                    className={`min-h-[44px] py-2.5 px-3 rounded-xl border text-xs font-bold transition-all hover:-translate-y-0.5 ${color}`}
-                    id={`quick-login-${label.toLowerCase()}`}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            
-          </div>
+          <motion.div 
+             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 1 }}
+             className="mt-auto border-t border-white/20 pt-8 w-full max-w-md"
+          >
+            <p className="text-sm font-bold tracking-[0.3em] uppercase text-white/90">IIIT Nagpur Campus</p>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
+
+      {/* Right Form Panel (Full Bleed) */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8 }}
+        className="w-full lg:w-7/12 xl:w-1/2 min-h-screen flex flex-col justify-center relative bg-[#09090b]"
+      >
+        {/* Premium Animated Mesh Background inside Form Panel */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <motion.div 
+            animate={{ x: [0, 50, -50, 0], y: [0, -50, 50, 0], scale: [1, 1.2, 0.8, 1] }}
+            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+            className="absolute top-10 left-[-20%] w-[600px] h-[600px] rounded-full bg-primary-600/5 blur-[150px]"
+          />
+          <motion.div 
+            animate={{ x: [0, -40, 40, 0], y: [0, 60, -60, 0], scale: [1, 1.3, 0.7, 1] }}
+            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+            className="absolute bottom-10 right-[-20%] w-[700px] h-[700px] rounded-full bg-blue-500/5 blur-[150px]"
+          />
+        </div>
+
+        <div className="w-full max-w-xl mx-auto p-8 sm:p-12 lg:p-16 relative z-10 flex flex-col justify-center h-full items-center">
+          
+          {/* Mobile logo */}
+          <div className="lg:hidden flex flex-col items-center text-center mb-10">
+            <div className="w-16 h-16 rounded-3xl gradient-primary flex items-center justify-center shadow-2xl shadow-primary-500/30 mb-6">
+              <MdRestaurantMenu className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-black tracking-tight mb-2">Uni<span className="text-primary-500">Feast</span></h1>
+            <p className="text-xs uppercase tracking-widest text-surface-500 font-bold">IIIT Nagpur</p>
+          </div>
+
+          <div className="mb-10 text-center w-full">
+            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-white tracking-tight">Welcome Back</h2>
+            <p className="text-surface-400 font-medium text-lg">Please enter your details to sign in.</p>
+          </div>
+
+          <div className="mb-8 flex justify-center w-full">
+            <GoogleLogin
+              onSuccess={async (credentialResponse) => {
+                setLoading(true);
+                try {
+                  const data = await googleLogin(credentialResponse.credential);
+                  toast.success(`Welcome, ${data.user.name}!`);
+                  navigate('/');
+                } catch (err) {
+                  toast.error(err.response?.data?.message || 'Google sign-in failed');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              onError={() => toast.error('Google Login connection failed')}
+              theme="filled_black"
+              shape="pill"
+              size="large"
+              text="continue_with"
+              width="320"
+            />
+          </div>
+          
+          <div className="relative flex items-center mb-10 w-full">
+            <div className="flex-grow border-t border-white/5"></div>
+            <span className="mx-6 text-surface-500 text-xs font-bold uppercase tracking-[0.2em] text-center">or sign in with email</span>
+            <div className="flex-grow border-t border-white/5"></div>
+          </div>
+
+          <form onSubmit={handleAuthSubmit} className="space-y-6 w-full max-w-md">
+            <div className="space-y-6">
+              <div className="text-left">
+                <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Email Address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center"
+                  placeholder="you@gmail.com"
+                  required
+                />
+              </div>
+              <div className="text-left">
+                <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center tracking-widest"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full py-4 text-lg rounded-xl mt-4 h-[60px]"
+            >
+              {loading ? 'Authenticating...' : 'Sign In'}
+            </button>
+          </form>
+
+          <div className="mt-12 text-center w-full">
+            <p className="text-surface-400 font-medium">
+              New to UniFeast?{' '}
+              <Link to="/register" className="text-primary-500 hover:text-primary-400 font-black transition-colors underline decoration-primary-500/30 underline-offset-4">
+                Create an account
+              </Link>
+            </p>
+          </div>
+
+          {/* Quick login */}
+          <div className="mt-12 pt-8 border-t border-white/5 w-full max-w-md">
+            <p className="text-[10px] text-surface-500 text-center mb-4 uppercase tracking-[0.2em] font-black">Demo Access</p>
+            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+              {[
+                { label: 'Student', email: 'shubhgoel@gmail.com', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/50' },
+                { label: 'Kitchen', email: 'kitchen@iiit.ac.in', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-500/50' },
+                { label: 'Admin', email: 'admin@iiit.ac.in', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/50' },
+              ].map(({ label, email: e, color }) => (
+                <button
+                  key={label}
+                  onClick={() => quickLogin(e)}
+                  className={`py-3.5 px-3 rounded-xl border text-xs font-bold transition-all ${color}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+        </div>
+      </motion.div>
     </div>
   );
 }

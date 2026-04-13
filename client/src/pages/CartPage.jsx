@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
 import { orderAPI } from '../api';
 import { HiOutlineTrash, HiPlus, HiMinus, HiArrowLeft } from 'react-icons/hi';
@@ -11,6 +11,7 @@ export default function CartPage() {
   const [loading, setLoading] = useState(false);
   const [instructions, setInstructions] = useState('');
   const navigate = useNavigate();
+  const { canteenLive } = useOutletContext() || {};
 
   const handlePlaceOrder = async () => {
     if (items.length === 0) return;
@@ -168,10 +169,16 @@ export default function CartPage() {
               </div>
             </div>
 
+            {!canteenLive && (
+              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 text-center font-semibold">
+                🔴 Canteen is currently closed. You cannot place orders right now.
+              </div>
+            )}
+
             <button
               onClick={handlePlaceOrder}
-              disabled={loading}
-              className="btn-primary w-full mt-6 py-3.5 text-base rounded-xl relative overflow-hidden group min-h-[48px]"
+              disabled={loading || !canteenLive}
+              className={`w-full mt-4 py-3.5 text-base rounded-xl relative overflow-hidden group min-h-[48px] ${!canteenLive ? 'bg-surface-800 text-surface-500 cursor-not-allowed border border-surface-700' : 'btn-primary'}`}
               id="place-order-btn"
             >
               <span className="relative z-10 flex items-center justify-center gap-2">
@@ -180,6 +187,8 @@ export default function CartPage() {
                     <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Placing Order...
                   </>
+                ) : !canteenLive ? (
+                  'Canteen Closed'
                 ) : (
                   `Place Order — ₹${totalAmount}`
                 )}

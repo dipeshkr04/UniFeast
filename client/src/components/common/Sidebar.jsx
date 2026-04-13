@@ -6,6 +6,7 @@ import {
 } from 'react-icons/hi';
 import { MdRestaurantMenu, MdOutlineKitchen } from 'react-icons/md';
 import { IoNutritionOutline } from 'react-icons/io5';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const studentLinks = [
   { to: '/', icon: HiOutlineHome, label: 'Menu' },
@@ -30,29 +31,30 @@ const adminLinks = [
 
 export default function Sidebar({ open, onClose }) {
   const { user } = useAuth();
-
   const links = user?.role === 'admin' ? adminLinks :
     user?.role === 'kitchen' ? kitchenLinks : studentLinks;
 
   return (
     <>
-      {/* Overlay */}
-      {open && (
-        <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
-          onClick={onClose}
-        />
-      )}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-40"
+            onClick={onClose}
+          />
+        )}
+      </AnimatePresence>
 
-      {/* Sidebar */}
       <aside
-        className={`fixed top-14 sm:top-16 left-0 bottom-0 w-64 sm:w-72 z-40 bg-[#0F111A]/95 backdrop-blur-2xl border-r border-surface-700/50 shadow-2xl transition-transform duration-300 ease-in-out
-          ${open ? 'translate-x-0' : '-translate-x-full'} flex flex-col`}
+        className={`fixed top-16 sm:top-20 left-0 bottom-0 w-72 z-40 bg-[#09090b]/95 backdrop-blur-3xl border-r border-white/5 shadow-2xl transition-transform duration-500 cubic-bezier(0.2, 0.8, 0.2, 1)
+          ${open ? 'translate-x-0' : '-translate-x-full'} flex flex-col pt-6`}
       >
-        <div className="flex flex-col h-full p-4 md:p-6 overflow-y-auto scrollbar-none">
-          {/* Navigation */}
-          <nav className="flex-1 space-y-1 mt-4">
-            <p className="text-[11px] uppercase tracking-widest text-surface-500 font-bold mb-4 px-3">
+        <div className="flex flex-col h-full px-6 pb-6 overflow-y-auto scrollbar-none">
+          <nav className="flex-1 space-y-2">
+            <p className="text-[10px] uppercase tracking-[0.2em] text-surface-500 font-bold mb-6 pl-2">
               Navigation
             </p>
             {links.map((link) => (
@@ -62,38 +64,42 @@ export default function Sidebar({ open, onClose }) {
                 onClick={onClose}
                 end={link.to === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 relative overflow-hidden group min-h-[44px]
+                  `flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-semibold transition-all duration-300 relative group overflow-hidden
                   ${isActive
-                    ? 'text-primary-400 bg-primary-500/10 font-semibold'
-                    : 'text-surface-400 hover:text-surface-100 hover:bg-surface-800/40'
+                    ? 'text-white'
+                    : 'text-surface-400 hover:text-white hover:bg-white/5'
                   }`
                 }
-                id={`sidebar-${link.label.toLowerCase().replace(/\s+/g, '-')}`}
               >
                 {({ isActive }) => (
                   <>
                     {isActive && (
-                      <div className="absolute left-0 top-2 bottom-2 w-1 bg-gradient-to-b from-primary-400 to-accent-500 rounded-r-md" />
+                      <motion.div 
+                        layoutId="active-pill"
+                        className="absolute inset-0 bg-gradient-to-r from-primary-600/20 to-primary-500/5 rounded-2xl border border-primary-500/20"
+                      />
                     )}
-                    <link.icon className={`w-5 h-5 shrink-0 transition-transform duration-200 ${isActive ? 'scale-110' : 'group-hover:scale-105'}`} />
-                    <span className="tracking-wide">{link.label}</span>
+                    {isActive && (
+                      <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-primary-500 rounded-r-full shadow-[0_0_10px_#ff4714]" />
+                    )}
+                    <link.icon className={`w-5 h-5 shrink-0 relative z-10 transition-all duration-300 ${isActive ? 'text-primary-400 scale-110 drop-shadow-[0_0_8px_rgba(255,71,20,0.5)]' : 'group-hover:scale-110 group-hover:text-primary-300'}`} />
+                    <span className="relative z-10 tracking-wide">{link.label}</span>
                   </>
                 )}
               </NavLink>
             ))}
           </nav>
 
-          {/* Bottom user card */}
-          <div className="mt-6 pt-4 border-t border-surface-700/50">
-            <div className="flex items-center gap-3 p-3 rounded-2xl bg-surface-800/30 border border-surface-700/30">
-              <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-bold shadow-lg shadow-primary-500/20 shrink-0">
+          <div className="mt-8 pt-6 border-t border-white/5">
+            <div className="glass-card flex items-center gap-4 p-4 !bg-white/5 hover:!border-primary-500/30 group cursor-pointer transition-all">
+              <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-black text-lg shadow-lg shadow-primary-500/30 shrink-0 group-hover:scale-110 transition-transform">
                 {user?.name?.charAt(0)?.toUpperCase()}
               </div>
               <div className="overflow-hidden">
-                <p className="text-sm font-bold text-surface-100 truncate">{user?.name}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <div className={`w-1.5 h-1.5 rounded-full ${user?.role === 'admin' ? 'bg-purple-400' : user?.role === 'kitchen' ? 'bg-amber-400' : 'bg-primary-400'}`} />
-                  <p className="text-xs text-surface-400 capitalize truncate">{user?.role}</p>
+                <p className="text-sm font-bold text-white truncate">{user?.name}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary-500 shadow-[0_0_8px_#ff4714]" />
+                  <p className="text-[10px] text-surface-400 font-medium uppercase tracking-widest truncate">{user?.role}</p>
                 </div>
               </div>
             </div>

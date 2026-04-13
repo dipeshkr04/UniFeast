@@ -1,6 +1,7 @@
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const NutritionLog = require('../models/NutritionLog');
+const Settings = require('../models/Settings');
 const { calculateETA, recalculateAllETAs } = require('../utils/queueEngine');
 
 // @desc    Create new order
@@ -11,6 +12,12 @@ exports.createOrder = async (req, res) => {
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Please add items to your order' });
+    }
+
+    // Check if canteen is open
+    const isLive = await Settings.getCanteenStatus();
+    if (!isLive) {
+      return res.status(400).json({ success: false, message: 'Canteen is currently closed. Please try again later.' });
     }
 
     // Fetch menu items and calculate total
@@ -29,6 +36,8 @@ exports.createOrder = async (req, res) => {
 
       const quantity = item.quantity || 1;
       totalAmount += menuItem.price * quantity;
+      // Use the longest item's prep time as the bottleneck
+      // (items within a single order are prepped in parallel on one station)
       maxPrepTime = Math.max(maxPrepTime, menuItem.prepTime);
 
       orderItems.push({
@@ -39,7 +48,7 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    // Calculate ETA using queue engine
+    // Calculate ETA using queue engine (Erlang-C handles queue depth)
     const etaResult = await calculateETA(maxPrepTime);
 
     const order = await Order.create({
@@ -212,16 +221,43 @@ exports.getOrderStats = async (req, res) => {
 
     const [todayOrders, totalRevenue, avgPrepTime, statusCounts] = await Promise.all([
       Order.countDocuments({ createdAt: { $gte: today, $lt: tomorrow } }),
+      // Revenue = only COMPLETED orders (recognized on completion, not placement)
       Order.aggregate([
-        { $match: { createdAt: { $gte: today, $lt: tomorrow }, status: { $ne: 'cancelled' } } },
+        { $match: { createdAt: { $gte: today, $lt: tomorrow }, status: 'completed' } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } },
       ]),
+      // Avg prep time = time from when kitchen started preparing to completion
       Order.aggregate([
-        { $match: { status: 'completed', actualCompletionTime: { $ne: null } } },
+        { $match: { status: 'completed', actualCompletionTime: { $ne: null }, createdAt: { $gte: today, $lt: tomorrow } } },
+        {
+          $addFields: {
+            preparingStartedAt: {
+              $ifNull: [
+                {
+                  $arrayElemAt: [
+                    {
+                      $map: {
+                        input: {
+                          $filter: {
+                            input: '$statusHistory',
+                            cond: { $eq: ['$$this.status', 'preparing'] }
+                          }
+                        },
+                        in: '$$this.timestamp'
+                      }
+                    },
+                    0
+                  ]
+                },
+                '$createdAt'
+              ]
+            }
+          }
+        },
         {
           $project: {
             prepDuration: {
-              $divide: [{ $subtract: ['$actualCompletionTime', '$createdAt'] }, 60000],
+              $divide: [{ $subtract: ['$actualCompletionTime', '$preparingStartedAt'] }, 60000],
             },
           },
         },

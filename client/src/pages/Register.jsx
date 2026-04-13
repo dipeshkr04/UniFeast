@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { MdRestaurantMenu, MdArrowBack } from 'react-icons/md';
 import toast from 'react-hot-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '' });
@@ -38,7 +39,6 @@ export default function Register() {
         setAttemptToken(data.attemptToken);
         toast.success(data.message);
         if (data.devOtp) {
-           console.log("DEV OTP Helper:", data.devOtp);
            toast("Developer OTP: " + data.devOtp, { duration: 6000, icon: '🔧' });
         }
         setStep(2);
@@ -56,132 +56,177 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 sm:py-16 relative">
-      <div className="absolute top-20 -left-32 w-96 h-96 bg-primary-500/10 rounded-full blur-[120px] -z-10" />
-      <div className="absolute bottom-20 -right-32 w-96 h-96 bg-accent-500/8 rounded-full blur-[120px] -z-10" />
-
-      <div className="w-full max-w-md lg:max-w-4xl animate-fadeIn relative z-10">
-        <div className="glass-card overflow-hidden flex flex-col lg:flex-row shadow-2xl border-surface-700/50">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#050505] overflow-hidden selection:bg-primary-500/30">
+      
+      {/* Left Branding Panel */}
+      <motion.div 
+        initial={{ opacity: 0, x: -50 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
+        className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-primary-600 via-primary-500 to-primary-900 p-12 xl:p-20 text-white flex-col relative overflow-hidden"
+      >
+        <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-white/10 rounded-full blur-[100px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-black/40 rounded-full blur-[120px]" />
+        
+        <div className="relative z-10 flex-1 flex flex-col justify-center items-center text-center">
+          <motion.div 
+             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.8 }}
+             className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/10 backdrop-blur-md shadow-2xl border border-white/20 mb-10"
+          >
+            <MdRestaurantMenu className="w-10 h-10 text-white drop-shadow-md" />
+          </motion.div>
+          <motion.h1 
+             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8 }}
+             className="text-5xl xl:text-6xl font-black tracking-tight mb-8 leading-tight"
+          >
+            Join Uni<span className="text-white/80">Feast</span>
+          </motion.h1>
+          <motion.p 
+             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.8 }}
+             className="text-white/80 text-xl leading-relaxed max-w-md mx-auto mb-10 font-medium"
+          >
+            Create an account to unlock hyper-connected dining across the IIIT Nagpur campus.
+          </motion.p>
           
-          {/* Left Branding Panel */}
-          <div className="hidden lg:flex lg:w-5/12 gradient-primary p-8 xl:p-12 text-white flex-col relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-black/10 rounded-full blur-3xl translate-y-1/3 -translate-x-1/3" />
-            
-            <div className="relative z-10 flex-1 flex flex-col">
-              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/20 backdrop-blur-md shadow-xl border border-white/20 mb-8">
-                <MdRestaurantMenu className="w-7 h-7 text-white drop-shadow-md" />
-              </div>
-              <h1 className="text-3xl xl:text-4xl font-extrabold tracking-tight mb-4 leading-tight">
-                Join Uni<span className="drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">Feast</span>
-              </h1>
-              <p className="text-primary-100 text-base xl:text-lg leading-relaxed max-w-xs mb-auto">
-                Create your account to start ordering your favorite campus meals with ease.
-              </p>
-              
-              <div className="mt-auto border-t border-white/20 pt-6">
-                <p className="text-sm font-semibold tracking-widest uppercase text-primary-100">IIIT Nagpur Campus</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Right Form Panel */}
-          <div className="lg:w-7/12 p-6 sm:p-8 lg:p-10 xl:p-12 bg-surface-900/60 backdrop-blur-xl flex flex-col justify-center">
-            
-            {/* Mobile logo */}
-            <div className="lg:hidden flex items-center gap-3 mb-8">
-              <div className="inline-flex items-center justify-center w-11 h-11 rounded-xl gradient-primary shadow-lg">
-                <MdRestaurantMenu className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold leading-tight">Uni<span className="text-primary-400">Feast</span></h1>
-                <p className="text-[10px] text-surface-500 tracking-wider uppercase">IIIT Nagpur</p>
-              </div>
-            </div>
-
-            <div className="mb-8 relative">
-              {step === 2 && (
-                <button 
-                  type="button"
-                  onClick={() => setStep(1)}
-                  className="absolute -top-1 -left-2 p-2 hover:bg-surface-800 rounded-lg text-surface-400 hover:text-white transition-colors"
-                >
-                  <MdArrowBack size={20} />
-                </button>
-              )}
-              <h2 className="text-2xl sm:text-3xl font-bold mb-2 leading-tight">
-                 {step === 1 ? 'Create an Account' : 'Verify Email'}
-              </h2>
-              <p className="text-surface-400 text-sm sm:text-base">
-                 {step === 1 ? 'Join the smartest canteen network.' : 'Enter the verification OTP sent to your email.'}
-              </p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {step === 1 && (
-                  <>
-                      <div>
-                        <label className="block text-sm font-semibold text-surface-300 mb-2">Full Name</label>
-                        <input name="name" value={form.name} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="John Doe" required id="register-name" />
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-surface-300 mb-2">Campus Email</label>
-                          <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="you@iiit.ac.in" required id="register-email" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-surface-300 mb-2">Phone <span className="text-surface-500 font-normal">(optional)</span></label>
-                          <input name="phone" type="tel" value={form.phone} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="9876543210" id="register-phone" />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-semibold text-surface-300 mb-2">Password</label>
-                          <input name="password" type="password" value={form.password} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="••••••••" required minLength={6} id="register-password" />
-                        </div>
-                        <div>
-                          <label className="block text-sm font-semibold text-surface-300 mb-2">Confirm Password</label>
-                          <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl" placeholder="••••••••" required id="register-confirm" />
-                        </div>
-                      </div>
-                  </>
-              )}
-
-              {step === 2 && (
-                  <div>
-                    <label className="block text-sm font-semibold text-surface-300 mb-2">One-Time Password</label>
-                    <input
-                      type="text"
-                      value={otp}
-                      onChange={(e) => setOtp(e.target.value)}
-                      className="input-field bg-surface-800/50 border-surface-700/50 focus:border-primary-500 py-3 px-4 rounded-xl text-center text-xl tracking-widest font-mono"
-                      placeholder="000000"
-                      maxLength={6}
-                      required
-                      id="register-otp"
-                    />
-                  </div>
-              )}
-
-              <button type="submit" disabled={loading} className="btn-primary w-full py-3 sm:py-3.5 text-base rounded-xl mt-2 relative overflow-hidden group" id="register-submit">
-                <span className="relative z-10">{loading ? 'Processing...' : (step === 1 ? 'Continue' : 'Create Account')}</span>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite]" />
-              </button>
-            </form>
-
-            {step === 1 && (
-                <div className="mt-8 text-center border-t border-surface-700/30 pt-6">
-                <p className="text-surface-400 text-sm">
-                    Already have an account?{' '}
-                    <Link to="/login" className="text-primary-400 hover:text-primary-300 font-bold transition-colors">Sign in</Link>
-                </p>
-                </div>
-            )}
-          </div>
+          <motion.div 
+             initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 1 }}
+             className="mt-auto border-t border-white/20 pt-8 w-full max-w-md"
+          >
+            <p className="text-sm font-bold tracking-[0.3em] uppercase text-white/90">Registration Portal</p>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
+
+      {/* Right Form Panel */}
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.8 }}
+        className="w-full lg:w-7/12 xl:w-1/2 min-h-screen flex flex-col justify-center relative bg-[#09090b] overflow-y-auto"
+      >
+        {/* Premium Animated Mesh Background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 fixed">
+          <motion.div 
+            animate={{ x: [0, 50, -50, 0], y: [0, -50, 50, 0], scale: [1, 1.2, 0.8, 1] }}
+            transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
+            className="absolute top-10 left-[-20%] w-[600px] h-[600px] rounded-full bg-primary-600/5 blur-[150px]"
+          />
+          <motion.div 
+            animate={{ x: [0, -40, 40, 0], y: [0, 60, -60, 0], scale: [1, 1.3, 0.7, 1] }}
+            transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
+            className="absolute bottom-10 right-[-20%] w-[700px] h-[700px] rounded-full bg-blue-500/5 blur-[150px]"
+          />
+        </div>
+
+        <div className="w-full max-w-xl mx-auto p-8 sm:p-12 lg:p-16 relative z-10 flex flex-col justify-center min-h-screen py-12 items-center">
+          
+          {/* Mobile logo */}
+          <div className="lg:hidden flex flex-col items-center text-center mb-10">
+            <div className="w-16 h-16 rounded-3xl gradient-primary flex items-center justify-center shadow-2xl shadow-primary-500/30 mb-6">
+              <MdRestaurantMenu className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-3xl font-black tracking-tight mb-2">Uni<span className="text-primary-500">Feast</span></h1>
+            <p className="text-xs uppercase tracking-widest text-surface-500 font-bold">IIIT Nagpur</p>
+          </div>
+
+          <div className="mb-10 relative text-center w-full">
+            {step === 2 && (
+              <button 
+                type="button"
+                onClick={() => setStep(1)}
+                className="absolute -top-12 left-1/2 -translate-x-1/2 lg:-left-12 lg:-top-2 lg:translate-x-0 p-3 hover:bg-white/5 rounded-full text-surface-400 hover:text-white transition-colors"
+              >
+                <MdArrowBack size={24} />
+              </button>
+            )}
+            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-white tracking-tight">
+               {step === 1 ? 'Create Account' : 'Verify Email'}
+            </h2>
+            <p className="text-surface-400 font-medium text-lg">
+               {step === 1 ? 'Join the smartest canteen network.' : 'Enter the verification OTP sent to your email.'}
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6 flex-1 lg:flex-none w-full max-w-md">
+            <AnimatePresence mode="wait">
+              {step === 1 && (
+                  <motion.div 
+                    key="step1"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="space-y-6"
+                  >
+                      <div className="text-left">
+                        <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Full Name</label>
+                        <input name="name" value={form.name} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center" placeholder="John Doe" required />
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="text-left">
+                          <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Email Address</label>
+                          <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center" placeholder="you@gmail.com" required />
+                        </div>
+                        <div className="text-left">
+                          <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Phone</label>
+                          <input name="phone" type="tel" value={form.phone} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center" placeholder="9876543210" />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <div className="text-left">
+                          <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Password</label>
+                          <input name="password" type="password" value={form.password} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center tracking-widest" placeholder="••••••••" required minLength={6} />
+                        </div>
+                        <div className="text-left">
+                          <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Confirm Password</label>
+                          <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center tracking-widest" placeholder="••••••••" required />
+                        </div>
+                      </div>
+                  </motion.div>
+              )}
+
+              {step === 2 && (
+                  <motion.div 
+                    key="step2"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="space-y-6"
+                  >
+                    <div>
+                      <label className="block text-sm font-bold text-surface-300 mb-4 ml-1 text-center">One-Time Password</label>
+                      <input
+                        type="text"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value)}
+                        className="input-field py-6 text-center text-4xl tracking-[0.5em] font-black w-full bg-[#121214] border-surface-800 text-primary-400 focus:border-primary-500"
+                        placeholder="000000"
+                        maxLength={6}
+                        required
+                      />
+                    </div>
+                  </motion.div>
+              )}
+            </AnimatePresence>
+
+            <button type="submit" disabled={loading} className="btn-primary w-full py-4 text-lg rounded-xl mt-8 h-[60px]">
+              {loading ? 'Processing...' : (step === 1 ? 'Continue' : 'Complete Registration')}
+            </button>
+          </form>
+
+          {step === 1 && (
+              <div className="mt-12 text-center pt-6 border-t border-white/5 w-full max-w-md">
+                <p className="text-surface-400 font-medium text-base">
+                    Already have an account?{' '}
+                    <Link to="/login" className="text-primary-500 hover:text-primary-400 font-black transition-colors underline decoration-primary-500/30 underline-offset-4">
+                      Sign in
+                    </Link>
+                </p>
+              </div>
+          )}
+        </div>
+      </motion.div>
     </div>
   );
 }

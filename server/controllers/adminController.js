@@ -1,6 +1,7 @@
 const User = require('../models/User');
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
+const Settings = require('../models/Settings');
 
 // @desc    Get all users (admin only)
 // @route   GET /api/admin/users
@@ -82,8 +83,9 @@ exports.getDashboardStats = async (req, res) => {
       User.countDocuments(),
       MenuItem.countDocuments(),
       Order.countDocuments({ createdAt: { $gte: today, $lt: tomorrow } }),
+      // Revenue = only COMPLETED orders (recognized on completion)
       Order.aggregate([
-        { $match: { createdAt: { $gte: today, $lt: tomorrow }, status: { $ne: 'cancelled' } } },
+        { $match: { createdAt: { $gte: today, $lt: tomorrow }, status: 'completed' } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } },
       ]),
       Order.aggregate([
@@ -112,6 +114,40 @@ exports.getDashboardStats = async (req, res) => {
         }, {}),
       },
     });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get canteen live status
+// @route   GET /api/admin/canteen-status
+exports.getCanteenStatus = async (req, res) => {
+  try {
+    const isLive = await Settings.getCanteenStatus();
+    res.json({ success: true, data: { isLive } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Toggle canteen live status
+// @route   PATCH /api/admin/canteen-status
+exports.toggleCanteenStatus = async (req, res) => {
+  try {
+    const { isLive } = req.body;
+    if (typeof isLive !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'isLive must be a boolean' });
+    }
+
+    await Settings.setCanteenStatus(isLive, req.user.id);
+
+    // Broadcast to ALL connected clients via socket
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('canteen-status', { isLive });
+    }
+
+    res.json({ success: true, data: { isLive } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

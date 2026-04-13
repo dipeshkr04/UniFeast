@@ -22,11 +22,12 @@ export function CartProvider({ children }) {
     setItems(prev => {
       const existing = prev.find(i => i.menuItem._id === menuItem._id);
       if (existing) {
-        return prev.map(i =>
+        const updated = prev.map(i =>
           i.menuItem._id === menuItem._id
             ? { ...i, quantity: i.quantity + quantity }
             : i
         );
+        return updated.filter(i => i.quantity > 0);
       }
       return [...prev, { menuItem, quantity }];
     });

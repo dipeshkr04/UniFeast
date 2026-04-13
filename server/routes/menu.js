@@ -16,7 +16,7 @@ router.get('/', getMenuItems);
 router.get('/:id', getMenuItem);
 router.post('/', protect, authorize('admin', 'kitchen'), upload.single('image'), createMenuItem);
 router.put('/:id', protect, authorize('admin', 'kitchen'), upload.single('image'), updateMenuItem);
-router.delete('/:id', protect, authorize('admin'), deleteMenuItem);
+router.delete('/:id', protect, authorize('admin', 'kitchen'), deleteMenuItem);
 router.patch('/:id/toggle', protect, authorize('admin', 'kitchen'), toggleAvailability);
 
 module.exports = router;

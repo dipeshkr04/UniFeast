@@ -134,7 +134,7 @@ async function calculateETA(itemPrepTime, activeStations = 3, currentPendingOrde
   
   if (rho >= 1) {
     // System is overloaded — use a simple estimate
-    const queuePosition = currentPendingOrders || await getPendingOrderCount();
+    const queuePosition = currentPendingOrders ?? await getPendingOrderCount();
     const eta = (queuePosition / c) * itemPrepTime + itemPrepTime;
     return {
       eta: Math.round(eta),
@@ -205,13 +205,13 @@ async function recalculateAllETAs(activeStations = 3) {
   for (let i = 0; i < activeOrders.length; i++) {
     const order = activeOrders[i];
     
-    // Calculate average prep time for this order's items
-    const avgPrepTime = order.items.reduce((sum, item) => {
+    // Use the longest item's prep time as the bottleneck for this order
+    const maxPrepTime = order.items.reduce((max, item) => {
       const prepTime = item.menuItem?.prepTime || 10;
-      return sum + prepTime * item.quantity;
-    }, 0) / Math.max(order.items.reduce((sum, item) => sum + item.quantity, 0), 1);
+      return Math.max(max, prepTime);
+    }, 0);
     
-    const etaResult = await calculateETA(avgPrepTime, activeStations, i);
+    const etaResult = await calculateETA(maxPrepTime, activeStations, i);
     
     order.estimatedTime = etaResult.eta;
     order.estimatedReadyAt = new Date(Date.now() + etaResult.eta * 60 * 1000);

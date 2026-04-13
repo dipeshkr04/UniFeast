@@ -98,6 +98,8 @@ export const adminAPI = {
   updateRole: (id, role) => api.patch(`/admin/users/${id}/role`, { role }),
   deleteUser: (id) => api.delete(`/admin/users/${id}`),
   getStats: () => api.get('/admin/stats'),
+  getCanteenStatus: () => api.get('/admin/canteen-status'),
+  toggleCanteenStatus: (isLive) => api.patch('/admin/canteen-status', { isLive }),
 };
 
 export default api;

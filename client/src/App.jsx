@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { SocketProvider } from './contexts/SocketContext';
 import { CartProvider } from './contexts/CartContext';
 import Layout from './components/common/Layout';
+import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import MenuPage from './pages/MenuPage';
@@ -17,25 +18,28 @@ import MenuManage from './pages/MenuManage';
 
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-surface-400">Loading...</p>
-      </div>
-    </div>
-  );
-  if (!user) return <Navigate to="/login" replace />;
+  if (loading) return null; // Let AppRoutes handle global loading
+  if (!user) return <Navigate to="/" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
 }
 
 function AppRoutes() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-surface-400 font-bold uppercase tracking-widest text-xs">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Determine home page based on role
   const getHomePage = () => {
-    if (!user) return <Navigate to="/login" replace />;
     switch (user.role) {
       case 'kitchen': return <KitchenDashboard />;
       case 'admin': return <AdminDashboard />;
@@ -43,14 +47,25 @@ function AppRoutes() {
     }
   };
 
+  // If user is NOT logged in, show Public routes (Landing Page, Login, Register)
+  if (!user) {
+    return (
+      <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    );
+  }
+
+  // If user IS logged in, show Protected App Routes
   return (
     <Routes>
-      {/* Public */}
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-      <Route path="/register" element={user ? <Navigate to="/" replace /> : <Register />} />
+      <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/register" element={<Navigate to="/" replace />} />
 
-      {/* Protected Routes */}
-      <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+      <Route path="/" element={<Layout />}>
         <Route index element={getHomePage()} />
 
         {/* Student Routes */}
@@ -82,17 +97,20 @@ export default function App() {
           <CartProvider>
             <AppRoutes />
             <Toaster
-              position="top-right"
+              position="top-center"
               toastOptions={{
                 style: {
-                  background: '#1e293b',
-                  color: '#f1f5f9',
-                  border: '1px solid rgba(148,163,184,0.15)',
-                  borderRadius: '12px',
+                  background: 'rgba(24,24,27,0.85)',
+                  backdropFilter: 'blur(16px)',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: '16px',
                   fontSize: '0.9rem',
+                  fontWeight: '600',
+                  boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
                 },
-                success: { iconTheme: { primary: '#10b981', secondary: '#1e293b' } },
-                error: { iconTheme: { primary: '#ef4444', secondary: '#1e293b' } },
+                success: { iconTheme: { primary: '#10b981', secondary: '#18181b' } },
+                error: { iconTheme: { primary: '#ff4714', secondary: '#18181b' } },
               }}
             />
           </CartProvider>

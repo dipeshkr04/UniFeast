@@ -2,7 +2,171 @@ const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const NutritionLog = require('../models/NutritionLog');
 const Settings = require('../models/Settings');
+const KitchenStock = require('../models/KitchenStock');
 const { calculateETA, recalculateAllETAs } = require('../utils/queueEngine');
+
+function getItemRequestedQty(orderItem) {
+  return Number(orderItem.quantity || 0);
+}
+
+function getItemAssignedQty(orderItem) {
+  return Math.min(Number(orderItem.assignedReadyQty || 0), Number(orderItem.quantity || 0));
+}
+
+function isOrderFullyAssigned(order) {
+  return order.items.every((item) => getItemAssignedQty(item) >= getItemRequestedQty(item));
+}
+
+async function getAllocatedActiveQuantity(menuItemId) {
+  const activeOrders = await Order.find({
+    status: { $in: ['pending', 'queued', 'preparing', 'ready'] },
+    'items.menuItem': menuItemId,
+  }, { items: 1 });
+
+  return activeOrders.reduce((sum, order) => {
+    const item = order.items.find((x) => x.menuItem.toString() === menuItemId.toString());
+    return sum + (item ? getItemAssignedQty(item) : 0);
+  }, 0);
+}
+
+async function autoAllocateForMenuItem(menuItemId, app) {
+  const stock = await KitchenStock.findOne({ menuItem: menuItemId });
+  if (!stock || stock.madeQuantity <= 0) return [];
+
+  const allocatedActive = await getAllocatedActiveQuantity(menuItemId);
+  let availableToAllocate = Math.max(0, stock.madeQuantity - allocatedActive);
+  if (availableToAllocate <= 0) return [];
+
+  const waitingOrders = await Order.find({
+    status: { $in: ['pending', 'queued', 'preparing', 'ready'] },
+    'items.menuItem': menuItemId,
+  }).sort({ createdAt: 1 });
+
+  const touchedOrders = [];
+  for (const order of waitingOrders) {
+    const item = order.items.find((x) => x.menuItem.toString() === menuItemId.toString());
+    if (!item) continue;
+
+    const need = Math.max(0, getItemRequestedQty(item) - getItemAssignedQty(item));
+    if (need <= 0) continue;
+
+    const assign = Math.min(need, availableToAllocate);
+    item.assignedReadyQty = getItemAssignedQty(item) + assign;
+    availableToAllocate -= assign;
+
+    if (isOrderFullyAssigned(order) && order.status !== 'ready') {
+      order.status = 'ready';
+      order.statusHistory.push({ status: 'ready', timestamp: new Date() });
+    }
+
+    touchedOrders.push(order);
+    if (availableToAllocate <= 0) break;
+  }
+
+  if (touchedOrders.length === 0) return [];
+
+  await Promise.all(touchedOrders.map((o) => o.save()));
+
+  const populatedTouched = await Promise.all(
+    touchedOrders.map((o) => Order.findById(o._id)
+      .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+      .populate('user', 'name email'))
+  );
+
+  if (app?.get('socketHandlers')) {
+    const handlers = app.get('socketHandlers');
+    populatedTouched.forEach((order) => {
+      handlers.notifyOrderUpdate(order.user._id.toString(), {
+        orderId: order._id,
+        status: order.status,
+        estimatedTime: order.estimatedTime,
+      });
+    });
+    handlers.notifyQueueStats();
+  }
+
+  return populatedTouched;
+}
+
+async function consumeMadeStockForCompletedOrder(order) {
+  const updates = order.items.map((item) => ({
+    updateOne: {
+      filter: { menuItem: item.menuItem },
+      update: { $inc: { madeQuantity: -Number(item.quantity || 0) } },
+    },
+  }));
+
+  if (updates.length) {
+    await KitchenStock.bulkWrite(updates, { ordered: true });
+    await KitchenStock.updateMany(
+      { madeQuantity: { $lt: 0 } },
+      { $set: { madeQuantity: 0 } }
+    );
+  }
+}
+
+async function buildKitchenStockSummary() {
+  const [stocks, activeOrders] = await Promise.all([
+    KitchenStock.find({ madeQuantity: { $gt: 0 } }).populate('menuItem', 'name category'),
+    Order.find({ status: { $in: ['pending', 'queued', 'preparing', 'ready'] } })
+      .populate('items.menuItem', 'name category')
+      .select('items'),
+  ]);
+
+  const waitingMap = new Map();
+  const assignedMap = new Map();
+  const menuMeta = new Map();
+
+  for (const order of activeOrders) {
+    for (const item of order.items) {
+      const id = item.menuItem?._id?.toString() || item.menuItem?.toString();
+      if (!id) continue;
+      const requested = getItemRequestedQty(item);
+      const assigned = getItemAssignedQty(item);
+      const waiting = Math.max(0, requested - assigned);
+
+      waitingMap.set(id, (waitingMap.get(id) || 0) + waiting);
+      assignedMap.set(id, (assignedMap.get(id) || 0) + assigned);
+
+      if (item.menuItem?.name) {
+        menuMeta.set(id, {
+          menuItemId: id,
+          name: item.menuItem.name,
+          category: item.menuItem.category,
+        });
+      }
+    }
+  }
+
+  for (const stock of stocks) {
+    const id = stock.menuItem?._id?.toString() || stock.menuItem?.toString();
+    if (!id) continue;
+    if (stock.menuItem?.name) {
+      menuMeta.set(id, {
+        menuItemId: id,
+        name: stock.menuItem.name,
+        category: stock.menuItem.category,
+      });
+    }
+  }
+
+  const summary = Array.from(menuMeta.values()).map((meta) => {
+    const madeQuantity = stocks.find((s) => (s.menuItem?._id?.toString() || s.menuItem?.toString()) === meta.menuItemId)?.madeQuantity || 0;
+    const allocatedQuantity = assignedMap.get(meta.menuItemId) || 0;
+    const waitingQuantity = waitingMap.get(meta.menuItemId) || 0;
+    return {
+      ...meta,
+      madeQuantity,
+      allocatedQuantity,
+      availableQuantity: Math.max(0, madeQuantity - allocatedQuantity),
+      waitingQuantity,
+    };
+  });
+
+  return summary
+    .filter((x) => x.madeQuantity > 0 || x.waitingQuantity > 0 || x.allocatedQuantity > 0)
+    .sort((a, b) => b.waitingQuantity - a.waitingQuantity || a.name.localeCompare(b.name));
+}
 
 // @desc    Create new order
 // @route   POST /api/orders
@@ -45,6 +209,7 @@ exports.createOrder = async (req, res) => {
         name: menuItem.name,
         price: menuItem.price,
         quantity,
+        assignedReadyQty: 0,
       });
     }
 
@@ -60,6 +225,9 @@ exports.createOrder = async (req, res) => {
       specialInstructions,
       statusHistory: [{ status: 'pending', timestamp: new Date() }],
     });
+
+    const distinctMenuItemIds = [...new Set(orderItems.map((i) => i.menuItem.toString()))];
+    await Promise.all(distinctMenuItemIds.map((id) => autoAllocateForMenuItem(id, req.app)));
 
     // Populate for response
     const populatedOrder = await Order.findById(order._id)
@@ -112,7 +280,7 @@ exports.getAllOrders = async (req, res) => {
     
     if (status) {
       filter.status = status === 'active' 
-        ? { $in: ['pending', 'queued', 'preparing'] }
+        ? { $in: ['pending', 'queued', 'preparing', 'ready'] }
         : status;
     }
     if (date) {
@@ -154,7 +322,11 @@ exports.updateOrderStatus = async (req, res) => {
     order.statusHistory.push({ status, timestamp: new Date() });
     
     if (status === 'completed') {
+      if (!isOrderFullyAssigned(order)) {
+        return res.status(400).json({ success: false, message: 'Order cannot be completed until all items are fulfilled from made stock' });
+      }
       order.actualCompletionTime = new Date();
+      await consumeMadeStockForCompletedOrder(order);
       // Auto-log nutrition on completion
       await autoLogNutrition(order);
     }
@@ -183,6 +355,58 @@ exports.updateOrderStatus = async (req, res) => {
     res.json({ success: true, data: populatedOrder });
   } catch (error) {
     console.error('Update order status error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Add produced quantity and auto-allocate to oldest active orders
+// @route   POST /api/orders/kitchen/produce
+exports.addProducedStock = async (req, res) => {
+  try {
+    const { menuItemId, quantity } = req.body;
+    const parsedQty = Number(quantity);
+
+    if (!menuItemId || !Number.isFinite(parsedQty) || parsedQty <= 0) {
+      return res.status(400).json({ success: false, message: 'menuItemId and positive quantity are required' });
+    }
+
+    const menuItem = await MenuItem.findById(menuItemId);
+    if (!menuItem) {
+      return res.status(404).json({ success: false, message: 'Menu item not found' });
+    }
+
+    await KitchenStock.findOneAndUpdate(
+      { menuItem: menuItemId },
+      { $inc: { madeQuantity: parsedQty } },
+      { upsert: true, new: true }
+    );
+
+    const impactedOrders = await autoAllocateForMenuItem(menuItemId, req.app);
+    const stock = await buildKitchenStockSummary();
+
+    res.json({
+      success: true,
+      message: `${parsedQty} ${menuItem.name} marked as made`,
+      impactedOrders: impactedOrders.map((o) => ({
+        _id: o._id,
+        status: o.status,
+        user: o.user,
+      })),
+      stock,
+    });
+  } catch (error) {
+    console.error('Add produced stock error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get kitchen made/allocated stock summary
+// @route   GET /api/orders/kitchen/stock
+exports.getKitchenStock = async (req, res) => {
+  try {
+    const stock = await buildKitchenStockSummary();
+    res.json({ success: true, count: stock.length, data: stock });
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };

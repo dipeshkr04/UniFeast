@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { orderAPI, poolAPI } from '../api';
+import { menuAPI, orderAPI, poolAPI } from '../api';
 import { useSocket } from '../contexts/SocketContext';
 import { HiOutlineClock, HiOutlineRefresh, HiOutlineUserGroup } from 'react-icons/hi';
 import { MdRestaurantMenu } from 'react-icons/md';
@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 const statusConfig = {
   pending: { label: 'Pending', badgeClass: 'bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.2)]', icon: '⏳', next: 'preparing', nextLabel: 'Start Preparing', btnClass: 'btn-primary' },
   queued: { label: 'Queued', badgeClass: 'bg-blue-500/10 text-blue-500 border border-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.2)]', icon: '📋', next: 'preparing', nextLabel: 'Start Preparing', btnClass: 'btn-primary' },
-  preparing: { label: 'Preparing', badgeClass: 'bg-orange-500/10 text-orange-500 border border-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.2)]', icon: '👨‍🍳', next: 'ready', nextLabel: 'Mark Ready', btnClass: 'bg-green-600 hover:bg-green-500 text-white shadow-[0_8px_20px_rgba(22,163,74,0.3)]' },
+  preparing: { label: 'Preparing', badgeClass: 'bg-orange-500/10 text-orange-500 border border-orange-500/20 shadow-[0_0_10px_rgba(249,115,22,0.2)]', icon: '👨‍🍳', next: null },
   ready: { label: 'Ready', badgeClass: 'bg-green-500/10 text-green-500 border border-green-500/20 shadow-[0_0_10px_rgba(34,197,94,0.2)]', icon: '✅', next: 'completed', nextLabel: 'Complete Order', btnClass: 'bg-surface-700 hover:bg-surface-600' },
   completed: { label: 'Done', badgeClass: 'bg-surface-500/10 text-surface-400 border border-surface-500/20', icon: '🎉', next: null },
   cancelled: { label: 'Cancelled', badgeClass: 'bg-red-500/10 text-red-500 border border-red-500/20', icon: '❌', next: null },
@@ -20,9 +20,15 @@ export default function KitchenDashboard() {
   const [orders, setOrders] = useState([]);
   const [stats, setStats] = useState({});
   const [loadingOrders, setLoadingOrders] = useState(true);
-  const [filter, setFilter] = useState('active');
+  const [filter] = useState('active');
   const [pools, setPools] = useState([]);
   const [loadingPools, setLoadingPools] = useState(true);
+  const [completedOrders, setCompletedOrders] = useState([]);
+  const [stockRows, setStockRows] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [productionItemId, setProductionItemId] = useState('');
+  const [productionQty, setProductionQty] = useState(1);
+  const [submittingProduction, setSubmittingProduction] = useState(false);
   const [, setTick] = useState(0);
   const { socket } = useSocket() || {};
   const tabRef = useRef(tab);
@@ -41,25 +47,47 @@ export default function KitchenDashboard() {
   const fetchOrders = useCallback(async () => {
     setLoadingOrders(true);
     try {
-      const [ordersRes, statsRes] = await Promise.all([
+      const [ordersRes, completedRes, statsRes, stockRes] = await Promise.all([
         orderAPI.getAll({ status: filterRef.current }),
+        orderAPI.getAll({ status: 'completed', limit: 30 }),
         orderAPI.getStats(),
+        orderAPI.getKitchenStock(),
       ]);
       setOrders(ordersRes.data.data);
+      setCompletedOrders(completedRes.data.data || []);
       setStats(statsRes.data.data);
-    } catch (err) {
+      setStockRows(stockRes.data.data || []);
+    } catch {
       toast.error('Failed to load orders');
     } finally {
       setLoadingOrders(false);
     }
   }, []);
 
+  const fetchProductionMeta = useCallback(async () => {
+    try {
+      const [menuRes, stockRes] = await Promise.all([
+        menuAPI.getAll({ available: true }),
+        orderAPI.getKitchenStock(),
+      ]);
+      const items = menuRes.data.data || [];
+      setMenuItems(items);
+      setStockRows(stockRes.data.data || []);
+      if (!productionItemId && items.length > 0) {
+        const preferred = items.find((x) => x.name?.toLowerCase().includes('chai')) || items[0];
+        setProductionItemId(preferred._id);
+      }
+    } catch {
+      toast.error('Failed to load kitchen stock data');
+    }
+  }, [productionItemId]);
+
   const fetchPools = useCallback(async () => {
     setLoadingPools(true);
     try {
       const { data } = await poolAPI.getActive();
       setPools(data.data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load pools');
     } finally {
       setLoadingPools(false);
@@ -71,6 +99,10 @@ export default function KitchenDashboard() {
     if (tab === 'orders') fetchOrders();
     if (tab === 'pools') fetchPools();
   }, [tab, filter, fetchOrders, fetchPools]);
+
+  useEffect(() => {
+    fetchProductionMeta();
+  }, [fetchProductionMeta]);
 
   // ── 1-second tick for live countdown timers ──────────────────
   useEffect(() => {
@@ -84,7 +116,17 @@ export default function KitchenDashboard() {
       fetchStats();
       // Also refresh the active tab silently
       if (tabRef.current === 'orders') {
-        orderAPI.getAll({ status: filterRef.current }).then(r => setOrders(r.data.data)).catch(() => {});
+        Promise.all([
+          orderAPI.getAll({ status: filterRef.current }),
+          orderAPI.getAll({ status: 'completed', limit: 30 }),
+          orderAPI.getKitchenStock(),
+        ])
+          .then(([ordersResp, completedResp, stockResp]) => {
+            setOrders(ordersResp.data.data);
+            setCompletedOrders(completedResp.data.data || []);
+            setStockRows(stockResp.data.data || []);
+          })
+          .catch(() => {});
       } else {
         poolAPI.getActive().then(r => setPools(r.data.data)).catch(() => {});
       }
@@ -148,7 +190,27 @@ export default function KitchenDashboard() {
       // Immediately refresh both orders AND stats so revenue updates in real-time
       await fetchOrders();
     } catch (err) {
-      toast.error('Update failed');
+      toast.error(err.response?.data?.message || 'Update failed');
+    }
+  };
+
+  const handleAddProduced = async () => {
+    if (!productionItemId || Number(productionQty) <= 0) {
+      toast.error('Select an item and add a valid quantity');
+      return;
+    }
+
+    setSubmittingProduction(true);
+    try {
+      const qty = Number(productionQty);
+      const { data } = await orderAPI.addProducedStock(productionItemId, qty);
+      setStockRows(data.stock || []);
+      toast.success(data.message || 'Stock updated');
+      await fetchOrders();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not add produced quantity');
+    } finally {
+      setSubmittingProduction(false);
     }
   };
   
@@ -169,6 +231,36 @@ export default function KitchenDashboard() {
     const secs = Math.floor((diff % 60000) / 1000);
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  const groupedDemand = Object.values(
+    orders.reduce((acc, order) => {
+      order.items.forEach((item) => {
+        const key = item.menuItem?._id || item.menuItem || item.name;
+        if (!acc[key]) {
+          acc[key] = {
+            key,
+            itemName: item.name || item.menuItem?.name || 'Menu Item',
+            totalQty: 0,
+            orders: [],
+          };
+        }
+
+        acc[key].totalQty += Number(item.quantity || 0);
+        acc[key].orders.push({
+          orderId: order._id,
+          studentName: order.user?.name || 'Student',
+          quantity: Number(item.quantity || 0),
+          status: order.status,
+        });
+      });
+      return acc;
+    }, {})
+  ).sort((a, b) => b.totalQty - a.totalQty || a.itemName.localeCompare(b.itemName));
+
+  const getItemsSummary = (order) =>
+    order.items
+      .map((item) => `${item.quantity}x ${item.name || item.menuItem?.name}`)
+      .join(', ');
 
   return (
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
@@ -206,17 +298,16 @@ export default function KitchenDashboard() {
       <AnimatePresence mode="wait">
         {tab === 'orders' ? (
           <motion.div key="orders" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
-            {/* Stats Dashboard */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: "Today's Orders", value: stats.todayOrders || 0, color: 'from-blue-600/20 to-blue-900/20 border-blue-500/30 text-blue-400' },
-                { label: 'Revenue Generated', value: `₹${stats.todayRevenue || 0}`, color: 'from-green-600/20 to-green-900/20 border-green-500/30 text-green-400' },
-                { label: 'Avg Prep Cycle', value: `${stats.avgPrepTime || 0} min`, color: 'from-purple-600/20 to-purple-900/20 border-purple-500/30 text-purple-400' },
-                { label: 'Pending Processing', value: stats.statusBreakdown?.pending || 0, color: 'from-orange-600/20 to-orange-900/20 border-orange-500/30 text-orange-400' },
+                { label: 'Active Orders', value: orders.length, color: 'from-blue-600/20 to-blue-900/20 border-blue-500/30 text-blue-400' },
+                { label: 'Completed Today', value: stats.statusBreakdown?.completed || 0, color: 'from-green-600/20 to-green-900/20 border-green-500/30 text-green-400' },
+                { label: 'Pending Queue', value: stats.statusBreakdown?.pending || 0, color: 'from-orange-600/20 to-orange-900/20 border-orange-500/30 text-orange-400' },
+                { label: 'Preparing Now', value: stats.statusBreakdown?.preparing || 0, color: 'from-purple-600/20 to-purple-900/20 border-purple-500/30 text-purple-400' },
               ].map((s, i) => (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
-                  key={s.label} className={`glass-card bg-gradient-to-br ${s.color} border shadow-xl flex flex-col justify-center min-h-[140px]`}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
+                  key={s.label} className={`glass-card bg-gradient-to-br ${s.color} border shadow-xl flex flex-col justify-center min-h-[120px]`}
                 >
                   <p className="text-3xl font-black drop-shadow-md mb-2">{s.value}</p>
                   <p className="text-[10px] uppercase tracking-widest font-bold opacity-80">{s.label}</p>
@@ -224,99 +315,158 @@ export default function KitchenDashboard() {
               ))}
             </div>
 
-            {/* Order Pipelines Filters */}
-            <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-none">
-              {[
-                { key: 'active', label: '🔥 All Active' },
-                { key: 'pending', label: '⏳ Pending' },
-                { key: 'preparing', label: '👨‍🍳 Preparing' },
-                { key: 'ready', label: '✅ Ready' }
-              ].map(f => (
-                <button
-                  key={f.key}
-                  onClick={() => setFilter(f.key)}
-                  className={`px-6 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all
-                    ${filter === f.key ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'bg-[#18181b] text-surface-400 hover:text-white border border-surface-800'}`}
+            <div className="glass-card bg-[#0c0c0e] border border-surface-800 p-5 lg:p-6 space-y-5">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-surface-400">Step 1</p>
+                <h3 className="text-lg font-black text-white mt-1">Add prepared quantity</h3>
+                <p className="text-xs text-surface-500 mt-1">Enter how many units are made. System auto-allocates to oldest orders.</p>
+              </div>
+
+              <div className="grid md:grid-cols-[2fr_1fr_auto] gap-3">
+                <select
+                  value={productionItemId}
+                  onChange={(e) => setProductionItemId(e.target.value)}
+                  className="bg-surface-900 border border-surface-700 rounded-xl px-4 h-12 text-sm font-semibold text-white"
                 >
-                  {f.label}
+                  {menuItems.map((item) => (
+                    <option key={item._id} value={item._id}>{item.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="1"
+                  value={productionQty}
+                  onChange={(e) => setProductionQty(e.target.value)}
+                  className="bg-surface-900 border border-surface-700 rounded-xl px-4 h-12 text-sm font-semibold text-white"
+                />
+                <button
+                  onClick={handleAddProduced}
+                  disabled={submittingProduction}
+                  className="h-12 px-5 rounded-xl bg-primary-500 hover:bg-primary-400 text-white text-sm font-black tracking-wide disabled:opacity-60"
+                >
+                  {submittingProduction ? 'Adding...' : 'Add Made Qty'}
                 </button>
-              ))}
+              </div>
+
+              <div className="grid sm:grid-cols-2 xl:grid-cols-4 gap-3">
+                {stockRows.slice(0, 8).map((row) => (
+                  <div key={row.menuItemId} className="rounded-xl border border-white/10 bg-[#111114] p-3">
+                    <p className="text-xs font-bold text-surface-300 truncate">{row.name}</p>
+                    <div className="mt-2 space-y-1 text-[11px] font-semibold text-surface-400">
+                      <p>Made: <span className="text-white">{row.madeQuantity}</span></p>
+                      <p>Allocated: <span className="text-blue-400">{row.allocatedQuantity}</span></p>
+                      <p>Waiting: <span className="text-amber-400">{row.waitingQuantity}</span></p>
+                      <p>Free: <span className="text-green-400">{row.availableQuantity}</span></p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* Order Cards Grid */}
             {loadingOrders ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {[1,2,3].map(i => <div key={i} className="skeleton h-64 rounded-3xl" />)}
+              <div className="grid md:grid-cols-2 gap-6">
+                {[1, 2].map(i => <div key={i} className="skeleton h-64 rounded-3xl" />)}
               </div>
             ) : orders.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-32 glass-card bg-[#09090b]/40 border border-white/5">
                 <span className="text-6xl mb-6 grayscale opacity-50">🍳</span>
-                <p className="text-2xl font-black text-white">Pipeline is clear</p>
-                <p className="text-surface-400 mt-2 font-medium">No active orders in this segment right now.</p>
+                <p className="text-2xl font-black text-white">No active orders</p>
+                <p className="text-surface-400 mt-2 font-medium">New orders will show here automatically.</p>
               </div>
             ) : (
-              <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-6 stagger-children">
-                <AnimatePresence>
-                  {orders.map(order => {
-                    const cfg = statusConfig[order.status] || statusConfig.pending;
-                    return (
-                      <motion.div 
-                        layout initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-                        key={order._id} className="glass-card flex flex-col justify-between border border-surface-800 hover:border-surface-600 bg-[#0c0c0e] p-6 lg:p-8 relative overflow-hidden"
-                      >
-                        {/* Status glow orb */}
-                        <div className={`absolute -right-10 -top-10 w-32 h-32 rounded-full blur-[60px] opacity-20 pointer-events-none ${cfg.badgeClass.split(' ')[0]}`} />
-                        
-                        <div>
-                          <div className="flex items-start justify-between gap-4 mb-6">
-                            <div>
-                               <div className="flex items-center gap-2 mb-3">
-                                 <span className={`px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-md ${cfg.badgeClass}`}>
-                                   {cfg.icon} {cfg.label}
-                                 </span>
-                                 {order.isPooled && <span className="px-3 py-1 text-[10px] font-black uppercase tracking-wider rounded-md bg-info/10 text-blue-400 border border-info/30">🤝 Pooled</span>}
-                               </div>
-                               <p className="text-xl font-black text-white">{order.user?.name}</p>
-                               <p className="text-xs font-bold text-surface-500 uppercase tracking-widest mt-1">ORDER #{order._id.slice(-6)} • {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} • {new Date(order.createdAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</p>
+              <div className="grid xl:grid-cols-2 gap-6">
+                <div className="glass-card bg-[#0c0c0e] border border-surface-800 p-5 lg:p-6">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-surface-400">Step 2</p>
+                  <h3 className="text-lg font-black text-white mt-1 mb-4">What to cook now</h3>
+
+                  <div className="space-y-3 max-h-[430px] overflow-y-auto pr-1">
+                    {groupedDemand.length === 0 ? (
+                      <p className="text-sm text-surface-500">No active demand.</p>
+                    ) : groupedDemand.map((group) => (
+                      <div key={group.key} className="rounded-xl border border-white/10 bg-[#111114] p-3">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-black text-white">{group.itemName}</p>
+                          <span className="text-xs font-black bg-primary-500/20 text-primary-300 px-2 py-1 rounded-md">Total: {group.totalQty}</span>
+                        </div>
+                        <div className="mt-2 space-y-1">
+                          {group.orders.slice(0, 6).map((entry) => (
+                            <div key={`${group.key}-${entry.orderId}-${entry.studentName}`} className="text-xs text-surface-300 flex justify-between gap-2">
+                              <span className="truncate">{entry.studentName}</span>
+                              <span className="font-bold">{entry.quantity}</span>
                             </div>
-                            <div className="text-right flex flex-col items-end shrink-0">
-                               <p className="text-2xl font-black text-primary-400 mb-1">₹{order.totalAmount}</p>
-                               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface-900 border border-surface-800 text-xs font-bold text-surface-300 shadow-inner">
-                                 <HiOutlineClock className="w-4 h-4 text-amber-500" /> ETA: {order.estimatedTime}m
-                               </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="glass-card bg-[#0c0c0e] border border-surface-800 p-5 lg:p-6">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-surface-400">Step 3</p>
+                  <h3 className="text-lg font-black text-white mt-1 mb-4">Order checklist</h3>
+
+                  <div className="space-y-3 max-h-[430px] overflow-y-auto pr-1">
+                    {orders.map((order) => {
+                      const cfg = statusConfig[order.status] || statusConfig.pending;
+                      return (
+                        <div key={order._id} className="rounded-xl border border-white/10 bg-[#111114] p-3">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="text-sm font-black text-white truncate">{order.user?.name} • #{order._id.slice(-6)}</p>
+                              <p className="text-xs text-surface-400 mt-1 line-clamp-2">{getItemsSummary(order)}</p>
                             </div>
+                            <span className={`px-2 py-1 text-[10px] font-black uppercase rounded-md shrink-0 ${cfg.badgeClass}`}>{cfg.label}</span>
                           </div>
 
-                          <div className="bg-[#121214] rounded-2xl p-4 mb-6 border border-white/5 shadow-inner">
-                            <p className="text-[10px] uppercase tracking-[0.2em] font-bold text-surface-500 mb-3 ml-1">Receipt</p>
-                            <div className="space-y-3">
-                              {order.items.map((item, i) => (
-                                <div key={i} className="flex justify-between items-center bg-[#18181b] p-3 rounded-xl border border-white/5">
-                                  <span className="text-sm font-bold text-surface-200">{item.name || item.menuItem?.name}</span>
-                                  <span className="text-xs font-black bg-surface-800 px-2 py-1 rounded-md">x{item.quantity}</span>
-                                </div>
-                              ))}
-                            </div>
-                            {order.specialInstructions && (
-                              <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs font-medium text-amber-300/90 leading-relaxed">
-                                <span className="font-bold text-amber-500">NOTE:</span> {order.specialInstructions}
-                              </div>
+                          <div className="mt-3 flex gap-2">
+                            {(order.status === 'pending' || order.status === 'queued') && (
+                              <button
+                                onClick={() => handleStatusUpdate(order._id, 'preparing')}
+                                className="px-3 py-2 rounded-lg text-xs font-black bg-primary-500 text-white"
+                              >
+                                Start Cooking
+                              </button>
+                            )}
+
+                            {order.status === 'ready' && (
+                              <button
+                                onClick={() => handleStatusUpdate(order._id, 'completed')}
+                                className="px-3 py-2 rounded-lg text-xs font-black bg-green-600 hover:bg-green-500 text-white"
+                              >
+                                Checkmark Completed
+                              </button>
+                            )}
+
+                            {order.status === 'preparing' && (
+                              <span className="px-3 py-2 rounded-lg text-xs font-black bg-orange-500/15 text-orange-400 border border-orange-500/30">
+                                Cooking in progress
+                              </span>
                             )}
                           </div>
                         </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-                        {cfg.next && (
-                          <button
-                            onClick={() => handleStatusUpdate(order._id, cfg.next)}
-                            className={`w-full py-4 rounded-xl text-sm font-black tracking-wide transition-all shadow-xl rounded-b-2xl rounded-t-lg border border-white/10 flex items-center justify-center gap-2 ${cfg.btnClass}`}
-                          >
-                            {cfg.nextLabel}
-                          </button>
-                        )}
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
+                <div className="xl:col-span-2 glass-card bg-[#0c0c0e] border border-surface-800 p-5 lg:p-6">
+                  <p className="text-xs font-black uppercase tracking-[0.2em] text-surface-400">Completed Orders</p>
+                  <h3 className="text-lg font-black text-white mt-1 mb-4">Recently completed</h3>
+
+                  <div className="space-y-2 max-h-[280px] overflow-y-auto pr-1">
+                    {completedOrders.length === 0 ? (
+                      <p className="text-sm text-surface-500">No completed orders yet.</p>
+                    ) : completedOrders.map((order) => (
+                      <div key={order._id} className="rounded-xl border border-white/10 bg-[#111114] px-3 py-2 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{order.user?.name} • #{order._id.slice(-6)}</p>
+                          <p className="text-xs text-surface-400 truncate">{getItemsSummary(order)}</p>
+                        </div>
+                        <span className="text-xs text-surface-400 shrink-0">{new Date(order.updatedAt || order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </motion.div>

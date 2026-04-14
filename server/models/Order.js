@@ -14,6 +14,11 @@ const orderItemSchema = new mongoose.Schema({
     min: 1,
     default: 1,
   },
+  assignedReadyQty: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
   poolId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Pool',

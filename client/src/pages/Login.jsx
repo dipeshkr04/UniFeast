@@ -190,7 +190,7 @@ export default function Login() {
             <p className="text-[10px] text-surface-500 text-center mb-4 uppercase tracking-[0.2em] font-black">Demo Access</p>
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {[
-                { label: 'Student', email: 'shubhgoel@gmail.com', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/50' },
+                { label: 'Student', email: 'student@iiit.ac.in', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/50' },
                 { label: 'Kitchen', email: 'kitchen@iiit.ac.in', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-500/50' },
                 { label: 'Admin', email: 'admin@iiit.ac.in', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/50' },
               ].map(({ label, email: e, color }) => (

@@ -68,6 +68,8 @@ export const orderAPI = {
   getOne: (id) => api.get(`/orders/${id}`),
   updateStatus: (id, status) => api.patch(`/orders/${id}/status`, { status }),
   getStats: () => api.get('/orders/stats/summary'),
+  getKitchenStock: () => api.get('/orders/kitchen/stock'),
+  addProducedStock: (menuItemId, quantity) => api.post('/orders/kitchen/produce', { menuItemId, quantity }),
 };
 
 // ─── Pool API ───────────────────────────────

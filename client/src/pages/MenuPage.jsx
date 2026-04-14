@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { menuAPI, poolAPI } from '../api';
 import { useCart } from '../contexts/CartContext';
-import { HiOutlineSearch, HiOutlineClock, HiOutlineFire, HiPlus, HiMinus } from 'react-icons/hi';
+import { HiOutlineSearch, HiOutlineClock, HiOutlineFire, HiPlus, HiMinus, HiOutlineInformationCircle, HiOutlineX } from 'react-icons/hi';
 import { MdOutlineLocalDining } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { useAuth } from '../contexts/AuthContext';
+
+const COLORS = ['#e06449', '#facc15', '#3b82f6', '#10b981'];
 
 const categories = [
   { key: '', label: 'All', icon: '🍽️' },
@@ -20,7 +24,9 @@ export default function MenuPage() {
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
   const [pools, setPools] = useState({});
+  const [selectedItem, setSelectedItem] = useState(null);
   const { addItem, items: cartItems } = useCart();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchMenu();
@@ -178,20 +184,25 @@ export default function MenuPage() {
                     )}
                   </div>
 
-                  <div className="flex-1 flex flex-col justify-between">
+                    <div className="flex-1 flex flex-col justify-between">
                     <div>
                       <h3 className="text-xl font-black text-white leading-tight mb-2 group-hover:text-primary-400 transition-colors line-clamp-1">{item.name}</h3>
                       <p className="text-xs text-surface-400 leading-relaxed line-clamp-2 min-h-[2.5rem] font-medium">{item.description}</p>
 
-                      <div className="flex items-center gap-3 mt-4 mb-5">
-                        <div className="flex items-center gap-1.5 text-xs text-white font-bold bg-white/5 py-1 px-2.5 rounded-md border border-white/5">
+                      <div 
+                        onClick={() => setSelectedItem(item)}
+                        className="flex items-center gap-3 mt-4 mb-5 cursor-pointer group/nutri hover:bg-white/5 p-1 -ml-1 rounded-lg transition-colors"
+                        title="View detailed nutrition breakdown"
+                      >
+                        <div className="flex items-center gap-1.5 text-xs text-white font-bold bg-white/5 py-1 px-2.5 rounded-md border border-white/5 group-hover/nutri:border-primary-500/30 transition-colors">
                           <HiOutlineFire className="w-4 h-4 text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)]" />
                           <span>{item.nutrition?.calories || 0} kcal</span>
                         </div>
-                        <div className="text-[10px] text-surface-500 font-bold uppercase tracking-widest flex gap-2">
+                        <div className="text-[10px] text-surface-500 font-bold uppercase tracking-widest flex gap-2 items-center group-hover/nutri:text-surface-300 transition-colors">
                           <span>P:{item.nutrition?.protein || 0}</span>
                           <span>C:{item.nutrition?.carbs || 0}</span>
                           <span>F:{item.nutrition?.fat || 0}</span>
+                          <HiOutlineInformationCircle className="w-3.5 h-3.5 ml-1 text-primary-400 opacity-0 group-hover/nutri:opacity-100 transition-opacity" />
                         </div>
                       </div>
                     </div>
@@ -234,6 +245,132 @@ export default function MenuPage() {
           </AnimatePresence>
         </div>
       )}
+
+      {/* Nutrition Details Modal */}
+      <AnimatePresence>
+        {selectedItem && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+            onClick={() => setSelectedItem(null)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              onClick={e => e.stopPropagation()}
+              className="glass-card-static w-full max-w-md p-6 relative border border-surface-700/50 shadow-2xl overflow-hidden"
+            >
+              {/* Background gradient blur */}
+              <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-primary-500/20 rounded-full blur-3xl pointer-events-none" />
+
+              <button 
+                onClick={() => setSelectedItem(null)}
+                className="absolute top-4 right-4 p-2 rounded-xl bg-surface-800/50 hover:bg-surface-700 transition-colors text-surface-400 hover:text-white"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-16 h-16 rounded-2xl overflow-hidden bg-surface-900 flex-shrink-0 border border-white/5">
+                  {selectedItem.imageUrl ? (
+                    <img src={selectedItem.imageUrl} alt={selectedItem.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-3xl">🍲</div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white line-clamp-1">{selectedItem.name}</h3>
+                  <p className="text-sm font-medium text-surface-400 capitalize">{selectedItem.category}</p>
+                </div>
+              </div>
+
+              {/* Calorie Donut */}
+              <div className="glass-card-static p-4 mb-5 flex flex-col items-center relative border border-transparent shadow-inner">
+                <h4 className="text-[10px] font-bold text-surface-400 uppercase tracking-widest absolute top-4 left-4 z-10">Calories</h4>
+                <div className="h-36 w-36 relative mt-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie 
+                        data={[{ value: selectedItem.nutrition?.calories || 0 }]} 
+                        cx="50%" cy="50%" innerRadius={45} outerRadius={60} startAngle={90} endAngle={-270} 
+                        dataKey="value" stroke="none"
+                      >
+                        <Cell fill="url(#modalColorPie)" />
+                      </Pie>
+                      <defs>
+                        <linearGradient id="modalColorPie" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#e06449" stopOpacity={1} />
+                          <stop offset="95%" stopColor="#f59e0b" stopOpacity={1} />
+                        </linearGradient>
+                      </defs>
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <HiOutlineFire className="w-5 h-5 text-primary-400 drop-shadow-[0_0_5px_rgba(224,100,73,0.8)]" />
+                    <p className="text-2xl font-black text-white leading-none mt-1">{selectedItem.nutrition?.calories || 0}</p>
+                    <p className="text-[9px] font-bold text-surface-500 uppercase tracking-widest mt-1">kcal</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Macro Bars */}
+              <div className="space-y-4">
+                <h4 className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-1">Macronutrients vs Daily Goals</h4>
+                
+                {[
+                  { label: 'Protein', key: 'protein', color: COLORS[0], goal: user?.dailyProteinGoal || 50 },
+                  { label: 'Carbs', key: 'carbs', color: COLORS[1], goal: user?.dailyCarbGoal || 250 },
+                  { label: 'Fat', key: 'fat', color: COLORS[2], goal: user?.dailyFatGoal || 65 },
+                  { label: 'Fiber', key: 'fiber', color: COLORS[3], goal: user?.dailyFiberGoal || 30 },
+                ].map((macro) => {
+                  const val = selectedItem.nutrition?.[macro.key] || 0;
+                  const pct = Math.min(100, (val / macro.goal) * 100);
+                  
+                  return (
+                    <div key={macro.label}>
+                      <div className="flex justify-between items-end mb-1.5">
+                        <span className="text-xs font-semibold text-surface-200 flex items-center gap-2">
+                           <span className="w-2 h-2 rounded-full shadow-[0_0_5px_rgba(255,255,255,0.2)]" style={{ background: macro.color }} />
+                           {macro.label}
+                        </span>
+                        <div className="text-xs font-black text-white flex items-center gap-1.5">
+                          <span>{val}g</span>
+                          <span className="text-[10px] font-semibold text-surface-500 px-1.5 py-0.5 rounded bg-white/5 border border-white/5">{Math.round(pct)}%</span>
+                        </div>
+                      </div>
+                      <div className="h-2 bg-surface-800 rounded-full overflow-hidden shadow-inner flex">
+                        <motion.div 
+                          initial={{ width: 0 }}
+                          animate={{ width: `${pct}%` }}
+                          transition={{ duration: 0.8, ease: "easeOut", delay: 0.2 }}
+                          className="h-full rounded-full" 
+                          style={{ background: macro.color, boxShadow: `0 0 10px ${macro.color}80` }} 
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-8 pt-5 border-t border-surface-800 flex gap-3">
+                <button onClick={() => setSelectedItem(null)} className="btn-secondary flex-1 font-bold py-3 text-sm border border-surface-700/50">Close</button>
+                <button 
+                  onClick={() => {
+                    handleAddToCart(selectedItem);
+                    setSelectedItem(null);
+                  }} 
+                  className="btn-primary flex-1 flex justify-center items-center gap-2 font-bold py-3 text-sm shadow-[0_0_15px_rgba(255,71,20,0.3)] hover:shadow-[0_0_25px_rgba(255,71,20,0.5)] transition-shadow"
+                >
+                  <HiPlus className="w-4 h-4" /> Add to Cart — ₹{selectedItem.price}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

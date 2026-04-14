@@ -161,9 +161,9 @@ export default function NutritionPage() {
   };
 
   const macroData = [
-    { name: 'Protein', value: totals.protein, goal: goals.protein, unit: 'g', color: COLORS[0] },
-    { name: 'Carbs', value: totals.carbs, goal: goals.carbs, unit: 'g', color: COLORS[1] },
-    { name: 'Fat', value: totals.fat, goal: goals.fat, unit: 'g', color: COLORS[2] },
+    { name: 'Protein', value: Math.round((totals.protein || 0) * 100) / 100, goal: goals.protein, unit: 'g', color: COLORS[0] },
+    { name: 'Carbs', value: Math.round((totals.carbs || 0) * 100) / 100, goal: goals.carbs, unit: 'g', color: COLORS[1] },
+    { name: 'Fat', value: Math.round((totals.fat || 0) * 100) / 100, goal: goals.fat, unit: 'g', color: COLORS[2] },
   ];
 
   const pieData = macroData.filter(m => m.value > 0);
@@ -191,7 +191,7 @@ export default function NutritionPage() {
             <HiOutlineCog className="w-4 h-4" /> Goals
           </button>
           <button onClick={() => setShowLogForm(!showLogForm)} className="btn-primary flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 shadow-[0_0_15px_rgba(255,71,20,0.3)] hover:shadow-[0_0_25px_rgba(255,71,20,0.5)] transition-shadow">
-            <HiPlus className="w-4 h-4" /> Log Meal
+            <HiPlus className="w-4 h-4" /> {daily?.meals?.length > 0 ? "Add Another Meal" : "Log Meal"}
           </button>
         </div>
       </div>
@@ -510,7 +510,7 @@ export default function NutritionPage() {
                   {/* Calories & Macros */}
                   <div className="text-right flex-shrink-0">
                     <p className="font-bold text-surface-100">{meal.calories * qty} <span className="text-xs text-surface-400 font-normal">kcal</span></p>
-                    <p className="text-xs text-surface-400 mt-0.5">P:{(meal.protein * qty).toFixed(0)}g C:{(meal.carbs * qty).toFixed(0)}g F:{(meal.fat * qty).toFixed(0)}g</p>
+                    <p className="text-xs text-surface-400 mt-0.5">P:{Math.round(meal.protein * qty * 100) / 100}g C:{Math.round(meal.carbs * qty * 100) / 100}g F:{Math.round(meal.fat * qty * 100) / 100}g</p>
                   </div>
                 </div>
               );
@@ -522,15 +522,6 @@ export default function NutritionPage() {
           </div>
         )}
 
-        {/* Always-visible Add Meal row */}
-        <div className="p-4 border-t border-surface-800">
-          <button
-            onClick={() => setShowLogForm(true)}
-            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-dashed border-surface-600 text-surface-400 hover:border-primary-500 hover:text-primary-400 transition-colors"
-          >
-            <HiPlus className="w-5 h-5" /> Add another meal
-          </button>
-        </div>
       </div>
 
       {/* Goals Editor Modal */}

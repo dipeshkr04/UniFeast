@@ -85,10 +85,16 @@ export const poolAPI = {
 export const nutritionAPI = {
   getDaily: (date) => api.get(`/nutrition/daily/${date}`),
   getWeekly: () => api.get('/nutrition/weekly'),
+  getMonthly: () => api.get('/nutrition/monthly'),
+  updateGoals: (data) => api.put('/nutrition/goals', data),
+  analyzeImage: (formData) => api.post('/nutrition/analyze', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   logMeal: (data) => api.post('/nutrition/log', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   deleteMeal: (logId, mealId) => api.delete(`/nutrition/meal/${logId}/${mealId}`),
+  updateMealQuantity: (logId, mealId, quantity) => api.patch(`/nutrition/meal/${logId}/${mealId}/quantity`, { quantity }),
 };
 
 // ─── Admin API ──────────────────────────────

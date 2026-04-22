@@ -2,6 +2,7 @@ const User = require('../models/User');
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const Settings = require('../models/Settings');
+const { isRoleEmailAllowed } = require('../services/email-validation.service');
 
 // @desc    Get all users (admin only)
 // @route   GET /api/admin/users
@@ -33,15 +34,21 @@ exports.updateUserRole = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid role' });
     }
 
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { role },
-      { new: true }
-    ).select('-password');
+    const user = await User.findById(req.params.id).select('-password');
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+
+    if (!isRoleEmailAllowed(user.email, role)) {
+      return res.status(400).json({
+        success: false,
+        message: `Email ${user.email} is not allowed for ${role} role.`
+      });
+    }
+
+    user.role = role;
+    await user.save();
 
     res.json({ success: true, data: user });
   } catch (error) {

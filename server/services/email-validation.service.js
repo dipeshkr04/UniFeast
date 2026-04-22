@@ -2,9 +2,57 @@ const { resolveMx } = require('dns').promises;
 
 const BASIC_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_EMAIL_DOMAIN = String(process.env.ALLOWED_EMAIL_DOMAIN || 'iiitn.ac.in').trim().toLowerCase();
+const DEFAULT_ADMIN_ALLOWED_EMAILS = ['admin@iiitn.ac.in'];
+const DEFAULT_KITCHEN_ALLOWED_EMAILS = ['kitchen@iiitn.ac.in'];
+
+function parseEmailAllowlist(rawValue, fallbackList) {
+  const source = String(rawValue || '').trim();
+  const values = source
+    ? source.split(',').map((item) => normalizeEmail(item)).filter(Boolean)
+    : fallbackList;
+
+  return new Set(values);
+}
+
+const ADMIN_ALLOWED_EMAILS = parseEmailAllowlist(
+  process.env.ADMIN_ALLOWED_EMAILS,
+  DEFAULT_ADMIN_ALLOWED_EMAILS
+);
+const KITCHEN_ALLOWED_EMAILS = parseEmailAllowlist(
+  process.env.KITCHEN_ALLOWED_EMAILS,
+  DEFAULT_KITCHEN_ALLOWED_EMAILS
+);
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function getReservedRoleForEmail(email) {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (ADMIN_ALLOWED_EMAILS.has(normalizedEmail)) {
+    return 'admin';
+  }
+
+  if (KITCHEN_ALLOWED_EMAILS.has(normalizedEmail)) {
+    return 'kitchen';
+  }
+
+  return null;
+}
+
+function isRoleEmailAllowed(email, role) {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (role === 'admin') {
+    return ADMIN_ALLOWED_EMAILS.has(normalizedEmail);
+  }
+
+  if (role === 'kitchen') {
+    return KITCHEN_ALLOWED_EMAILS.has(normalizedEmail);
+  }
+
+  return true;
 }
 
 function validateInstitutionEmail(email) {
@@ -112,6 +160,9 @@ async function validateRegistrationEmail(email) {
 }
 
 module.exports = {
+  normalizeEmail,
   validateRegistrationEmail,
-  validateInstitutionEmail
+  validateInstitutionEmail,
+  getReservedRoleForEmail,
+  isRoleEmailAllowed
 };

@@ -4,7 +4,12 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const {OAuth2Client} = require('google-auth-library');
 const { sendLoginOtpEmail } = require('../services/mail.service');
-const { validateRegistrationEmail, validateInstitutionEmail } = require('../services/email-validation.service');
+const {
+    validateRegistrationEmail,
+    validateInstitutionEmail,
+    getReservedRoleForEmail,
+    isRoleEmailAllowed
+} = require('../services/email-validation.service');
 
 const authCookieOptions = {
   httpOnly: true,
@@ -36,7 +41,7 @@ function clearExpiredOtpAttempts() {
 async function requestRegisterOtp(req, res) {
     clearExpiredOtpAttempts();
 
-    const { name, email, password, role, phone } = req.body;
+    const { name, email, password, phone } = req.body;
     
     const emailValidation = await validateRegistrationEmail(email);
     if (!emailValidation.acceptable) {
@@ -44,6 +49,13 @@ async function requestRegisterOtp(req, res) {
     }
 
     const normalizedEmail = emailValidation.normalizedEmail;
+    const reservedRole = getReservedRoleForEmail(normalizedEmail);
+
+    if (reservedRole) {
+        return res.status(403).json({
+            message: `This email is reserved for ${reservedRole} access and cannot be used for student self-registration.`
+        });
+    }
 
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
@@ -61,7 +73,7 @@ async function requestRegisterOtp(req, res) {
         name,
         email: normalizedEmail,
         password,
-        role: role || 'student',
+        role: 'student',
         phone: phone || '',
         otpHash,
         expiresAt: Date.now() + OTP_EXPIRY_MS,
@@ -183,6 +195,12 @@ async function loginUser(req, res) {
             return res.status(400).json({ message: 'This email is linked to a Google account. Please use Google Sign-In.' });
         }
 
+        if (!isRoleEmailAllowed(user.email, user.role)) {
+            return res.status(403).json({
+                message: `This account is not allowed for ${user.role} access. Contact the system admin.`
+            });
+        }
+
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
             return res.status(400).json({ message: 'Invalid email or password' });
@@ -239,9 +257,17 @@ async function googleSignin(req, res) {
             return res.status(400).json({ message: emailValidation.reason });
         }
 
+        const reservedRole = getReservedRoleForEmail(email);
+
         let user = await User.findOne({ email });
 
         if (!user) {
+            if (reservedRole) {
+                return res.status(403).json({
+                    message: `This email is reserved for ${reservedRole} access and must be registered by an admin.`
+                });
+            }
+
             const name = String(payload?.given_name || payload?.name || 'Google').trim() || 'Google';
 
             user = await User.create({
@@ -267,6 +293,12 @@ async function googleSignin(req, res) {
             if (shouldSave) {
                 await user.save();
             }
+        }
+
+        if (!isRoleEmailAllowed(user.email, user.role)) {
+            return res.status(403).json({
+                message: `This account is not allowed for ${user.role} access. Contact the system admin.`
+            });
         }
 
         const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET);
@@ -296,6 +328,15 @@ async function checkRegistrationEmail(req, res) {
             message: validation.reason,
             email: validation.normalizedEmail,
             exists: false
+        });
+    }
+
+    const reservedRole = getReservedRoleForEmail(validation.normalizedEmail);
+    if (reservedRole) {
+        return res.status(403).json({
+            message: `This email is reserved for ${reservedRole} access and cannot be used for student self-registration.`,
+            email: validation.normalizedEmail,
+            exists: true
         });
     }
 

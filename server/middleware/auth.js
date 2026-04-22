@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { isRoleEmailAllowed } = require('../services/email-validation.service');
 
 const protect = async (req, res, next) => {
   let token;
@@ -18,6 +19,14 @@ const protect = async (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({ success: false, message: 'User not found' });
     }
+
+    if (!isRoleEmailAllowed(req.user.email, req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `This account is not allowed for ${req.user.role} access.`
+      });
+    }
+
     next();
   } catch (error) {
     return res.status(401).json({ success: false, message: 'Not authorized - invalid token' });

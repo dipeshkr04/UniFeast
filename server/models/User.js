@@ -45,19 +45,30 @@ const userSchema = new mongoose.Schema({
   },
   dailyCalorieGoal: {
     type: Number,
-    default: 2000,
+    default: 2200, // WHO base
   },
   dailyProteinGoal: {
     type: Number,
-    default: 50,
+    default: 55,   // WHO base
   },
   dailyCarbGoal: {
     type: Number,
-    default: 250,
+    default: 275,  // WHO base
   },
   dailyFatGoal: {
     type: Number,
-    default: 65,
+    default: 70,   // WHO base
+  },
+  dailyFiberGoal: {
+    type: Number,
+    default: 30,   // WHO base
+  },
+  nutritionStreak: {
+    type: Number,
+    default: 0,
+  },
+  lastLoggedDate: {
+    type: String,  // YYYY-MM-DD format
   },
 }, {
   timestamps: true,

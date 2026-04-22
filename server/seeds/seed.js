@@ -9,35 +9,35 @@ const MenuItem = require('../models/MenuItem');
 const users = [
   {
     name: 'Student User',
-    email: 'student@iiit.ac.in',
+    email: 'student@iiitn.ac.in',
     password: 'password123',
     role: 'student',
     phone: '9876543210',
   },
   {
     name: 'Kitchen Staff',
-    email: 'kitchen@iiit.ac.in',
+    email: 'kitchen@iiitn.ac.in',
     password: 'password123',
     role: 'kitchen',
     phone: '9876543211',
   },
   {
     name: 'Admin User',
-    email: 'admin@iiit.ac.in',
+    email: 'admin@iiitn.ac.in',
     password: 'password123',
     role: 'admin',
     phone: '9876543212',
   },
   {
     name: 'Rahul Sharma',
-    email: 'rahul@iiit.ac.in',
+    email: 'rahul@iiitn.ac.in',
     password: 'password123',
     role: 'student',
     phone: '9876543213',
   },
   {
     name: 'Priya Patel',
-    email: 'priya@iiit.ac.in',
+    email: 'priya@iiitn.ac.in',
     password: 'password123',
     role: 'student',
     phone: '9876543214',
@@ -245,9 +245,9 @@ const seedDB = async () => {
     console.log('   ✅ Database seeded successfully!');
     console.log('═══════════════════════════════════════');
     console.log('\n📧 Demo Accounts:');
-    console.log('   Student: student@iiit.ac.in / password123');
-    console.log('   Kitchen: kitchen@iiit.ac.in / password123');
-    console.log('   Admin:   admin@iiit.ac.in / password123');
+    console.log('   Student: student@iiitn.ac.in / password123');
+    console.log('   Kitchen: kitchen@iiitn.ac.in / password123');
+    console.log('   Admin:   admin@iiitn.ac.in / password123');
     console.log('');
 
     process.exit(0);

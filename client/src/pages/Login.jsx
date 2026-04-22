@@ -6,6 +6,12 @@ import toast from 'react-hot-toast';
 import { GoogleLogin } from '@react-oauth/google';
 import { motion } from 'framer-motion';
 
+const INSTITUTE_EMAIL_DOMAIN = '@iiitn.ac.in';
+
+function isAllowedInstituteEmail(value) {
+  return String(value || '').trim().toLowerCase().endsWith(INSTITUTE_EMAIL_DOMAIN);
+}
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,6 +22,12 @@ export default function Login() {
 
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
+
+    if (!isAllowedInstituteEmail(email)) {
+      toast.error(`Use your college BT-ID email (${INSTITUTE_EMAIL_DOMAIN})`);
+      return;
+    }
+
     setLoading(true);
     try {
       const data = await login(email, password);
@@ -137,7 +149,7 @@ export default function Login() {
           
           <div className="relative flex items-center mb-10 w-full">
             <div className="flex-grow border-t border-white/5"></div>
-            <span className="mx-6 text-surface-500 text-xs font-bold uppercase tracking-[0.2em] text-center">or sign in with email</span>
+            <span className="mx-6 text-surface-500 text-xs font-bold uppercase tracking-[0.2em] text-center">or sign in with bt email</span>
             <div className="flex-grow border-t border-white/5"></div>
           </div>
 
@@ -150,7 +162,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center"
-                  placeholder="you@gmail.com"
+                  placeholder="bt23xxx@iiitn.ac.in"
                   required
                 />
               </div>
@@ -190,9 +202,9 @@ export default function Login() {
             <p className="text-[10px] text-surface-500 text-center mb-4 uppercase tracking-[0.2em] font-black">Demo Access</p>
             <div className="grid grid-cols-3 gap-3 sm:gap-4">
               {[
-                { label: 'Student', email: 'student@iiit.ac.in', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/50' },
-                { label: 'Kitchen', email: 'kitchen@iiit.ac.in', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-500/50' },
-                { label: 'Admin', email: 'admin@iiit.ac.in', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/50' },
+                { label: 'Student', email: 'student@iiitn.ac.in', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/50' },
+                { label: 'Kitchen', email: 'kitchen@iiitn.ac.in', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-500/50' },
+                { label: 'Admin', email: 'admin@iiitn.ac.in', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/50' },
               ].map(({ label, email: e, color }) => (
                 <button
                   key={label}

@@ -5,6 +5,12 @@ import { MdRestaurantMenu, MdArrowBack } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
+const INSTITUTE_EMAIL_DOMAIN = '@iiitn.ac.in';
+
+function isAllowedInstituteEmail(value) {
+  return String(value || '').trim().toLowerCase().endsWith(INSTITUTE_EMAIL_DOMAIN);
+}
+
 export default function Register() {
   const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '' });
   const [loading, setLoading] = useState(false);
@@ -23,6 +29,12 @@ export default function Register() {
 
     try {
       if (step === 1) {
+        if (!isAllowedInstituteEmail(form.email)) {
+            toast.error(`Use your college BT-ID email (${INSTITUTE_EMAIL_DOMAIN})`);
+            setLoading(false);
+            return;
+        }
+
         if (form.password !== form.confirmPassword) {
             toast.error('Passwords do not match');
             setLoading(false);
@@ -165,7 +177,7 @@ export default function Register() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <div className="text-left">
                           <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Email Address</label>
-                          <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center" placeholder="you@gmail.com" required />
+                          <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center" placeholder="bt23xxx@iiitn.ac.in" required />
                         </div>
                         <div className="text-left">
                           <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Phone</label>

@@ -16,6 +16,7 @@ const orderRoutes = require('./routes/orders');
 const poolRoutes = require('./routes/pools');
 const nutritionRoutes = require('./routes/nutrition');
 const adminRoutes = require('./routes/admin');
+const leaderboardRoutes = require('./routes/leaderboard');
 
 const app = express();
 const server = http.createServer(app);
@@ -52,6 +53,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/pools', poolRoutes);
 app.use('/api/nutrition', nutritionRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

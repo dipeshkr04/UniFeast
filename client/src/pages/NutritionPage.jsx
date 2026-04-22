@@ -2,8 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { nutritionAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { HiOutlineFire, HiOutlineChevronLeft, HiOutlineChevronRight, HiPlus, HiMinus, HiOutlineTrash, HiOutlineCog, HiOutlineSparkles } from 'react-icons/hi';
+import { HiOutlineFire, HiOutlineChevronLeft, HiOutlineChevronRight, HiPlus, HiMinus, HiOutlineTrash, HiOutlineCog, HiOutlineSparkles, HiOutlineLockClosed } from 'react-icons/hi';
 import toast from 'react-hot-toast';
+import LeaderboardWidget from '../components/nutrition/LeaderboardWidget';
+import LeaderboardModal from '../components/nutrition/LeaderboardModal';
 
 const COLORS = ['#e06449', '#facc15', '#3b82f6', '#10b981'];
 
@@ -15,6 +17,7 @@ export default function NutritionPage() {
   const [monthly, setMonthly] = useState([]);
   const [showLogForm, setShowLogForm] = useState(false);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
+  const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
   const [chartView, setChartView] = useState('weekly');
   const fileInputRef = useRef(null);
 
@@ -22,10 +25,11 @@ export default function NutritionPage() {
     customName: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', mealType: 'snack', imageFile: null, imageUrl: ''
   });
   const [goalsForm, setGoalsForm] = useState({
-    dailyCalorieGoal: user?.dailyCalorieGoal || 2000,
-    dailyProteinGoal: user?.dailyProteinGoal || 50,
-    dailyCarbGoal: user?.dailyCarbGoal || 250,
-    dailyFatGoal: user?.dailyFatGoal || 65,
+    dailyCalorieGoal: user?.dailyCalorieGoal || 2200,
+    dailyProteinGoal: user?.dailyProteinGoal || 55,
+    dailyCarbGoal: user?.dailyCarbGoal || 275,
+    dailyFatGoal: user?.dailyFatGoal || 70,
+    dailyFiberGoal: user?.dailyFiberGoal || 30,
   });
 
   const [loading, setLoading] = useState(true);
@@ -154,11 +158,13 @@ export default function NutritionPage() {
 
   const totals = daily?.dailyTotals || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
   const goals = {
-    calories: user?.dailyCalorieGoal || 2000,
-    protein: user?.dailyProteinGoal || 50,
-    carbs: user?.dailyCarbGoal || 250,
-    fat: user?.dailyFatGoal || 65,
+    calories: user?.dailyCalorieGoal || 2200,
+    protein: user?.dailyProteinGoal || 55,
+    carbs: user?.dailyCarbGoal || 275,
+    fat: user?.dailyFatGoal || 70,
+    fiber: user?.dailyFiberGoal || 30,
   };
+  const isGoalsLocked = daily?.meals?.length > 0;
 
   const macroData = [
     { name: 'Protein', value: Math.round((totals.protein || 0) * 100) / 100, goal: goals.protein, unit: 'g', color: COLORS[0] },
@@ -524,40 +530,63 @@ export default function NutritionPage() {
 
       </div>
 
+      {/* Leaderboard Widget */}
+      <div className="mt-8 mb-12">
+        <LeaderboardWidget onOpenFull={() => setShowFullLeaderboard(true)} />
+      </div>
+
       {/* Goals Editor Modal */}
       {showGoalsModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
           <div className="glass-card-static w-full max-w-md p-6 animate-slideUp border border-surface-700">
             <h2 className="text-xl font-bold mb-4">Edit Nutrition Goals</h2>
-            <p className="text-surface-400 text-sm mb-6">Update your daily targets. The charts will automatically update to reflect your new goals.</p>
+            
+            {isGoalsLocked ? (
+              <div className="mb-6 p-4 rounded-xl bg-orange-900/20 border border-orange-500/20 flex gap-3 text-orange-200 text-sm">
+                <HiOutlineLockClosed className="w-5 h-5 flex-shrink-0 text-orange-400 mt-0.5" />
+                <p>Goals are locked for today because you have already logged a meal. You can adjust your goals tomorrow morning before eating to ensure Leaderboard fairness.</p>
+              </div>
+            ) : (
+              <p className="text-surface-400 text-sm mb-6">Update your daily targets. The charts and leaderboard normalizations will automatically update.</p>
+            )}
 
             <form onSubmit={handleSaveGoals} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-surface-300 mb-1">Daily Calories</label>
-                <input type="number" className="input-field" value={goalsForm.dailyCalorieGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyCalorieGoal: e.target.value })} required />
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-surface-300 mb-1">Daily Calories</label>
+                  <input type="number" className="input-field" value={goalsForm.dailyCalorieGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyCalorieGoal: e.target.value })} required disabled={isGoalsLocked} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-surface-300 mb-1">Fiber (g)</label>
+                  <input type="number" className="input-field px-2" value={goalsForm.dailyFiberGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyFiberGoal: e.target.value })} required disabled={isGoalsLocked} />
+                </div>
               </div>
+              
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-surface-300 mb-1">Protein (g)</label>
-                  <input type="number" className="input-field px-2" value={goalsForm.dailyProteinGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyProteinGoal: e.target.value })} required />
+                  <input type="number" className="input-field px-2" value={goalsForm.dailyProteinGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyProteinGoal: e.target.value })} required disabled={isGoalsLocked} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-surface-300 mb-1">Carbs (g)</label>
-                  <input type="number" className="input-field px-2" value={goalsForm.dailyCarbGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyCarbGoal: e.target.value })} required />
+                  <input type="number" className="input-field px-2" value={goalsForm.dailyCarbGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyCarbGoal: e.target.value })} required disabled={isGoalsLocked} />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-surface-300 mb-1">Fat (g)</label>
-                  <input type="number" className="input-field px-2" value={goalsForm.dailyFatGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyFatGoal: e.target.value })} required />
+                  <input type="number" className="input-field px-2" value={goalsForm.dailyFatGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyFatGoal: e.target.value })} required disabled={isGoalsLocked} />
                 </div>
               </div>
               <div className="pt-4 flex gap-3">
                 <button type="button" onClick={() => setShowGoalsModal(false)} className="btn-secondary flex-1">Cancel</button>
-                <button type="submit" className="btn-primary flex-1">Save Goals</button>
+                <button type="submit" className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGoalsLocked}>Save Goals</button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Full Leaderboard Modal */}
+      {showFullLeaderboard && <LeaderboardModal onClose={() => setShowFullLeaderboard(false)} />}
     </div>
   );
 }

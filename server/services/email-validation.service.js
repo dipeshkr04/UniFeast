@@ -1,9 +1,37 @@
 const { resolveMx } = require('dns').promises;
 
 const BASIC_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const ALLOWED_EMAIL_DOMAIN = String(process.env.ALLOWED_EMAIL_DOMAIN || 'iiitn.ac.in').trim().toLowerCase();
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase();
+}
+
+function validateInstitutionEmail(email) {
+  const normalizedEmail = normalizeEmail(email);
+
+  if (!normalizedEmail || !BASIC_EMAIL_REGEX.test(normalizedEmail)) {
+    return {
+      acceptable: false,
+      normalizedEmail,
+      reason: 'Enter a valid email format.'
+    };
+  }
+
+  const domain = normalizedEmail.split('@')[1];
+  if (domain !== ALLOWED_EMAIL_DOMAIN) {
+    return {
+      acceptable: false,
+      normalizedEmail,
+      reason: `Only @${ALLOWED_EMAIL_DOMAIN} email addresses are allowed.`
+    };
+  }
+
+  return {
+    acceptable: true,
+    normalizedEmail,
+    reason: `Email matches @${ALLOWED_EMAIL_DOMAIN}.`
+  };
 }
 
 async function checkMxRecord(domain) {
@@ -48,15 +76,12 @@ async function checkWithAbstractApi(email) {
 }
 
 async function validateRegistrationEmail(email) {
-  const normalizedEmail = normalizeEmail(email);
-
-  if (!normalizedEmail || !BASIC_EMAIL_REGEX.test(normalizedEmail)) {
-    return {
-      acceptable: false,
-      normalizedEmail,
-      reason: 'Enter a valid email format.'
-    };
+  const institutionValidation = validateInstitutionEmail(email);
+  if (!institutionValidation.acceptable) {
+    return institutionValidation;
   }
+
+  const normalizedEmail = institutionValidation.normalizedEmail;
 
   const domain = normalizedEmail.split('@')[1];
   const hasMx = await checkMxRecord(domain);
@@ -87,5 +112,6 @@ async function validateRegistrationEmail(email) {
 }
 
 module.exports = {
-  validateRegistrationEmail
+  validateRegistrationEmail,
+  validateInstitutionEmail
 };

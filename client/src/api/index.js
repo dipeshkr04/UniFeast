@@ -99,6 +99,13 @@ export const nutritionAPI = {
   updateMealQuantity: (logId, mealId, quantity) => api.patch(`/nutrition/meal/${logId}/${mealId}/quantity`, { quantity }),
 };
 
+// ─── Leaderboard API ──────────────────────────
+
+export const leaderboardAPI = {
+  getWidget: () => api.get('/leaderboard/widget'),
+  getFull: (category, page, limit) => api.get(`/leaderboard/full?category=${category}&page=${page}&limit=${limit}`),
+};
+
 // ─── Admin API ──────────────────────────────
 
 export const adminAPI = {

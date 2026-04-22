@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const {OAuth2Client} = require('google-auth-library');
 const { sendLoginOtpEmail } = require('../services/mail.service');
-const { validateRegistrationEmail } = require('../services/email-validation.service');
+const { validateRegistrationEmail, validateInstitutionEmail } = require('../services/email-validation.service');
 
 const authCookieOptions = {
   httpOnly: true,
@@ -167,6 +167,11 @@ async function loginUser(req, res) {
         const { email, password } = req.body;
         const normalizedEmail = String(email || '').trim().toLowerCase();
 
+        const emailValidation = validateInstitutionEmail(normalizedEmail);
+        if (!emailValidation.acceptable) {
+            return res.status(400).json({ message: emailValidation.reason });
+        }
+
         // Need to explicitly select password for comparison
         const user = await User.findOne({ email: normalizedEmail }).select('+password');
 
@@ -229,6 +234,11 @@ async function googleSignin(req, res) {
             return res.status(400).json({ message: 'Invalid Google account payload.' });
         }
 
+        const emailValidation = validateInstitutionEmail(email);
+        if (!emailValidation.acceptable) {
+            return res.status(400).json({ message: emailValidation.reason });
+        }
+
         let user = await User.findOne({ email });
 
         if (!user) {
@@ -289,10 +299,12 @@ async function checkRegistrationEmail(req, res) {
         });
     }
 
+    const existingUser = await User.findOne({ email: validation.normalizedEmail });
+
     return res.status(200).json({
-        message: validation.reason,
+        message: existingUser ? 'Email already registered.' : validation.reason,
         email: validation.normalizedEmail,
-        exists: true
+        exists: Boolean(existingUser)
     });
 }
 

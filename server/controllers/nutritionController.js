@@ -88,13 +88,21 @@ exports.getMonthlyReport = async (req, res) => {
 // @route   PUT /api/nutrition/goals
 exports.updateNutritionGoals = async (req, res) => {
   try {
-    const { dailyCalorieGoal, dailyProteinGoal, dailyCarbGoal, dailyFatGoal } = req.body;
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todaysLog = await NutritionLog.findOne({ user: req.user.id, date: todayStr });
+    
+    if (todaysLog && todaysLog.meals.length > 0) {
+      return res.status(400).json({ success: false, message: 'Goals are locked because you have already consumed meals today. You can adjust goals tomorrow.' });
+    }
+
+    const { dailyCalorieGoal, dailyProteinGoal, dailyCarbGoal, dailyFatGoal, dailyFiberGoal } = req.body;
 
     const updates = {};
     if (dailyCalorieGoal !== undefined) updates.dailyCalorieGoal = dailyCalorieGoal;
     if (dailyProteinGoal !== undefined) updates.dailyProteinGoal = dailyProteinGoal;
     if (dailyCarbGoal !== undefined) updates.dailyCarbGoal = dailyCarbGoal;
     if (dailyFatGoal !== undefined) updates.dailyFatGoal = dailyFatGoal;
+    if (dailyFiberGoal !== undefined) updates.dailyFiberGoal = dailyFiberGoal;
 
     const user = await User.findByIdAndUpdate(req.user.id, updates, {
       new: true,
@@ -159,6 +167,22 @@ exports.logManualMeal = async (req, res) => {
     log.meals.push(mealEntry);
     log.recalculateTotals();
     await log.save();
+
+    // Streak logic update
+    const user = await User.findById(req.user.id);
+    if (user.lastLoggedDate !== dateStr) {
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      if (user.lastLoggedDate === yesterdayStr) {
+        user.nutritionStreak = (user.nutritionStreak || 0) + 1;
+      } else {
+        user.nutritionStreak = 1;
+      }
+      user.lastLoggedDate = dateStr;
+      await user.save();
+    }
 
     res.status(201).json({ success: true, data: log });
   } catch (error) {

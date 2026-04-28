@@ -6,12 +6,12 @@ import {
 } from 'react-icons/hi';
 import { MdRestaurantMenu, MdOutlineKitchen } from 'react-icons/md';
 import { IoNutritionOutline } from 'react-icons/io5';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 
 const studentLinks = [
   { to: '/', icon: HiOutlineHome, label: 'Menu' },
   { to: '/orders', icon: HiOutlineClipboardList, label: 'My Orders' },
-  { to: '/pools', icon: HiOutlineUserGroup, label: 'Order Pools' },
+  { to: '/pools', icon: HiOutlineUserGroup, label: 'Pool Board' },
   { to: '/nutrition', icon: IoNutritionOutline, label: 'Nutrition' },
 ];
 
@@ -38,10 +38,7 @@ export default function Sidebar({ open, onClose }) {
     <>
       <AnimatePresence>
         {open && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             className="fixed inset-0 bg-black/60 backdrop-blur-md z-40"
             onClick={onClose}
           />
@@ -49,7 +46,7 @@ export default function Sidebar({ open, onClose }) {
       </AnimatePresence>
 
       <aside
-        className={`fixed top-16 sm:top-20 left-0 bottom-0 w-72 z-40 bg-[#09090b]/95 backdrop-blur-3xl border-r border-white/5 shadow-2xl transition-transform duration-500 cubic-bezier(0.2, 0.8, 0.2, 1)
+        className={`fixed top-16 sm:top-20 left-0 bottom-0 w-72 z-40 bg-surface-950/95 backdrop-blur-3xl border-r border-white/5 shadow-2xl transition-transform duration-500 cubic-bezier(0.2, 0.8, 0.2, 1)
           ${open ? 'translate-x-0' : '-translate-x-full'} flex flex-col pt-6`}
       >
         <div className="flex flex-col h-full px-6 pb-6 overflow-y-auto scrollbar-none">
@@ -74,9 +71,8 @@ export default function Sidebar({ open, onClose }) {
                 {({ isActive }) => (
                   <>
                     {isActive && (
-                      <motion.div 
-                        layoutId="active-pill"
-                        className="absolute inset-0 bg-gradient-to-r from-primary-600/20 to-primary-500/5 rounded-2xl border border-primary-500/20"
+                      <div
+                        className="absolute inset-0 bg-linear-to-r from-primary-600/20 to-primary-500/5 rounded-2xl border border-primary-500/20"
                       />
                     )}
                     {isActive && (
@@ -91,7 +87,7 @@ export default function Sidebar({ open, onClose }) {
           </nav>
 
           <div className="mt-8 pt-6 border-t border-white/5">
-            <div className="glass-card flex items-center gap-4 p-4 !bg-white/5 hover:!border-primary-500/30 group cursor-pointer transition-all">
+            <div className="glass-card flex items-center gap-4 p-4 bg-white/5! hover:border-primary-500/30! group cursor-pointer transition-all">
               <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-black text-lg shadow-lg shadow-primary-500/30 shrink-0 group-hover:scale-110 transition-transform">
                 {user?.name?.charAt(0)?.toUpperCase()}
               </div>

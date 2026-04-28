@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { menuAPI, orderAPI, poolAPI } from '../api';
+import { menuAPI, orderAPI } from '../api';
 import { useSocket } from '../contexts/SocketContext';
-import { HiOutlineClock, HiOutlineRefresh, HiOutlineUserGroup } from 'react-icons/hi';
-import { MdRestaurantMenu } from 'react-icons/md';
+import { HiOutlineRefresh } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const Motion = motion;
 
 const statusConfig = {
   pending: { label: 'Pending', badgeClass: 'bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.2)]', icon: '⏳', next: 'preparing', nextLabel: 'Start Preparing', btnClass: 'btn-primary' },
@@ -21,8 +22,6 @@ export default function KitchenDashboard() {
   const [stats, setStats] = useState({});
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [filter] = useState('active');
-  const [pools, setPools] = useState([]);
-  const [loadingPools, setLoadingPools] = useState(true);
   const [completedOrders, setCompletedOrders] = useState([]);
   const [stockRows, setStockRows] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
@@ -82,23 +81,10 @@ export default function KitchenDashboard() {
     }
   }, [productionItemId]);
 
-  const fetchPools = useCallback(async () => {
-    setLoadingPools(true);
-    try {
-      const { data } = await poolAPI.getActive();
-      setPools(data.data);
-    } catch {
-      toast.error('Failed to load pools');
-    } finally {
-      setLoadingPools(false);
-    }
-  }, []);
-
   // ── Initial fetch & tab/filter changes ───────────────────────
   useEffect(() => {
     if (tab === 'orders') fetchOrders();
-    if (tab === 'pools') fetchPools();
-  }, [tab, filter, fetchOrders, fetchPools]);
+  }, [tab, filter, fetchOrders]);
 
   useEffect(() => {
     fetchProductionMeta();
@@ -127,8 +113,6 @@ export default function KitchenDashboard() {
             setStockRows(stockResp.data.data || []);
           })
           .catch(() => {});
-      } else {
-        poolAPI.getActive().then(r => setPools(r.data.data)).catch(() => {});
       }
     }, 15_000);
     return () => clearInterval(poll);
@@ -150,12 +134,6 @@ export default function KitchenDashboard() {
       fetchOrders();
     };
 
-    const handlePoolUpdate = (data) => {
-      setPools(prev => prev.map(p => p._id === data.poolId ? { ...p, ...data } : p));
-      // If pool closed, also refresh stats (a new consolidated order may exist)
-      if (data.status === 'queued') fetchStats();
-    };
-
     const handleQueueStats = (queueData) => {
       // Update live queue numbers if provided
       setStats(prev => ({
@@ -170,18 +148,14 @@ export default function KitchenDashboard() {
 
     socket.on('new-order', handleNewOrder);
     socket.on('order-update', handleOrderUpdate);
-    socket.on('pool-update', handlePoolUpdate);
     socket.on('queue-stats', handleQueueStats);
 
     return () => {
       socket.off('new-order', handleNewOrder);
       socket.off('order-update', handleOrderUpdate);
-      socket.off('pool-update', handlePoolUpdate);
       socket.off('queue-stats', handleQueueStats);
     };
   }, [socket, fetchOrders, fetchStats]);
-
-  // fetchPools is now defined above with useCallback
 
   const handleStatusUpdate = async (orderId, newStatus) => {
     try {
@@ -214,24 +188,6 @@ export default function KitchenDashboard() {
     }
   };
   
-  const handleForceClosePool = async (poolId) => {
-    try {
-      await poolAPI.close(poolId);
-      toast.success('Pool closed manually');
-      fetchPools();
-    } catch {
-      toast.error('Failed to close pool');
-    }
-  };
-
-  const getTimeLeft = (closesAt) => {
-    const diff = new Date(closesAt) - new Date();
-    if (diff <= 0) return 'Closing...';
-    const mins = Math.floor(diff / 60000);
-    const secs = Math.floor((diff % 60000) / 1000);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   const groupedDemand = Object.values(
     orders.reduce((acc, order) => {
       order.items.forEach((item) => {
@@ -266,14 +222,14 @@ export default function KitchenDashboard() {
     <div className="flex flex-col gap-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-4">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+        <Motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <h1 className="text-4xl sm:text-5xl font-black leading-tight tracking-tight text-white drop-shadow-2xl">
             Kitchen <span className="text-primary-500">Command Control.</span>
           </h1>
           <p className="text-surface-400 font-bold uppercase tracking-widest text-xs mt-3 bg-white/5 inline-block py-1.5 px-3 rounded-md border border-white/5">Real-time Order Management Engine</p>
-        </motion.div>
+        </Motion.div>
         
-        <button onClick={tab === 'orders' ? fetchOrders : fetchPools} className="btn-secondary h-12 px-6 flex items-center justify-center gap-2 group border border-white/10 hover:border-white/20 transition-all rounded-xl shadow-lg shadow-black/50">
+        <button onClick={fetchOrders} className="btn-secondary h-12 px-6 flex items-center justify-center gap-2 group border border-white/10 hover:border-white/20 transition-all rounded-xl shadow-lg shadow-black/50">
           <HiOutlineRefresh className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500 text-primary-400" /> 
           <span className="font-bold text-sm tracking-wide">Sync Data</span>
         </button>
@@ -287,17 +243,10 @@ export default function KitchenDashboard() {
         >
           LIVE PIPELINE
         </button>
-        <button
-          onClick={() => setTab('pools')}
-          className={`px-8 py-3.5 rounded-full text-sm font-black tracking-wide transition-all shadow-lg ${tab === 'pools' ? 'bg-primary-500 text-white shadow-primary-500/30' : 'bg-surface-900 border border-surface-800 text-surface-400 hover:text-white hover:border-surface-700'}`}
-        >
-          ACTIVE POOLS
-        </button>
       </motion.div>
 
       <AnimatePresence mode="wait">
-        {tab === 'orders' ? (
-          <motion.div key="orders" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
+        <motion.div key="orders" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
                 { label: 'Active Orders', value: orders.length, color: 'from-blue-600/20 to-blue-900/20 border-blue-500/30 text-blue-400' },
@@ -469,74 +418,7 @@ export default function KitchenDashboard() {
                 </div>
               </div>
             )}
-          </motion.div>
-        ) : (
-          <motion.div key="pools" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {/* Pool Warning Card */}
-            <div className="glass-card p-6 mb-8 border-l-4 border-info/50 bg-info/5 shadow-[0_0_30px_rgba(59,130,246,0.1)] relative overflow-hidden">
-               <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-gradient-to-l from-info/10 to-transparent pointer-events-none" />
-               <h3 className="font-black text-blue-400 mb-2 flex items-center gap-2"><MdRestaurantMenu className="w-5 h-5"/> POOL MONITORING</h3>
-               <p className="text-surface-300 text-sm font-medium leading-relaxed max-w-4xl">
-                 Active pools batch multiple student orders together to optimize kitchen throughput. Do not process these items individually until the pool automatically closes or you force close it. Once closed, they enter the live pipeline as a single massive order.
-               </p>
-            </div>
-
-            {loadingPools ? (
-              <div className="grid md:grid-cols-2 gap-6">
-                {[1,2].map(i => <div key={i} className="skeleton h-60 rounded-3xl" />)}
-              </div>
-            ) : pools.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-32 glass-card bg-[#09090b]/40 border border-white/5">
-                <span className="text-6xl mb-6 grayscale opacity-50">🤝</span>
-                <p className="text-2xl font-black text-white">No active pools</p>
-                <p className="text-surface-400 mt-2 font-medium">Students haven't initiated any batch orders yet.</p>
-              </div>
-            ) : (
-              <div className="grid md:grid-cols-2 gap-8 stagger-children">
-                {pools.map(pool => (
-                  <div key={pool._id} className="glass-card flex flex-col justify-between border-2 border-info/20 hover:border-info/40 bg-[#0c0c0e] p-8 shadow-[0_10px_40px_rgba(0,0,0,0.5)] relative overflow-hidden group">
-                    <div className="absolute -right-20 -top-20 w-64 h-64 bg-info/10 rounded-full blur-[80px] pointer-events-none group-hover:scale-150 transition-transform duration-1000" />
-                    
-                    <div>
-                      <div className="flex gap-5 mb-8">
-                        <div className="w-16 h-16 rounded-2xl bg-surface-900 border border-white/10 flex items-center justify-center text-3xl shrink-0 shadow-inner">
-                          {pool.menuItem?.category === 'snacks' ? '🥟' : pool.menuItem?.category === 'meals' ? '🍛' : pool.menuItem?.category === 'beverages' ? '☕' : '🍮'}
-                        </div>
-                        <div className="flex-1">
-                          <span className="inline-block px-2.5 py-1 rounded-md bg-info/15 text-blue-400 font-black text-[10px] uppercase tracking-widest border border-info/30 mb-2 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
-                            {pool.status}
-                          </span>
-                          <h3 className="font-black text-2xl text-white leading-tight mb-1">{pool.menuItem?.name}</h3>
-                          <p className="text-xs text-surface-500 font-bold uppercase tracking-widest tracking-widest">POOL #{pool._id.slice(-6)}</p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4 mb-8">
-                         <div className="bg-[#121214] p-4 rounded-2xl border border-white/5 shadow-inner flex flex-col items-center text-center">
-                            <HiOutlineUserGroup className="w-6 h-6 text-surface-500 mb-2" />
-                            <p className="text-[10px] uppercase tracking-widest font-bold text-surface-400 mb-1">Queue Size</p>
-                            <p className="text-2xl font-black text-white">{pool.currentSize}<span className="text-surface-600">/{pool.maxSize}</span></p>
-                         </div>
-                         <div className="bg-[#121214] p-4 rounded-2xl border border-white/5 shadow-inner flex flex-col items-center text-center">
-                            <HiOutlineClock className="w-6 h-6 text-amber-500 mb-2 animate-pulse" />
-                            <p className="text-[10px] uppercase tracking-widest font-bold text-surface-400 mb-1">Closing In</p>
-                            <p className="text-2xl font-black text-amber-400">{getTimeLeft(pool.closesAt)}</p>
-                         </div>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleForceClosePool(pool._id)}
-                      className="w-full py-4 rounded-xl text-sm font-black tracking-wide transition-all bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
-                    >
-                      FORCE CLOSE POOL & COOK
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        )}
+        </motion.div>
       </AnimatePresence>
     </div>
   );

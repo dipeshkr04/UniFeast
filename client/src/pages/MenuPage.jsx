@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { menuAPI, poolAPI } from '../api';
+import { useState, useEffect, useCallback } from 'react';
+import { menuAPI } from '../api';
 import { useCart } from '../contexts/CartContext';
 import { HiOutlineSearch, HiOutlineClock, HiOutlineFire, HiPlus, HiMinus, HiOutlineInformationCircle, HiOutlineX } from 'react-icons/hi';
 import { MdOutlineLocalDining } from 'react-icons/md';
@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
+
+const Motion = motion;
 
 const COLORS = ['#e06449', '#facc15', '#3b82f6', '#10b981'];
 
@@ -23,44 +25,31 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
-  const [pools, setPools] = useState({});
   const [selectedItem, setSelectedItem] = useState(null);
   const { addItem, items: cartItems } = useCart();
   const { user } = useAuth();
 
-  useEffect(() => {
-    fetchMenu();
-  }, [category, search]);
-
-  const fetchMenu = async () => {
+  const fetchMenu = useCallback(async () => {
     try {
       const params = { available: 'true' };
       if (category) params.category = category;
       if (search) params.search = search;
       const { data } = await menuAPI.getAll(params);
       setItems(data.data);
-      // Fetch pool status for all items incrementally
-      data.data.forEach(item => checkPool(item._id));
-    } catch (err) {
+    } catch {
       toast.error('Failed to load menu');
     } finally {
       setLoading(false);
     }
-  };
+  }, [category, search]);
 
-  const checkPool = async (menuItemId) => {
-    try {
-      const { data } = await poolAPI.checkForItem(menuItemId);
-      if (data.hasPool) {
-        setPools(prev => ({ ...prev, [menuItemId]: data.data }));
-      }
-    } catch { /* silent */ }
-  };
+  useEffect(() => {
+    fetchMenu();
+  }, [fetchMenu]);
 
   const handleAddToCart = (item) => {
     addItem(item);
     toast.success(`${item.name} added to cart`, { icon: '🛒' });
-    checkPool(item._id);
   };
 
   const getCartQty = (id) => {
@@ -73,12 +62,12 @@ export default function MenuPage() {
       {/* Header section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
         <div>
-          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+          <Motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black leading-tight tracking-tight text-white drop-shadow-2xl">
               Discover <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-accent-500">Flavors</span>
             </h1>
             <p className="text-surface-400 font-medium tracking-wide uppercase text-xs sm:text-sm mt-3">Elite Culinary Experience • IIIT Nagpur</p>
-          </motion.div>
+          </Motion.div>
         </div>
         
         {/* Search */}
@@ -144,7 +133,6 @@ export default function MenuPage() {
           <AnimatePresence>
             {items.map(item => {
               const qty = getCartQty(item._id);
-              const pool = pools[item._id];
               return (
                 <motion.div 
                   layout
@@ -176,12 +164,6 @@ export default function MenuPage() {
                       <span>{item.prepTime}m</span>
                     </div>
 
-                    {/* Pools active badge */}
-                    {pool && (
-                      <div className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 bg-info/20 backdrop-blur-md rounded-full border border-info/30 text-[10px] font-black text-blue-300 uppercase tracking-wider animate-pulse-glow shadow-lg">
-                        🤝 Pool {pool.savingsPercent}% OFF
-                      </div>
-                    )}
                   </div>
 
                     <div className="flex-1 flex flex-col justify-between">

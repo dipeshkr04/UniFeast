@@ -127,9 +127,17 @@ exports.analyzeFood = async (req, res) => {
     const imageUrl = req.file.path;
     const result = await analyzeFoodComplete(imageUrl);
 
-    res.json({ success: true, data: result });
+    let message = 'Food analyzed successfully';
+    if (result.isLowConfidenceWarning) {
+      message = 'Low confidence prediction. Please verify the food details.';
+    }
+
+    res.json({ success: true, message, data: result });
   } catch (error) {
     console.error('Analyze Food Error:', error.message);
+    if (error.message === "LOW_CONFIDENCE") {
+      return res.status(400).json({ success: false, message: 'Model has low confidence. Please enter the values manually.' });
+    }
     res.status(500).json({ success: false, message: 'AI Analysis failed or no food detected' });
   }
 };

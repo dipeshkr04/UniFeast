@@ -1,0 +1,14 @@
+# Ignore large deep learning model files to prevent GitHub push rejections
+*.h5
+*.hdf5
+*.keras
+*.pt
+*.safetensors
+
+# Python cache and environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/

@@ -1,6 +1,11 @@
 const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 const axios = require('axios');
 const MenuItem = require('../models/MenuItem');
+const { INDIAN_FOOD_NUTRITION } = require('./indianFoodNutrition');
+
+// ── Local ResNet inference service configuration ──
+const RESNET_SERVICE_URL = process.env.RESNET_SERVICE_URL || 'http://localhost:8000';
+const RESNET_CONFIDENCE_THRESHOLD = parseFloat(process.env.RESNET_CONFIDENCE_THRESHOLD || '0.45');
 
 const stub = ClarifaiStub.grpc();
 
@@ -120,18 +125,74 @@ async function getNutritionByName(foodName) {
   }
 }
 
+// ── Call local ResNet Python service ──
+async function analyzeWithLocalResNet(imageUrl) {
+  try {
+    const response = await axios.post(
+      `${RESNET_SERVICE_URL}/predict-url`,
+      { url: imageUrl },
+      { timeout: 15000 }
+    );
+    return response.data; // { label, confidence }
+  } catch (error) {
+    console.warn('Local ResNet service unavailable or failed:', error.message);
+    return null;
+  }
+}
+
 async function analyzeFoodComplete(imageUrl) {
   try {
+    // ── STEP 1: Try local ResNet first (free, fast, Indian-food specialist) ──
+    const localResult = await analyzeWithLocalResNet(imageUrl);
+
+    if (localResult && localResult.confidence >= RESNET_CONFIDENCE_THRESHOLD) {
+      // ── STEP 2: Check hardcoded nutrition map ──
+      const localNutrition = INDIAN_FOOD_NUTRITION[localResult.label];
+      if (localNutrition) {
+        console.log(`✅ Local ResNet identified: ${localResult.label} (${(localResult.confidence * 100).toFixed(1)}%)`);
+        return {
+          foodName: localResult.label.replace(/_/g, ' '),
+          confidence: localResult.confidence,
+          nutrition: localNutrition,
+          source: 'local_resnet',
+          isLowConfidenceWarning: localResult.confidence < 0.50,
+        };
+      }
+    }
+
+    // ── STEP 3: Fallback to Clarifai (broad-spectrum) ──
+    console.log('⚠️  Local model low-confidence or unavailable. Falling back to Clarifai...');
     const food = await analyzeFoodImage(imageUrl);
 
     if (!food) {
       throw new Error("Could not detect food in image");
     }
 
+    const clarifaiThresh = 0.85;
+    if (food.confidence < clarifaiThresh) {
+      if (localResult && INDIAN_FOOD_NUTRITION[localResult.label]) {
+        const localDev = RESNET_CONFIDENCE_THRESHOLD - localResult.confidence;
+        const clarifaiDev = clarifaiThresh - food.confidence;
+
+        if (localDev < clarifaiDev) {
+          console.log(`⚠️ Using Local ResNet fallback (Deviation: Local ${localDev.toFixed(2)} < Clarifai ${clarifaiDev.toFixed(2)})`);
+          return {
+            foodName: localResult.label.replace(/_/g, ' '),
+            confidence: localResult.confidence,
+            nutrition: INDIAN_FOOD_NUTRITION[localResult.label],
+            source: 'local_resnet_deviation_fallback',
+            isLowConfidenceWarning: localResult.confidence < 0.50,
+          };
+        }
+      }
+      throw new Error("LOW_CONFIDENCE");
+    }
+
+    // ── STEP 4: Fetch nutrition via USDA ──
     let nutrition = await getNutritionByName(food.name);
 
     if (!nutrition || nutrition.calories === 0) {
-      // Fallback: search local MenuItem DB
+      // ── STEP 5: Final fallback — MenuItem DB ──
       const localItem = await MenuItem.findOne({
         name: { $regex: food.name, $options: 'i' }
       });
@@ -152,7 +213,8 @@ async function analyzeFoodComplete(imageUrl) {
     return {
       foodName: food.name,
       confidence: food.confidence,
-      nutrition
+      nutrition,
+      source: 'clarifai_usda',
     };
   } catch (error) {
     console.error("analyzeFoodComplete Error:", error);

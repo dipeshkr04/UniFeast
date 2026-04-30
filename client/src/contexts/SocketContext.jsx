@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
 import { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from './AuthContext';
@@ -34,7 +35,7 @@ export function SocketProvider({ children }) {
 
     newSocket.on('connect', () => {
       setConnected(true);
-      newSocket.emit('join-room', { userId: user.id, role: user.role });
+      newSocket.emit('join-room', { userId: user._id || user.id, role: user.role });
     });
 
     newSocket.on('disconnect', () => setConnected(false));
@@ -45,7 +46,7 @@ export function SocketProvider({ children }) {
     return () => {
       newSocket.disconnect();
     };
-  }, [user?.id, token]);
+  }, [user, token]);
 
   return (
     <SocketContext.Provider value={{ socket, connected }}>

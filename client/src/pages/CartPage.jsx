@@ -1,15 +1,35 @@
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
-import { orderAPI } from '../api';
+import { orderAPI, paymentAPI } from '../api';
 import { HiOutlineTrash, HiPlus, HiMinus, HiArrowLeft } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+
+const MotionItem = motion.div;
+
+function loadRazorpayScript() {
+  return new Promise((resolve) => {
+    if (window.Razorpay) {
+      resolve(true);
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.async = true;
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 export default function CartPage() {
   const { items, updateQuantity, removeItem, clearCart, totalAmount, totalItems } = useCart();
   const [loading, setLoading] = useState(false);
   const [instructions, setInstructions] = useState('');
+  const { user } = useAuth();
   const navigate = useNavigate();
   const { canteenLive } = useOutletContext() || {};
 
@@ -17,16 +37,64 @@ export default function CartPage() {
     if (items.length === 0) return;
     setLoading(true);
     try {
-      const orderItems = items.map(i => ({
+      const orderItems = items.map((i) => ({
         menuItem: i.menuItem._id,
         quantity: i.quantity,
       }));
-      const { data } = await orderAPI.create({ items: orderItems, specialInstructions: instructions });
-      clearCart();
-      toast.success(`Order placed! ETA: ${data.eta?.eta || data.data?.estimatedTime} min`, { icon: '🎉', duration: 5000 });
-      navigate('/orders');
+      const scriptLoaded = await loadRazorpayScript();
+      if (!scriptLoaded) {
+        toast.error('Razorpay checkout failed to load');
+        return;
+      }
+
+      const { data: paymentData } = await paymentAPI.createOrder({
+        amount: totalAmount,
+        currency: 'INR',
+        receipt: `unifeast_${Date.now()}`,
+      });
+
+      const options = {
+        key: paymentData.keyId,
+        amount: paymentData.order.amount,
+        currency: paymentData.order.currency,
+        name: 'UniFeast',
+        description: 'UniFeast cart checkout',
+        order_id: paymentData.order.id,
+        prefill: {
+          name: user?.name || '',
+          email: user?.email || '',
+          contact: user?.phone || '',
+        },
+        theme: {
+          color: '#ff4714',
+        },
+        handler: async (response) => {
+          try {
+            await paymentAPI.verifyPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              signature: response.razorpay_signature,
+            });
+
+            const { data } = await orderAPI.create({ items: orderItems, specialInstructions: instructions });
+            clearCart();
+            toast.success(`Payment successful. Order placed! ETA: ${data.eta?.eta || data.data?.estimatedTime} min`, { icon: '🎉', duration: 5000 });
+            navigate('/orders');
+          } catch (error) {
+            toast.error(error.response?.data?.message || 'Payment verified, but order placement failed');
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            toast('Payment cancelled');
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.open();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to place order');
+      toast.error(err.response?.data?.message || 'Failed to start payment');
     } finally {
       setLoading(false);
     }
@@ -65,7 +133,7 @@ export default function CartPage() {
           <div className="space-y-3 md:space-y-4">
             <AnimatePresence mode="popLayout">
               {items.map(({ menuItem, quantity }) => (
-                <motion.div 
+                <MotionItem
                   key={menuItem._id}
                   layout
                   initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -73,8 +141,7 @@ export default function CartPage() {
                   exit={{ opacity: 0, scale: 0.9, x: -20 }}
                   className="glass-card-static p-4 md:p-5 flex items-center gap-3 sm:gap-4 relative group" 
                   id={`cart-item-${menuItem._id}`}
-                >
-                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-surface-800/80 flex items-center justify-center text-2xl sm:text-3xl shrink-0 border border-surface-700/50">
+                >                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-surface-800/80 flex items-center justify-center text-2xl sm:text-3xl shrink-0 border border-surface-700/50">
                     {menuItem.category === 'snacks' ? '🥟' :
                      menuItem.category === 'meals' ? '🍛' :
                      menuItem.category === 'beverages' ? '☕' : '🍮'}
@@ -122,7 +189,7 @@ export default function CartPage() {
                   >
                     <HiOutlineTrash className="w-4 h-4" />
                   </button>
-                </motion.div>
+                </MotionItem>
               ))}
             </AnimatePresence>
           </div>

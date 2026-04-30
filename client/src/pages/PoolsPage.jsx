@@ -29,7 +29,7 @@ export default function PoolsPage() {
     try {
       const { data } = await poolAPI.getActive();
       setPools(data.data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load pools');
     } finally {
       setLoading(false);
@@ -42,8 +42,8 @@ export default function PoolsPage() {
       const { data } = await poolAPI.join({ menuItemId, quantity: 1 });
       toast.success(`Joined pool! You save ${data.data.pool.savingsPercent}%`, { icon: '🤝' });
       fetchPools();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to join pool');
+    } catch {
+      toast.error('Failed to join pool');
     } finally {
       setJoining(null);
     }
@@ -69,10 +69,10 @@ export default function PoolsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight">Order <span className="text-primary-400">Pools</span></h1>
-          <p className="text-surface-400 mt-2 text-sm">Join others to save on your orders</p>
+          <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight">Student <span className="text-primary-400">Pool Board</span></h1>
+          <p className="text-surface-400 mt-2 text-sm">A separate space for students to coordinate pool partners outside the canteen flow.</p>
         </div>
-        <button onClick={fetchPools} className="btn-secondary flex items-center gap-2 text-sm min-h-[44px] px-4 py-2.5 self-start">
+        <button onClick={fetchPools} className="btn-secondary flex items-center gap-2 text-sm min-h-11 px-4 py-2.5 self-start">
           <HiOutlineRefresh className="w-4 h-4" /> Refresh
         </button>
       </div>
@@ -80,8 +80,7 @@ export default function PoolsPage() {
       {/* Info banner */}
       <div className="glass-card-static p-4 md:p-5 mb-6 md:mb-8 border-l-4 border-l-info">
         <p className="text-sm text-surface-300 leading-relaxed">
-          <strong className="text-blue-400">💡 How Order Pooling works:</strong> When multiple students order the same item within a 5-minute window,
-          orders are batched together. You save up to <strong className="text-green-400">15%</strong> based on pool size!
+          <strong className="text-blue-400">💡 What this board is for:</strong> Students can post or join pool ideas here when they want to coordinate a shared order or message for a pool, separate from canteen ordering.
         </p>
       </div>
 
@@ -92,8 +91,8 @@ export default function PoolsPage() {
       ) : pools.length === 0 ? (
         <div className="text-center py-16 md:py-20 glass-card-static max-w-md mx-auto">
           <div className="text-5xl mb-4">🤝</div>
-          <h3 className="text-lg font-bold mb-2">No active pools right now</h3>
-          <p className="text-surface-400 text-sm">Order from the menu to start a new pool!</p>
+          <h3 className="text-lg font-bold mb-2">No active student pools right now</h3>
+          <p className="text-surface-400 text-sm">Use this board when you want to look for pool partners.</p>
         </div>
       ) : (
         <div className="grid gap-4 md:gap-6 sm:grid-cols-2">
@@ -155,10 +154,10 @@ export default function PoolsPage() {
                 <button
                   onClick={() => handleJoinPool(pool.menuItem?._id)}
                   disabled={joining === pool.menuItem?._id || pool.currentSize >= pool.maxSize}
-                  className="btn-primary w-full text-sm min-h-[44px]"
+                  className="btn-primary w-full text-sm min-h-11"
                   id={`join-pool-${pool._id}`}
                 >
-                  {joining === pool.menuItem?._id ? 'Joining...' : pool.currentSize >= pool.maxSize ? 'Pool Full' : '🤝 Join This Pool'}
+                  {joining === pool.menuItem?._id ? 'Joining...' : pool.currentSize >= pool.maxSize ? 'Board Full' : '🤝 Join This Pool'}
                 </button>
               </div>
             </div>

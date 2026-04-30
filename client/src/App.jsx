@@ -75,12 +75,13 @@ function AppRoutes() {
         <Route path="nutrition" element={<ProtectedRoute roles={['student']}><NutritionPage /></ProtectedRoute>} />
 
         {/* Kitchen Routes */}
-        <Route path="kitchen" element={<ProtectedRoute roles={['kitchen', 'admin']}><KitchenDashboard /></ProtectedRoute>} />
-        <Route path="menu-manage" element={<ProtectedRoute roles={['kitchen', 'admin']}><MenuManage /></ProtectedRoute>} />
-        <Route path="stats" element={<ProtectedRoute roles={['kitchen', 'admin']}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="kitchen" element={<ProtectedRoute roles={['kitchen']}><KitchenDashboard /></ProtectedRoute>} />
+        <Route path="menu-manage" element={<ProtectedRoute roles={['kitchen']}><MenuManage /></ProtectedRoute>} />
+        <Route path="kitchen-analytics" element={<ProtectedRoute roles={['kitchen']}><AdminDashboard mode="analytics" /></ProtectedRoute>} />
 
         {/* Admin Routes */}
-        <Route path="users" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+        <Route path="stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="analytics" /></ProtectedRoute>} />
+        <Route path="users" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="users" /></ProtectedRoute>} />
       </Route>
 
       {/* Catch all */}

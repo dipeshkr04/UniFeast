@@ -18,13 +18,11 @@ const studentLinks = [
 const kitchenLinks = [
   { to: '/', icon: MdOutlineKitchen, label: 'Live Orders' },
   { to: '/menu-manage', icon: MdRestaurantMenu, label: 'Menu' },
-  { to: '/stats', icon: HiOutlineChartBar, label: 'Statistics' },
+  { to: '/kitchen-analytics', icon: HiOutlineChartBar, label: 'Analytics' },
 ];
 
 const adminLinks = [
   { to: '/', icon: HiOutlineHome, label: 'Dashboard' },
-  { to: '/kitchen', icon: MdOutlineKitchen, label: 'Live Orders' },
-  { to: '/menu-manage', icon: MdRestaurantMenu, label: 'Menu' },
   { to: '/users', icon: HiOutlineUserGroup, label: 'Users' },
   { to: '/stats', icon: HiOutlineChartBar, label: 'Analytics' },
 ];

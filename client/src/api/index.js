@@ -72,6 +72,13 @@ export const orderAPI = {
   addProducedStock: (menuItemId, quantity) => api.post('/orders/kitchen/produce', { menuItemId, quantity }),
 };
 
+// ─── Payment API ────────────────────────────
+
+export const paymentAPI = {
+  createOrder: (data) => api.post('/payments/create-order', data),
+  verifyPayment: (data) => api.post('/payments/verify', data),
+};
+
 // ─── Pool API ───────────────────────────────
 
 export const poolAPI = {

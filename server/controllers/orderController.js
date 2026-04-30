@@ -17,6 +17,17 @@ function isOrderFullyAssigned(order) {
   return order.items.every((item) => getItemAssignedQty(item) >= getItemRequestedQty(item));
 }
 
+function getFulfillmentSummary(order) {
+  const totalRequested = order.items.reduce((sum, item) => sum + getItemRequestedQty(item), 0);
+  const totalAssigned = order.items.reduce((sum, item) => sum + getItemAssignedQty(item), 0);
+
+  return {
+    totalRequested,
+    totalAssigned,
+    isFulfilled: totalRequested > 0 && totalAssigned >= totalRequested,
+  };
+}
+
 async function getAllocatedActiveQuantity(menuItemId) {
   const activeOrders = await Order.find({
     status: { $in: ['pending', 'queued', 'preparing', 'ready'] },
@@ -318,13 +329,19 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    const fulfillment = getFulfillmentSummary(order);
+
+    if ((status === 'ready' || status === 'completed') && !fulfillment.isFulfilled) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order cannot advance until all items are fulfilled from made stock',
+      });
+    }
+
     order.status = status;
     order.statusHistory.push({ status, timestamp: new Date() });
     
     if (status === 'completed') {
-      if (!isOrderFullyAssigned(order)) {
-        return res.status(400).json({ success: false, message: 'Order cannot be completed until all items are fulfilled from made stock' });
-      }
       order.actualCompletionTime = new Date();
       await consumeMadeStockForCompletedOrder(order);
       // Auto-log nutrition on completion

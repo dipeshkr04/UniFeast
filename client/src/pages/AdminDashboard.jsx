@@ -1,55 +1,51 @@
-import { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect, useCallback } from 'react';
 import { adminAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { HiOutlineUserGroup, HiOutlineCollection, HiOutlineCurrencyRupee, HiOutlineClipboardList } from 'react-icons/hi';
 import toast from 'react-hot-toast';
+// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from 'framer-motion';
 
 const ROLE_COLORS = { student: '#3b82f6', kitchen: '#f59e0b', admin: '#10b981' };
 
-export default function AdminDashboard() {
-  const location = useLocation();
+export default function AdminDashboard({ mode = 'analytics' }) {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const isUsersMode = mode === 'users';
   const [stats, setStats] = useState({});
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [userFilter, setUserFilter] = useState('');
-  // Auto-select "users" tab when navigated from /users route
-  const [tab, setTab] = useState(location.pathname === '/users' ? 'users' : 'overview');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    if (tab === 'users') fetchUsers();
-  }, [tab, userFilter]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const { data } = await adminAPI.getStats();
       setStats(data.data);
     } catch (err) {
       // Silently fail — stats are supplementary, don't block the UI
       console.warn('Stats fetch failed:', err.message);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     try {
       const params = {};
       if (userFilter) params.role = userFilter;
       const { data } = await adminAPI.getUsers(params);
       setUsers(data.data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load users');
     }
-  };
+  }, [userFilter]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (isUsersMode && isAdmin) fetchUsers();
+  }, [isUsersMode, isAdmin, fetchUsers]);
 
   const handleRoleChange = async (userId, role) => {
     try {
@@ -57,7 +53,7 @@ export default function AdminDashboard() {
       toast.success('Role updated');
       fetchUsers();
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to update role');
     }
   };
@@ -69,7 +65,7 @@ export default function AdminDashboard() {
       toast.success('User deleted');
       fetchUsers();
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete user');
     }
   };
@@ -86,30 +82,16 @@ export default function AdminDashboard() {
       <div className="mb-4">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <h1 className="text-4xl sm:text-5xl font-black leading-tight tracking-tight text-white drop-shadow-2xl">
-            System <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-primary-500">Analytics.</span>
+            {isUsersMode ? 'User ' : 'System '}<span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-primary-500">{isUsersMode ? 'Directory.' : 'Analytics.'}</span>
           </h1>
-          <p className="text-surface-400 font-bold uppercase tracking-widest text-xs mt-3 bg-white/5 inline-block py-1.5 px-3 rounded-md border border-white/5">Administrator Master Console</p>
+          <p className="text-surface-400 font-bold uppercase tracking-widest text-xs mt-3 bg-white/5 inline-block py-1.5 px-3 rounded-md border border-white/5">
+            {isUsersMode ? 'Administrator User Management' : 'Administrator Analytics Console'}
+          </p>
         </motion.div>
       </div>
 
-      {/* Tab switches */}
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-4 mb-4 border-b border-surface-800 pb-6">
-        {[
-          { id: 'overview', label: 'GLOBAL OVERVIEW' },
-          ...(isAdmin ? [{ id: 'users', label: 'USER DIRECTORY' }] : []),
-        ].map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-8 py-3.5 rounded-full text-sm font-black tracking-wide transition-all shadow-lg ${tab === t.id ? 'bg-primary-500 text-white shadow-primary-500/30' : 'bg-surface-900 border border-surface-800 text-surface-400 hover:text-white hover:border-surface-700'}`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </motion.div>
-
       <AnimatePresence mode="wait">
-        {tab === 'overview' ? (
+        {!isUsersMode ? (
           <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-8">
             {/* Stats Grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

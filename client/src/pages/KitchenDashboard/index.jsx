@@ -4,6 +4,7 @@ import KitchenStatusNav from './KitchenStatusNav';
 import OrderGrid from './OrderGrid';
 import KitchenSocketProvider from './KitchenSocketProvider';
 import { useKitchenOrders } from './useKitchenOrders';
+import { HiOutlineSearch, HiX } from 'react-icons/hi';
 import './KitchenDashboard.css';
 
 const KitchenDashboardContent = () => {
@@ -16,6 +17,8 @@ const KitchenDashboardContent = () => {
     setActiveFilter,
     dishFilter,
     setDishFilter,
+    searchQuery,
+    setSearchQuery,
     dishOptions,
     selectedDish,
     summary,
@@ -53,7 +56,7 @@ const KitchenDashboardContent = () => {
         />
         
         {reconnecting && (
-          <div style={{ margin: "12px 0", padding: "10px 12px", borderRadius: "10px", border: "1px solid rgba(251,191,36,0.4)", background: "rgba(245,158,11,0.15)", color: "#fde68a", fontSize: "13px" }}>
+          <div className="kitchen-reconnect-banner">
             Reconnecting... live updates are paused
           </div>
         )}
@@ -69,25 +72,42 @@ const KitchenDashboardContent = () => {
             </small>
           </div>
 
-          <div className="dish-filter-controls">
-            <select
-              value={dishFilter}
-              onChange={(event) => setDishFilter(event.target.value)}
-              className="dish-filter-select"
-              aria-label="Filter kitchen orders by dish"
-            >
-              <option value="ALL">All dishes</option>
-              {dishOptions.map((dish) => (
-                <option key={dish.key} value={dish.key}>
-                  {dish.name} ({dish.orderCount} orders / {dish.quantity} qty)
-                </option>
-              ))}
-            </select>
-            {dishFilter !== 'ALL' && (
-              <button className="dish-filter-clear" onClick={() => setDishFilter('ALL')}>
-                Clear
-              </button>
-            )}
+          <div className="dish-filter-tools">
+            <div className="kitchen-order-search">
+              <HiOutlineSearch className="kitchen-order-search-icon" />
+              <input
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search BT ID, name, token..."
+                aria-label="Search live orders by BT ID, student name, or order token"
+              />
+              {searchQuery && (
+                <button type="button" onClick={() => setSearchQuery('')} aria-label="Clear search">
+                  <HiX />
+                </button>
+              )}
+            </div>
+
+            <div className="dish-filter-controls">
+              <select
+                value={dishFilter}
+                onChange={(event) => setDishFilter(event.target.value)}
+                className="dish-filter-select"
+                aria-label="Filter kitchen orders by dish"
+              >
+                <option value="ALL">All dishes</option>
+                {dishOptions.map((dish) => (
+                  <option key={dish.key} value={dish.key}>
+                    {dish.name} ({dish.orderCount} orders / {dish.quantity} qty)
+                  </option>
+                ))}
+              </select>
+              {dishFilter !== 'ALL' && (
+                <button className="dish-filter-clear" onClick={() => setDishFilter('ALL')}>
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
         </div>
 

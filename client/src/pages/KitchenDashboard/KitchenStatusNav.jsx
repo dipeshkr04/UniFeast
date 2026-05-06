@@ -1,4 +1,5 @@
 import React from 'react';
+import { HiOutlineMenuAlt2 } from 'react-icons/hi';
 import { STATUS_COLORS } from './kitchenColors';
 
 const TABS = ['ACTIVE', 'PENDING', 'QUEUED', 'PREPARING', 'READY', 'COMPLETED'];
@@ -8,15 +9,15 @@ const KitchenStatusNav = ({ summary, activeFilter, onFilterChange, isConnected, 
     <div className="kitchen-status-nav">
       <div className="nav-header-info mobile-only">
         <button 
-          className="desktop-hide" 
+          className="kitchen-sidebar-toggle desktop-hide" 
           onClick={onOpenSidebar}
-          style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: 'var(--color-surface-100, #f4f4f5)', marginRight: '16px', display: 'flex', alignItems: 'center' }}
+          aria-label="Open kitchen overview"
         >
-          ≡
+          <HiOutlineMenuAlt2 className="kitchen-sidebar-toggle-icon" />
         </button>
         <span className="live-indicator">
-          {isConnected ? <span className="dot green pulse"></span> : <span className="dot red"></span>}
-          {isConnected ? 'Live' : 'Connecting...'}
+          <span className={`dot green ${isConnected ? 'pulse' : ''}`}></span>
+          Live
         </span>
       </div>
       <div className="nav-tabs">

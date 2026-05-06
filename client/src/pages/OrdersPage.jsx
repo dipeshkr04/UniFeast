@@ -1,26 +1,28 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { orderAPI } from '../api';
 import { useSocket } from '../contexts/SocketContext';
-import { HiOutlineClock, HiOutlineRefresh } from 'react-icons/hi';
+import { HiOutlineCalendar, HiOutlineClock, HiOutlineRefresh, HiX } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const statusConfig = {
-  pending: { label: 'Pending', color: 'badge-warning', emoji: '⏳' },
-  queued: { label: 'Queued', color: 'badge-info', emoji: '📋' },
-  preparing: { label: 'Preparing', color: 'badge-primary', emoji: '👨‍🍳' },
-  ready: { label: 'Ready!', color: 'badge-success', emoji: '✅' },
-  completed: { label: 'Completed', color: 'badge-success', emoji: '🎉' },
-  cancelled: { label: 'Cancelled', color: 'badge-danger', emoji: '❌' },
+  pending: { label: 'Pending', color: 'badge-warning', border: 'border-l-warning', emoji: '⏳' },
+  queued: { label: 'Queued', color: 'badge-info', border: 'border-l-info', emoji: '📋' },
+  preparing: { label: 'Preparing', color: 'badge-primary', border: 'border-l-primary-500', emoji: '👨‍🍳' },
+  ready: { label: 'Ready!', color: 'badge-success', border: 'border-l-success', emoji: '✅' },
+  completed: { label: 'Completed', color: 'badge-success', border: 'border-l-success', emoji: '🎉' },
+  cancelled: { label: 'Cancelled', color: 'badge-danger', border: 'border-l-danger', emoji: '❌' },
 };
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('');
+  const [dateFilter, setDateFilter] = useState('');
   const [reconnecting, setReconnecting] = useState(false);
   const { socket } = useSocket() || {};
   const lastStatusToastRef = useRef({ key: '', time: 0 });
+  const dateInputRef = useRef(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -134,30 +136,89 @@ export default function OrdersPage() {
     return () => clearInterval(interval);
   }, [orders]);
 
+  const toDateInputValue = (value) => {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return localDate.toISOString().slice(0, 10);
+  };
+
+  const visibleOrders = dateFilter
+    ? orders.filter((order) => toDateInputValue(order.createdAt) === dateFilter)
+    : orders;
+  const selectedDateExpense = visibleOrders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
+  const formatCurrency = (value) => new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 0,
+  }).format(value);
+  const selectedDateLabel = dateFilter
+    ? new Date(`${dateFilter}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
+  const openDatePicker = () => {
+    const input = dateInputRef.current;
+    if (!input) return;
+    try {
+      if (typeof input.showPicker === 'function') {
+        input.showPicker();
+      } else {
+        input.focus();
+      }
+    } catch {
+      input.focus();
+    }
+  };
+
   return (
-    <div className="animate-fadeIn">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight">My <span className="text-primary-400">Orders</span></h1>
-          <p className="text-surface-400 mt-2 text-sm">Track your orders in real-time</p>
+    <div className="student-orders-page animate-fadeIn">
+      <div className="student-orders-header">
+        <div className="student-orders-title-block">
+          <h2 className="student-orders-title">My <span className="text-primary-400">Orders</span></h2>
+          <p>Track your orders in real-time</p>
         </div>
-        <button onClick={fetchOrders} className="btn-secondary flex items-center gap-2 text-sm min-h-[44px] px-4 py-2.5 self-start" id="refresh-orders">
-          <HiOutlineRefresh className="w-4 h-4" /> Refresh
-        </button>
+        <div className="student-orders-actions">
+          <button onClick={fetchOrders} className="student-orders-refresh btn-secondary" id="refresh-orders">
+            <HiOutlineRefresh className="w-4 h-4" /> Refresh
+          </button>
+          <div className="student-orders-date-filter" onClick={openDatePicker}>
+            <HiOutlineCalendar className="student-orders-date-icon" />
+            <input
+              ref={dateInputRef}
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              aria-label="Filter orders by date"
+              id="orders-date-filter"
+            />
+            {dateFilter && (
+              <button type="button" onClick={(e) => { e.stopPropagation(); setDateFilter(''); }} aria-label="Clear date filter">
+                <HiX />
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
+      {dateFilter && (
+        <div className="student-orders-date-summary">
+          <span>{selectedDateLabel}</span>
+          <strong>Spent {formatCurrency(selectedDateExpense)}</strong>
+          <span>{visibleOrders.length} order{visibleOrders.length === 1 ? '' : 's'}</span>
+        </div>
+      )}
+
       {reconnecting && (
-        <div className="mb-4 rounded-xl border border-amber-400/40 bg-amber-500/15 px-4 py-2 text-sm text-amber-100">
+        <div className="student-orders-reconnect">
           Reconnecting... live updates are paused
         </div>
       )}
 
-      <div className="flex gap-2 mb-6 md:mb-8 overflow-x-auto pb-3 scrollbar-none">
+      <div className="student-orders-filter-scroll scrollbar-none">
         {['', 'pending', 'queued', 'preparing', 'ready', 'completed'].map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
-            className={`px-4 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all min-h-[44px]
+            className={`student-orders-filter-btn
               ${filter === s ? 'tab-active' : 'bg-surface-800/40 text-surface-400 hover:bg-surface-700/40 border border-surface-700/30'}`}
             id={`filter-${s || 'all'}`}
           >
@@ -167,18 +228,18 @@ export default function OrdersPage() {
       </div>
 
       {loading ? (
-        <div className="grid gap-4 md:gap-6 md:grid-cols-2">{[1, 2, 3, 4].map((i) => <div key={i} className="skeleton h-44 rounded-2xl" />)}</div>
-      ) : orders.length === 0 ? (
-        <div className="text-center py-16 md:py-20 glass-card-static max-w-md mx-auto">
+        <div className="student-orders-loading-grid">{[1, 2, 3, 4].map((i) => <div key={i} className="skeleton student-orders-skeleton" />)}</div>
+      ) : visibleOrders.length === 0 ? (
+        <div className="student-orders-empty glass-card-static">
           <div className="text-5xl mb-4">📭</div>
-          <h3 className="text-lg font-bold mb-2">No orders found</h3>
-          <p className="text-surface-400 text-sm">You haven't placed any orders yet, or they don't match this filter.</p>
+          <h3>No orders found</h3>
+          <p>{dateFilter ? `No orders found for ${selectedDateLabel}.` : "You haven't placed any orders yet, or they don't match this filter."}</p>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="student-orders-groups">
           {(() => {
             const grouped = {};
-            orders.forEach((order) => {
+            visibleOrders.forEach((order) => {
               const dateKey = new Date(order.createdAt).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
               if (!grouped[dateKey]) grouped[dateKey] = [];
               grouped[dateKey].push(order);
@@ -186,13 +247,13 @@ export default function OrdersPage() {
             const sortedDates = Object.keys(grouped).sort((a, b) => new Date(grouped[b][0].createdAt) - new Date(grouped[a][0].createdAt));
 
             return sortedDates.map((dateKey) => (
-              <div key={dateKey}>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="h-px flex-1 bg-surface-800" />
-                  <span className="text-xs font-black uppercase tracking-widest text-surface-500 bg-surface-900/80 px-3 py-1.5 rounded-full border border-surface-800">{dateKey}</span>
-                  <div className="h-px flex-1 bg-surface-800" />
+              <div className="student-orders-date-group" key={dateKey}>
+                <div className="student-orders-date-divider">
+                  <div />
+                  <span>{dateKey}</span>
+                  <div />
                 </div>
-                <div className="grid gap-4 md:gap-6 xl:grid-cols-2">
+                <div className="student-orders-list">
                   <AnimatePresence mode="popLayout">
                     {grouped[dateKey].map((order) => {
                       const cfg = statusConfig[order.status] || statusConfig.pending;
@@ -201,56 +262,56 @@ export default function OrdersPage() {
 
                       return (
                         <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} key={order._id}
-                          className={`glass-card-static p-4 md:p-6 flex flex-col relative overflow-hidden ${isActive ? 'border-l-4 border-l-primary-500' : ''}`} id={`order-${order._id}`}>
-                          <div className="flex items-start justify-between mb-4">
-                            <div>
-                              <div className="flex flex-wrap items-center gap-2 mb-2">
+                          className={`student-order-card glass-card-static border-l-4 ${cfg.border}`} id={`order-${order._id}`}>
+                          <div className="student-order-top">
+                            <div className="student-order-identity">
+                              <div className="student-order-badges">
                                 <span className={`badge ${cfg.color}`}>{cfg.emoji} {cfg.label}</span>
                                 {order.isPooled && <span className="badge badge-info">🤝 Pooled</span>}
                               </div>
-                              <p className="text-xs text-surface-400 font-medium">#{order._id.slice(-6).toUpperCase()} • {new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} • {new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                              <p className="student-order-meta">#{order._id.slice(-6).toUpperCase()} <span>{new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span> <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></p>
                             </div>
-                            <div className="text-right shrink-0 ml-4">
-                              <p className="text-xl font-bold text-primary-400">₹{order.totalAmount}</p>
+                            <div className="student-order-total">
+                              <p>₹{order.totalAmount}</p>
                               {isActive && timeLeft && (
-                                <div className="flex items-center gap-1 text-sm text-accent-400 mt-1">
+                                <div className="student-order-eta">
                                   <HiOutlineClock className="w-4 h-4 animate-pulse" />
-                                  <span className="font-mono font-semibold text-xs">{timeLeft}</span>
+                                  <span>{timeLeft}</span>
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          <div className="space-y-1.5 mb-4 flex-1">
+                          <div className="student-order-items">
                             {order.items.map((item, i) => {
                               const readyQty = Math.min(Number(item.assignedReadyQty || 0), Number(item.quantity || 0));
                               const isItemReady = readyQty > 0 && readyQty >= Number(item.quantity || 0);
 
                               return (
-                                <div key={i} className="flex justify-between items-center text-sm py-1.5 px-3 rounded-lg bg-surface-800/30 border border-surface-700/20">
-                                  <span className="text-surface-200 flex flex-wrap items-center gap-2">
-                                    <span className="text-xs text-surface-400 font-mono">{item.quantity}x</span>
+                                <div key={i} className="student-order-item-row">
+                                  <span className="student-order-item-name">
+                                    <span className="student-order-item-qty">{item.quantity}x</span>
                                     {item.name || item.menuItem?.name}
                                     {readyQty > 0 && (
-                                      <span className={`text-[10px] font-black uppercase tracking-wide rounded-full px-2 py-0.5 ${isItemReady ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-200 border border-amber-500/30'}`}>
+                                      <span className={`student-order-ready-chip ${isItemReady ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-200 border border-amber-500/30'}`}>
                                         {readyQty}/{item.quantity} ready
                                       </span>
                                     )}
                                   </span>
-                                  <span className="text-surface-400 font-mono text-xs">₹{item.price * item.quantity}</span>
+                                  <span className="student-order-item-price">₹{item.price * item.quantity}</span>
                                 </div>
                               );
                             })}
                           </div>
 
                           {['queued', 'preparing'].includes(order.status) && order.estimatedReadyAt && order.estimatedTime && (
-                            <div className="pt-4 border-t border-surface-700/50 mt-auto">
-                              <div className="flex items-center justify-between text-xs text-surface-400 mb-2">
-                                <span className="font-semibold uppercase tracking-wider">Progress</span>
-                                <span className="font-bold text-surface-200">{order.estimatedTime} min</span>
+                            <div className="student-order-progress">
+                              <div className="student-order-progress-meta">
+                                <span>Progress</span>
+                                <span>{order.estimatedTime} min</span>
                               </div>
-                              <div className="w-full h-2 bg-surface-800/80 rounded-full overflow-hidden">
-                                <div className="h-full rounded-full gradient-primary relative" style={{
+                              <div className="student-order-progress-track">
+                                <div className="student-order-progress-fill gradient-primary" style={{
                                   width: `${Math.min(100, Math.max(5, (1 - (new Date(order.estimatedReadyAt) - new Date()) / (order.estimatedTime * 60000)) * 100))}%`,
                                   transition: 'width 1s linear'
                                 }} />

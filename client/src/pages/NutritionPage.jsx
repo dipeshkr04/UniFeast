@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { nutritionAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { HiOutlineFire, HiOutlineChevronLeft, HiOutlineChevronRight, HiPlus, HiMinus, HiOutlineTrash, HiOutlineCog, HiOutlineSparkles, HiOutlineLockClosed } from 'react-icons/hi';
+import { HiOutlineFire, HiOutlineChevronLeft, HiOutlineChevronRight, HiPlus, HiMinus, HiOutlineTrash, HiOutlineCog, HiOutlineSparkles, HiOutlineLockClosed, HiOutlineX } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import LeaderboardWidget from '../components/nutrition/LeaderboardWidget';
 import LeaderboardModal from '../components/nutrition/LeaderboardModal';
@@ -183,27 +183,27 @@ export default function NutritionPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 animate-fadeIn pb-24 lg:pb-8">
+    <div className="nutrition-page animate-fadeIn">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4">
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-white drop-shadow-sm">
+      <div className="nutrition-header">
+        <div className="min-w-0">
+          <h1 className="text-[clamp(22px,5vw,32px)] font-semibold tracking-normal text-white drop-shadow-sm">
             <span className="text-primary-400">Smart</span> Nutrition
           </h1>
-          <p className="text-surface-400 mt-1 capitalize text-sm sm:text-base">Track, analyze, and conquer your goals automatically.</p>
+          <p className="text-surface-400 mt-1 capitalize text-[14px] md:text-base">Track, analyze, and conquer your goals automatically.</p>
         </div>
-        <div className="flex items-center gap-3 w-full sm:w-auto">
-          <button onClick={() => setShowGoalsModal(true)} className="btn-secondary flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 text-sm bg-surface-800/80 hover:bg-surface-700/80 text-surface-200 border border-surface-700/50 rounded-xl transition-all">
+        <div className="nutrition-actions">
+          <button onClick={() => setShowGoalsModal(true)} className="btn-secondary flex items-center justify-center gap-2 px-4 py-2 text-[14px] bg-surface-800/80 hover:bg-surface-700/80 text-surface-200 border border-surface-700/50 rounded-xl transition-all min-h-[44px]">
             <HiOutlineCog className="w-4 h-4" /> Goals
           </button>
-          <button onClick={() => setShowLogForm(!showLogForm)} className="btn-primary flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2 shadow-[0_0_15px_rgba(255,71,20,0.3)] hover:shadow-[0_0_25px_rgba(255,71,20,0.5)] transition-shadow">
+          <button onClick={() => setShowLogForm(!showLogForm)} className="btn-primary flex items-center justify-center gap-2 px-6 py-2 shadow-[0_0_15px_rgba(255,71,20,0.3)] hover:shadow-[0_0_25px_rgba(255,71,20,0.5)] transition-shadow min-h-[48px]">
             <HiPlus className="w-4 h-4" /> {daily?.meals?.length > 0 ? "Add Another Meal" : "Log Meal"}
           </button>
         </div>
       </div>
 
       {/* Date Navigation */}
-      <div className="glass-card-static rounded-2xl flex items-center justify-between p-3 mb-8 w-full max-w-md mx-auto shadow-lg border border-surface-800/50">
+      <div className="nutrition-date-nav glass-card-static rounded-2xl flex items-center justify-between shadow-lg border border-surface-800/50">
         <button onClick={() => changeDate(-1)} className="p-3 bg-surface-800/50 rounded-xl hover:bg-surface-700 transition-colors text-surface-300 hover:text-white">
           <HiOutlineChevronLeft className="w-5 h-5" />
         </button>
@@ -220,8 +220,8 @@ export default function NutritionPage() {
 
       {/* AI Log Form Section */}
       {showLogForm && (
-        <div className="glass-card-static p-6 mb-8 animate-slideDown border border-primary-500/20 shadow-[0_0_30px_rgba(255,71,20,0.05)]">
-          <div className="flex items-center gap-3 mb-6">
+        <div className="nutrition-card glass-card-static animate-slideDown border border-primary-500/20 shadow-[0_0_30px_rgba(255,71,20,0.05)]">
+          <div className="nutrition-card-header">
             <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary-500 to-accent-600 shadow-lg">
                <HiOutlineSparkles className="w-5 h-5 text-white" />
             </div>
@@ -231,12 +231,12 @@ export default function NutritionPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8">
+          <div className="nutrition-form-grid">
             {/* Image Upload Area */}
-            <div className="col-span-1 md:col-span-4 flex flex-col gap-4">
+            <div className="flex flex-col gap-4">
               <div 
                 onClick={() => fileInputRef.current?.click()}
-                className={`relative h-48 sm:h-56 w-full rounded-2xl border-2 border-dashed ${logForm.imageUrl ? 'border-primary-500/50' : 'border-surface-600 hover:border-primary-500/50'} flex items-center justify-center cursor-pointer overflow-hidden transition-colors bg-surface-900/50 group`}
+                className={`relative h-48 md:h-56 w-full rounded-2xl border-2 border-dashed ${logForm.imageUrl ? 'border-primary-500/50' : 'border-surface-600 hover:border-primary-500/50'} flex items-center justify-center cursor-pointer overflow-hidden transition-colors bg-surface-900/50 group`}
               >
                 {logForm.imageUrl ? (
                   <>
@@ -270,9 +270,9 @@ export default function NutritionPage() {
             </div>
 
             {/* Manual Edit Area */}
-            <div className="col-span-1 md:col-span-8 flex flex-col justify-end">
-              <form onSubmit={handleLogMeal} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col justify-end">
+              <form onSubmit={handleLogMeal} className="flex flex-col gap-5">
+                <div className="nutrition-field-grid">
                   <div>
                     <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase tracking-wider">Food Name</label>
                     <input value={logForm.customName} onChange={e => setLogForm({ ...logForm, customName: e.target.value })} 
@@ -290,38 +290,38 @@ export default function NutritionPage() {
                   </div>
                 </div>
 
-                <div className="glass-card-static p-4 bg-surface-900/50 border border-surface-800">
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <div className="glass-card-static p-4 md:p-5 bg-surface-900/50 border border-surface-800">
+                  <div className="nutrition-macro-grid">
                     <div>
-                      <label className="block text-[10px] sm:text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Qty</label>
+                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Qty</label>
                       <input type="number" value={logForm.quantity} onChange={e => setLogForm({ ...logForm, quantity: e.target.value })} 
                         className="input-field w-full text-center px-1 font-bold" placeholder="1" min="1" required />
                     </div>
                     <div>
-                      <label className="block text-[10px] sm:text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Kcal</label>
+                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Kcal</label>
                       <input type="number" value={logForm.calories} onChange={e => setLogForm({ ...logForm, calories: e.target.value })} 
                         className={`input-field w-full text-center px-1 ${aiResult ? 'border-primary-500/50 text-white font-bold' : ''}`} placeholder="0" />
                     </div>
                     <div>
-                      <label className="block text-[10px] sm:text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Prot</label>
+                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Prot</label>
                       <input type="number" value={logForm.protein} onChange={e => setLogForm({ ...logForm, protein: e.target.value })} 
                         className={`input-field w-full text-center px-1 ${aiResult ? 'border-primary-500/50' : ''}`} placeholder="0" />
                     </div>
                     <div>
-                      <label className="block text-[10px] sm:text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Carb</label>
+                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Carb</label>
                       <input type="number" value={logForm.carbs} onChange={e => setLogForm({ ...logForm, carbs: e.target.value })} 
                         className={`input-field w-full text-center px-1 ${aiResult ? 'border-primary-500/50' : ''}`} placeholder="0" />
                     </div>
                     <div>
-                      <label className="block text-[10px] sm:text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Fat</label>
+                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Fat</label>
                       <input type="number" value={logForm.fat} onChange={e => setLogForm({ ...logForm, fat: e.target.value })} 
                         className={`input-field w-full text-center px-1 ${aiResult ? 'border-primary-500/50' : ''}`} placeholder="0" />
                     </div>
                   </div>
                 </div>
 
-                <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={() => setShowLogForm(false)} className="btn-secondary w-full sm:w-auto px-6 py-2.5">Cancel</button>
+                <div className="nutrition-form-actions">
+                  <button type="button" onClick={() => setShowLogForm(false)} className="btn-secondary w-full md:w-auto px-6 py-2 min-h-[44px]">Cancel</button>
                   <button type="submit" className="btn-primary w-full shadow-lg shadow-primary-500/20 tracking-wide font-bold py-2.5" disabled={analyzingImage || loading}>
                     Save Meal Entry
                   </button>
@@ -333,10 +333,10 @@ export default function NutritionPage() {
       )}
 
       {/* Main Dashboard Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+      <div className="nutrition-summary-grid">
         
         {/* Calorie Ring summary */}
-        <div className="glass-card-static p-6 flex flex-col items-center justify-center relative overflow-hidden group">
+        <div className="nutrition-card nutrition-stat-card glass-card-static items-center justify-center relative overflow-hidden group">
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-primary-500/10 rounded-full blur-2xl group-hover:bg-primary-500/20 transition-colors" />
           
           <h3 className="text-sm font-semibold text-surface-400 mb-2 uppercase tracking-wider relative z-10 text-center w-full">Daily Intake</h3>
@@ -360,27 +360,27 @@ export default function NutritionPage() {
             <div className="absolute inset-0 flex flex-col items-center justify-center">
               <HiOutlineFire className="w-5 h-5 text-primary-400 mb-0.5 drop-shadow-[0_0_5px_rgba(224,100,73,0.8)]" />
               <p className="text-3xl font-black text-white">{totals.calories}</p>
-              <p className="text-[11px] font-bold text-surface-500 uppercase tracking-widest mt-0.5">/ {goals.calories} kcal</p>
+              <p className="text-xs font-bold text-surface-500 uppercase tracking-widest mt-0.5">/ {goals.calories} kcal</p>
             </div>
           </div>
           
           <div className="relative z-10 flex gap-6 text-sm">
             <div className="text-center">
                <p className="font-bold text-surface-100">{totals.calories}</p>
-               <p className="text-[10px] text-surface-500 uppercase">Eaten</p>
+               <p className="text-xs text-surface-500 uppercase">Eaten</p>
             </div>
             <div className="w-px bg-surface-700/50" />
             <div className="text-center">
                <p className="font-bold text-surface-100">{Math.max(0, goals.calories - totals.calories)}</p>
-               <p className="text-[10px] text-surface-500 uppercase">Left</p>
+               <p className="text-xs text-surface-500 uppercase">Left</p>
             </div>
           </div>
         </div>
 
         {/* Macro Breakdown */}
-        <div className="glass-card-static p-5">
-          <h3 className="text-sm font-semibold text-surface-400 mb-4 uppercase tracking-wider">Macros vs Goals</h3>
-          <div className="space-y-5">
+        <div className="nutrition-card nutrition-stat-card glass-card-static justify-center">
+          <h3 className="text-sm font-semibold text-surface-400 mb-5 uppercase tracking-wider">Macros vs Goals</h3>
+          <div className="space-y-6">
             {macroData.map(m => (
               <div key={m.name}>
                 <div className="flex justify-between text-sm mb-1.5">
@@ -400,8 +400,8 @@ export default function NutritionPage() {
         </div>
 
         {/* Macro Pie distribution */}
-        <div className="glass-card-static p-5 flex flex-col items-center">
-          <h3 className="text-sm font-semibold text-surface-400 mb-3 uppercase tracking-wider">Caloric Distribution</h3>
+        <div className="nutrition-card nutrition-stat-card glass-card-static flex flex-col items-center justify-center">
+          <h3 className="text-sm font-semibold text-surface-400 mb-4 uppercase tracking-wider">Caloric Distribution</h3>
           {pieData.length > 0 ? (
             <ResponsiveContainer width="100%" height={150}>
               <PieChart>
@@ -426,16 +426,16 @@ export default function NutritionPage() {
       </div>
 
       {/* Trend Charts */}
-      <div className="glass-card-static p-5 mb-6">
-        <div className="flex justify-between items-center mb-6">
+      <div className="nutrition-card glass-card-static">
+        <div className="nutrition-chart-header">
           <h3 className="text-sm font-semibold text-surface-400 uppercase tracking-wider">Calorie Trend</h3>
-          <div className="bg-surface-800 rounded-lg p-1 flex">
+          <div className="bg-surface-800 rounded-lg p-1 flex w-full md:w-auto justify-center">
             <button onClick={() => setChartView('weekly')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${chartView === 'weekly' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-200'}`}>
+              className={`min-h-[44px] flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-md transition-colors ${chartView === 'weekly' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-200'}`}>
               Weekly
             </button>
             <button onClick={() => setChartView('monthly')}
-              className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${chartView === 'monthly' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-200'}`}>
+              className={`min-h-[44px] flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-md transition-colors ${chartView === 'monthly' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-200'}`}>
               Monthly
             </button>
           </div>
@@ -443,34 +443,38 @@ export default function NutritionPage() {
 
         {chartView === 'weekly' ? (
           weekly.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={weekly}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
-                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={d => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 12, color: '#f1f5f9' }} />
-                <Bar dataKey="calories" fill="#e06449" radius={[4, 4, 0, 0]} barSize={30} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="nutrition-chart-frame">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weekly}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={d => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })} />
+                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 12, color: '#f1f5f9' }} />
+                  <Bar dataKey="calories" fill="#e06449" radius={[4, 4, 0, 0]} barSize={30} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           ) : <p className="text-surface-500 text-center py-10">No weekly data</p>
         ) : (
           monthly.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
-              <LineChart data={monthly}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
-                <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={d => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} />
-                <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 12, color: '#f1f5f9' }} />
-                <Line type="monotone" dataKey="calories" stroke="#e06449" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#e06449', stroke: '#fff', strokeWidth: 2 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="nutrition-chart-frame">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthly}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={d => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} />
+                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 12, color: '#f1f5f9' }} />
+                  <Line type="monotone" dataKey="calories" stroke="#e06449" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#e06449', stroke: '#fff', strokeWidth: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           ) : <p className="text-surface-500 text-center py-10">No monthly data</p>
         )}
       </div>
 
       {/* Today's Meals List */}
-      <div className="glass-card-static rounded-2xl overflow-hidden">
-        <div className="p-5 border-b border-surface-800 flex items-center justify-between">
+      <div className="nutrition-card glass-card-static overflow-hidden p-0">
+        <div className="nutrition-meals-header border-b border-surface-800 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-surface-400 uppercase tracking-wider">Meals Logged ({daily?.meals?.length || 0})</h3>
         </div>
 
@@ -479,8 +483,8 @@ export default function NutritionPage() {
             {daily.meals.map((meal, i) => {
               const qty = meal.quantity || 1;
               return (
-                <div key={meal._id || i} className="p-4 sm:p-5 flex items-center justify-between hover:bg-surface-800/30 transition-colors group">
-                  <div className="flex items-center gap-3 sm:gap-4 flex-1 min-w-0">
+                <div key={meal._id || i} className="nutrition-meal-row hover:bg-surface-800/30 transition-colors group">
+                  <div className="nutrition-meal-main">
                     {meal.imageUrl ? (
                       <img src={meal.imageUrl.startsWith('/') || meal.imageUrl.startsWith('http') ? meal.imageUrl : `/${meal.imageUrl}`} alt={meal.customName} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
                     ) : (
@@ -489,41 +493,43 @@ export default function NutritionPage() {
                       </div>
                     )}
                     <div className="min-w-0">
-                      <p className="text-sm sm:text-base font-medium text-surface-100 truncate">{meal.customName || meal.menuItem?.name}</p>
+                      <p className="text-[14px] md:text-base font-medium text-surface-100 truncate">{meal.customName || meal.menuItem?.name}</p>
                       <p className="text-xs text-surface-500 capitalize">{meal.mealType} {meal.isAutoLogged ? '• Auto' : ''}</p>
                     </div>
                   </div>
 
-                  {/* Quantity Controls */}
-                  <div className="flex items-center gap-2 mx-3">
-                    <button
-                      onClick={() => qty > 1 ? handleUpdateQuantity(daily._id, meal._id, qty - 1) : handleDeleteMeal(daily._id, meal._id)}
-                      className="w-7 h-7 rounded-lg bg-surface-700/60 flex items-center justify-center hover:bg-surface-600/60 text-surface-300 hover:text-white transition-colors"
-                      title={qty <= 1 ? 'Remove meal' : 'Decrease quantity'}
-                    >
-                      {qty <= 1 ? <HiOutlineTrash className="w-3.5 h-3.5 text-red-400" /> : <HiMinus className="w-3.5 h-3.5" />}
-                    </button>
-                    <span className="w-6 text-center font-semibold text-sm text-surface-100">{qty}</span>
-                    <button
-                      onClick={() => handleUpdateQuantity(daily._id, meal._id, qty + 1)}
-                      className="w-7 h-7 rounded-lg bg-surface-700/60 flex items-center justify-center hover:bg-surface-600/60 text-surface-300 hover:text-white transition-colors"
-                      title="Increase quantity"
-                    >
-                      <HiPlus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  <div className="nutrition-meal-footer">
+                    {/* Quantity Controls */}
+                    <div className="nutrition-meal-controls">
+                      <button
+                        onClick={() => qty > 1 ? handleUpdateQuantity(daily._id, meal._id, qty - 1) : handleDeleteMeal(daily._id, meal._id)}
+                        className="min-w-[44px] min-h-[44px] rounded-lg bg-surface-700/60 flex items-center justify-center hover:bg-surface-600/60 text-surface-300 hover:text-white transition-colors"
+                        title={qty <= 1 ? 'Remove meal' : 'Decrease quantity'}
+                      >
+                        {qty <= 1 ? <HiOutlineTrash className="w-3.5 h-3.5 text-red-400" /> : <HiMinus className="w-3.5 h-3.5" />}
+                      </button>
+                      <span className="min-w-5 text-center font-semibold text-[14px] text-surface-100">{qty}</span>
+                      <button
+                        onClick={() => handleUpdateQuantity(daily._id, meal._id, qty + 1)}
+                        className="min-w-[44px] min-h-[44px] rounded-lg bg-surface-700/60 flex items-center justify-center hover:bg-surface-600/60 text-surface-300 hover:text-white transition-colors"
+                        title="Increase quantity"
+                      >
+                        <HiPlus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
 
-                  {/* Calories & Macros */}
-                  <div className="text-right flex-shrink-0">
-                    <p className="font-bold text-surface-100">{meal.calories * qty} <span className="text-xs text-surface-400 font-normal">kcal</span></p>
-                    <p className="text-xs text-surface-400 mt-0.5">P:{Math.round(meal.protein * qty * 100) / 100}g C:{Math.round(meal.carbs * qty * 100) / 100}g F:{Math.round(meal.fat * qty * 100) / 100}g</p>
+                    {/* Calories & Macros */}
+                    <div className="nutrition-meal-macros flex-shrink-0">
+                      <p className="font-bold text-surface-100">{meal.calories * qty} <span className="text-xs text-surface-400 font-normal">kcal</span></p>
+                      <p className="text-xs text-surface-400 mt-1">P:{Math.round(meal.protein * qty * 100) / 100}g C:{Math.round(meal.carbs * qty * 100) / 100}g F:{Math.round(meal.fat * qty * 100) / 100}g</p>
+                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
         ) : (
-          <div className="py-8 text-center">
+          <div className="py-12 px-5 text-center">
             <p className="text-surface-500">No meals logged for this day</p>
           </div>
         )}
@@ -531,56 +537,77 @@ export default function NutritionPage() {
       </div>
 
       {/* Leaderboard Widget */}
-      <div className="mt-8 mb-12">
+      <div className="nutrition-leaderboard">
         <LeaderboardWidget onOpenFull={() => setShowFullLeaderboard(true)} />
       </div>
 
       {/* Goals Editor Modal */}
       {showGoalsModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
-          <div className="glass-card-static w-full max-w-md p-6 animate-slideUp border border-surface-700">
-            <h2 className="text-xl font-bold mb-4">Edit Nutrition Goals</h2>
+        <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+          <div className="goals-modal-panel glass-card-static animate-slideUp border border-surface-700 z-[2001]">
+            <div className="goals-modal-header border-b border-surface-800">
+              <div className="min-w-0">
+                <h2 className="text-xl font-bold text-white">Edit Nutrition Goals</h2>
+                <p className="text-[14px] text-surface-400 mt-1">Set your daily targets for calories, macros, and fiber.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowGoalsModal(false)}
+                className="goals-close-btn bg-surface-800/50 hover:bg-surface-700 text-surface-400 hover:text-white transition-colors"
+                aria-label="Close goals editor"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            </div>
             
-            {isGoalsLocked ? (
-              <div className="mb-6 p-4 rounded-xl bg-orange-900/20 border border-orange-500/20 flex gap-3 text-orange-200 text-sm">
-                <HiOutlineLockClosed className="w-5 h-5 flex-shrink-0 text-orange-400 mt-0.5" />
-                <p>Goals are locked for today because you have already logged a meal. You can adjust your goals tomorrow morning before eating to ensure Leaderboard fairness.</p>
-              </div>
-            ) : (
-              <p className="text-surface-400 text-sm mb-6">Update your daily targets. The charts and leaderboard normalizations will automatically update.</p>
-            )}
+            <div className="goals-modal-body">
+              {isGoalsLocked ? (
+                <div className="goals-lock-alert bg-orange-900/20 border border-orange-500/20 text-orange-200">
+                  <HiOutlineLockClosed className="w-5 h-5 flex-shrink-0 text-orange-400" />
+                  <div>
+                    <p className="font-semibold">Goals are locked for today.</p>
+                    <p className="text-[14px] mt-1">You have already logged a meal, so goals can be adjusted tomorrow morning before eating to keep leaderboard scoring fair.</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-surface-400 text-[14px]">Changes update your charts and leaderboard normalization immediately.</p>
+              )}
 
-            <form onSubmit={handleSaveGoals} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-surface-300 mb-1">Daily Calories</label>
-                  <input type="number" className="input-field" value={goalsForm.dailyCalorieGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyCalorieGoal: e.target.value })} required disabled={isGoalsLocked} />
+              <form onSubmit={handleSaveGoals} className="goals-form">
+                <div className="goals-field-grid goals-field-grid-primary">
+                  <div className="goals-field">
+                    <label className="text-surface-300">Daily Calories</label>
+                    <input type="number" className="input-field" value={goalsForm.dailyCalorieGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyCalorieGoal: e.target.value })} required disabled={isGoalsLocked} />
+                  </div>
+                  <div className="goals-field">
+                    <label className="text-surface-300">Fiber (g)</label>
+                    <input type="number" className="input-field" value={goalsForm.dailyFiberGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyFiberGoal: e.target.value })} required disabled={isGoalsLocked} />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-surface-300 mb-1">Fiber (g)</label>
-                  <input type="number" className="input-field px-2" value={goalsForm.dailyFiberGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyFiberGoal: e.target.value })} required disabled={isGoalsLocked} />
+
+                <div className="goals-field-grid goals-field-grid-macros">
+                  <div className="goals-field">
+                    <label className="text-surface-300">Protein (g)</label>
+                    <input type="number" className="input-field" value={goalsForm.dailyProteinGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyProteinGoal: e.target.value })} required disabled={isGoalsLocked} />
+                  </div>
+                  <div className="goals-field">
+                    <label className="text-surface-300">Carbs (g)</label>
+                    <input type="number" className="input-field" value={goalsForm.dailyCarbGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyCarbGoal: e.target.value })} required disabled={isGoalsLocked} />
+                  </div>
+                  <div className="goals-field">
+                    <label className="text-surface-300">Fat (g)</label>
+                    <input type="number" className="input-field" value={goalsForm.dailyFatGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyFatGoal: e.target.value })} required disabled={isGoalsLocked} />
+                  </div>
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-surface-300 mb-1">Protein (g)</label>
-                  <input type="number" className="input-field px-2" value={goalsForm.dailyProteinGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyProteinGoal: e.target.value })} required disabled={isGoalsLocked} />
+
+                <div className="goals-actions">
+                  <button type="button" onClick={() => setShowGoalsModal(false)} className="btn-secondary min-h-[48px]">Cancel</button>
+                  <button type="submit" className="btn-primary disabled:opacity-50 disabled:cursor-not-allowed min-h-[48px]" disabled={isGoalsLocked}>
+                    {isGoalsLocked ? 'Goals locked today' : 'Save Goals'}
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-surface-300 mb-1">Carbs (g)</label>
-                  <input type="number" className="input-field px-2" value={goalsForm.dailyCarbGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyCarbGoal: e.target.value })} required disabled={isGoalsLocked} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-surface-300 mb-1">Fat (g)</label>
-                  <input type="number" className="input-field px-2" value={goalsForm.dailyFatGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyFatGoal: e.target.value })} required disabled={isGoalsLocked} />
-                </div>
-              </div>
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setShowGoalsModal(false)} className="btn-secondary flex-1">Cancel</button>
-                <button type="submit" className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isGoalsLocked}>Save Goals</button>
-              </div>
-            </form>
+              </form>
+            </div>
           </div>
         </div>
       )}

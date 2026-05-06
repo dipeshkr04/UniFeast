@@ -46,14 +46,14 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[#050505] overflow-hidden selection:bg-primary-500/30">
+    <div className="auth-shell bg-[#050505] selection:bg-primary-500/30">
       
       {/* Left Branding Panel (Full Bleed) */}
       <motion.div 
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
-        className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-primary-600 via-primary-500 to-primary-900 p-12 xl:p-20 text-white flex-col relative overflow-hidden"
+        className="hidden"
       >
         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-white/10 rounded-full blur-[100px]" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-black/40 rounded-full blur-[120px]" />
@@ -67,7 +67,7 @@ export default function Login() {
           </motion.div>
           <motion.h1 
              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8 }}
-             className="text-5xl xl:text-6xl font-black tracking-tight mb-8 leading-tight"
+             className="text-5xl lg:text-6xl font-black tracking-tight mb-8 leading-tight"
           >
             Uni<span className="text-white/80">Feast</span>
           </motion.h1>
@@ -92,10 +92,10 @@ export default function Login() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="w-full lg:w-7/12 xl:w-1/2 min-h-screen flex flex-col justify-center relative bg-[#09090b]"
+        className="w-full flex items-center justify-center relative"
       >
         {/* Premium Animated Mesh Background inside Form Panel */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="hidden">
           <motion.div 
             animate={{ x: [0, 50, -50, 0], y: [0, -50, 50, 0], scale: [1, 1.2, 0.8, 1] }}
             transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
@@ -108,23 +108,23 @@ export default function Login() {
           />
         </div>
 
-        <div className="w-full max-w-xl mx-auto p-8 sm:p-12 lg:p-16 relative z-10 flex flex-col justify-center h-full items-center">
+        <div className="auth-card glass-card-static relative z-10">
+          <div className="auth-card-inner flex flex-col items-center">
           
-          {/* Mobile logo */}
-          <div className="lg:hidden flex flex-col items-center text-center mb-10">
-            <div className="w-16 h-16 rounded-3xl gradient-primary flex items-center justify-center shadow-2xl shadow-primary-500/30 mb-6">
+          <div className="flex flex-col items-center text-center mb-7">
+            <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-2xl shadow-primary-500/30 mb-4">
               <MdRestaurantMenu className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-black tracking-tight mb-2">Uni<span className="text-primary-500">Feast</span></h1>
-            <p className="text-xs uppercase tracking-widest text-surface-500 font-bold">IIIT Nagpur</p>
+            <h1 className="text-[22px] font-bold tracking-normal mb-1">Uni<span className="text-primary-500">Feast</span></h1>
+            <p className="text-[14px] text-surface-400 font-medium">IIIT Nagpur</p>
           </div>
 
-          <div className="mb-10 text-center w-full">
-            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-white tracking-tight">Welcome Back</h2>
-            <p className="text-surface-400 font-medium text-lg">Please enter your details to sign in.</p>
+          <div className="mb-7 text-center w-full">
+            <h2 className="text-[22px] font-bold mb-1 text-white tracking-normal">Welcome Back</h2>
+            <p className="text-surface-400 font-medium text-[14px]">Please enter your details to sign in.</p>
           </div>
 
-          <div className="mb-8 flex justify-center w-full">
+          <div className="mb-6 auth-google-wrap">
             <GoogleLogin
               onSuccess={async (credentialResponse) => {
                 setLoading(true);
@@ -143,36 +143,36 @@ export default function Login() {
               shape="pill"
               size="large"
               text="continue_with"
-              width="320"
+              width="100%"
             />
           </div>
           
-          <div className="relative flex items-center mb-10 w-full">
+          <div className="relative flex items-center mb-6 w-full">
             <div className="flex-grow border-t border-white/5"></div>
-            <span className="mx-6 text-surface-500 text-xs font-bold uppercase tracking-[0.2em] text-center">or sign in with bt email</span>
+            <span className="mx-4 text-surface-500 text-xs font-bold uppercase tracking-[0.2em] text-center">or sign in with bt email</span>
             <div className="flex-grow border-t border-white/5"></div>
           </div>
 
-          <form onSubmit={handleAuthSubmit} className="space-y-6 w-full max-w-md">
-            <div className="space-y-6">
-              <div className="text-left">
-                <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Email Address</label>
+          <form onSubmit={handleAuthSubmit} className="flex flex-col gap-[18px] w-full">
+            <div className="flex flex-col gap-[18px]">
+              <div className="text-left flex flex-col gap-2">
+                <label className="block text-[13px] font-medium text-surface-300">Email Address</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center"
+                  className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center"
                   placeholder="bt23xxx@iiitn.ac.in"
                   required
                 />
               </div>
-              <div className="text-left">
-                <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Password</label>
+              <div className="text-left flex flex-col gap-2">
+                <label className="block text-[13px] font-medium text-surface-300">Password</label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center tracking-widest"
+                  className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center tracking-widest"
                   placeholder="••••••••"
                   required
                 />
@@ -182,14 +182,14 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="btn-primary w-full py-4 text-lg rounded-xl mt-4 h-[60px]"
+              className="btn-primary w-full py-3 text-[15px] font-semibold rounded-[10px] mt-2 min-h-[48px]"
             >
               {loading ? 'Authenticating...' : 'Sign In'}
             </button>
           </form>
 
-          <div className="mt-12 text-center w-full">
-            <p className="text-surface-400 font-medium">
+          <div className="mt-4 text-center w-full">
+            <p className="text-surface-400 font-medium text-[14px]">
               New to UniFeast?{' '}
               <Link to="/register" className="text-primary-500 hover:text-primary-400 font-black transition-colors underline decoration-primary-500/30 underline-offset-4">
                 Create an account
@@ -198,9 +198,9 @@ export default function Login() {
           </div>
 
           {/* Quick login */}
-          <div className="mt-12 pt-8 border-t border-white/5 w-full max-w-md">
-            <p className="text-[10px] text-surface-500 text-center mb-4 uppercase tracking-[0.2em] font-black">Demo Access</p>
-            <div className="grid grid-cols-3 gap-3 sm:gap-4">
+          <div className="mt-6 pt-5 border-t border-white/5 w-full">
+            <p className="text-xs text-surface-500 text-center mb-4 uppercase tracking-[0.2em] font-black">Demo Access</p>
+            <div className="grid grid-cols-3 gap-3">
               {[
                 { label: 'Student', email: 'student@iiitn.ac.in', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/50' },
                 { label: 'Kitchen', email: 'kitchen@iiitn.ac.in', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-500/50' },
@@ -209,12 +209,13 @@ export default function Login() {
                 <button
                   key={label}
                   onClick={() => quickLogin(e)}
-                  className={`py-3.5 px-3 rounded-xl border text-xs font-bold transition-all ${color}`}
+                  className={`py-3 px-3 rounded-xl border text-xs font-bold transition-all min-h-[44px] ${color}`}
                 >
                   {label}
                 </button>
               ))}
             </div>
+          </div>
           </div>
           
         </div>

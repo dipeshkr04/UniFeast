@@ -1,15 +1,20 @@
 import { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import { adminAPI } from '../../api';
+import { useAuth } from '../../contexts/AuthContext';
 import { useSocket } from '../../contexts/SocketContext';
 
 export default function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [canteenLive, setCanteenLive] = useState(false);
+  const { user } = useAuth();
   const { socket } = useSocket() || {};
+  const { pathname } = useLocation();
+  const isKitchenDashboardPage = user?.role === 'kitchen' && (pathname === '/' || pathname === '/kitchen');
+  const isUnframedPage = pathname === '/menu-manage' || isKitchenDashboardPage;
 
   // Fetch canteen status on mount
   useEffect(() => {
@@ -51,15 +56,20 @@ export default function Layout() {
       />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
-      <main className="min-h-screen relative z-10" style={{ paddingTop: '80px' }}>
-        <div style={{ paddingLeft: 'clamp(16px, 4vw, 64px)', paddingRight: 'clamp(16px, 4vw, 64px)', paddingTop: '24px', paddingBottom: '32px', maxWidth: '1440px', marginLeft: 'auto', marginRight: 'auto' }}>
+      <main className="min-h-screen relative z-[1]">
+        <div className={`container ${isKitchenDashboardPage ? 'kitchen-layout-container' : 'py-6 md:py-8'}`}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
-            className="glass-card min-h-[80vh] shadow-2xl p-6 sm:p-8"
+            className={isKitchenDashboardPage
+              ? 'kitchen-layout-frame'
+              : isUnframedPage
+              ? 'min-h-[calc(100vh-128px)]'
+              : 'glass-card-static min-h-[calc(100vh-128px)] shadow-2xl p-4 md:p-6 lg:p-8'
+            }
           >
-            <Outlet context={{ canteenLive }} />
+            <Outlet context={{ canteenLive, setCanteenLive }} />
           </motion.div>
         </div>
       </main>

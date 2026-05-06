@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   HiOutlineHome, HiOutlineClipboardList, HiOutlineUserGroup,
-  HiOutlineChartBar
+  HiOutlineChartBar, HiOutlineX
 } from 'react-icons/hi';
 import { MdRestaurantMenu, MdOutlineKitchen } from 'react-icons/md';
 import { IoNutritionOutline } from 'react-icons/io5';
@@ -31,27 +31,48 @@ export default function Sidebar({ open, onClose }) {
   const { user } = useAuth();
   const links = user?.role === 'admin' ? adminLinks :
     user?.role === 'kitchen' ? kitchenLinks : studentLinks;
+  const roleLabel = user?.role ? user.role.toUpperCase() : '';
 
   return (
     <>
       <AnimatePresence>
         {open && (
           <div
-            className="fixed inset-0 bg-black/60 backdrop-blur-md z-40"
+            className="mobile-sidebar-backdrop"
             onClick={onClose}
           />
         )}
       </AnimatePresence>
 
       <aside
-        className={`fixed top-16 sm:top-20 left-0 bottom-0 w-72 z-40 bg-surface-950/95 backdrop-blur-3xl border-r border-white/5 shadow-2xl transition-transform duration-500 cubic-bezier(0.2, 0.8, 0.2, 1)
-          ${open ? 'translate-x-0' : '-translate-x-full'} flex flex-col pt-6`}
+        className={`mobile-sidebar ${open ? 'is-open' : ''}`}
+        aria-hidden={!open}
       >
-        <div className="flex flex-col h-full px-6 pb-6 overflow-y-auto scrollbar-none">
-          <nav className="flex-1 space-y-2">
-            <p className="text-[10px] uppercase tracking-[0.2em] text-surface-500 font-bold mb-6 pl-2">
-              Navigation
-            </p>
+        <div className="mobile-sidebar-scroll">
+          <header className="mobile-sidebar-header">
+            <div className="mobile-sidebar-brand">
+              <div className="mobile-sidebar-brand-icon gradient-primary">
+                <MdRestaurantMenu className="w-5 h-5 text-white" />
+              </div>
+              <div className="mobile-sidebar-brand-copy">
+                <p className="mobile-sidebar-brand-title">
+                  Uni<span className="text-primary-500">Feast</span>
+                </p>
+                <p className="mobile-sidebar-brand-subtitle text-primary-400/80">IIIT Nagpur</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mobile-sidebar-close"
+              aria-label="Close navigation"
+            >
+              <HiOutlineX className="w-5 h-5" />
+            </button>
+          </header>
+
+          <nav className="mobile-sidebar-nav" aria-label="Primary navigation">
+            <p className="mobile-sidebar-section-label">Navigation</p>
             {links.map((link) => (
               <NavLink
                 key={link.to}
@@ -59,45 +80,34 @@ export default function Sidebar({ open, onClose }) {
                 onClick={onClose}
                 end={link.to === '/'}
                 className={({ isActive }) =>
-                  `flex items-center gap-4 px-4 py-3.5 rounded-2xl text-sm font-semibold transition-all duration-300 relative group overflow-hidden
-                  ${isActive
-                    ? 'text-white'
-                    : 'text-surface-400 hover:text-white hover:bg-white/5'
-                  }`
+                  `mobile-sidebar-link ${isActive ? 'is-active' : ''}`
                 }
               >
                 {({ isActive }) => (
                   <>
-                    {isActive && (
-                      <div
-                        className="absolute inset-0 bg-linear-to-r from-primary-600/20 to-primary-500/5 rounded-2xl border border-primary-500/20"
-                      />
-                    )}
-                    {isActive && (
-                      <div className="absolute left-0 top-1/4 bottom-1/4 w-1 bg-primary-500 rounded-r-full shadow-[0_0_10px_#ff4714]" />
-                    )}
-                    <link.icon className={`w-5 h-5 shrink-0 relative z-10 transition-all duration-300 ${isActive ? 'text-primary-400 scale-110 drop-shadow-[0_0_8px_rgba(255,71,20,0.5)]' : 'group-hover:scale-110 group-hover:text-primary-300'}`} />
-                    <span className="relative z-10 tracking-wide">{link.label}</span>
+                    <span className="mobile-sidebar-link-indicator" aria-hidden="true" />
+                    <link.icon className={`mobile-sidebar-link-icon ${isActive ? 'text-primary-400' : ''}`} />
+                    <span className="mobile-sidebar-link-label">{link.label}</span>
                   </>
                 )}
               </NavLink>
             ))}
           </nav>
 
-          <div className="mt-8 pt-6 border-t border-white/5">
-            <div className="glass-card flex items-center gap-4 p-4 bg-white/5! hover:border-primary-500/30! group cursor-pointer transition-all">
-              <div className="w-10 h-10 rounded-full gradient-primary flex items-center justify-center text-white font-black text-lg shadow-lg shadow-primary-500/30 shrink-0 group-hover:scale-110 transition-transform">
+          <footer className="mobile-sidebar-footer">
+            <div className="mobile-sidebar-user">
+              <div className="mobile-sidebar-avatar gradient-primary">
                 {user?.name?.charAt(0)?.toUpperCase()}
               </div>
-              <div className="overflow-hidden">
-                <p className="text-sm font-bold text-white truncate">{user?.name}</p>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-primary-500 shadow-[0_0_8px_#ff4714]" />
-                  <p className="text-[10px] text-surface-400 font-medium uppercase tracking-widest truncate">{user?.role}</p>
+              <div className="mobile-sidebar-user-copy">
+                <p className="mobile-sidebar-user-name text-white">{user?.name}</p>
+                <div className="mobile-sidebar-user-role">
+                  <span className="mobile-sidebar-user-dot bg-primary-500" />
+                  <p className="text-surface-400">{roleLabel}</p>
                 </div>
               </div>
             </div>
-          </div>
+          </footer>
         </div>
       </aside>
     </>

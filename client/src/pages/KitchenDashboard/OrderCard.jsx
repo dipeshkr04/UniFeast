@@ -44,11 +44,15 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady }) => {
   };
 
   const studentName = order.user?.name || order.student?.name || 'Unknown';
-  const btId =
+  const rawBtId =
     order.user?.btId ||
-    order.user?.phone ||
+    order.student?.btId ||
+    order.btId ||
     order.user?.email ||
+    order.student?.email ||
+    order.user?.phone ||
     `ID-${String(order.user?._id || '').slice(-4) || 'N/A'}`;
+  const btId = String(rawBtId || '').split('@')[0];
   const createdTime = new Date(order.createdAt).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit',
@@ -73,8 +77,8 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady }) => {
           <span className="meta-btid">BT: {btId}</span>
         </div>
         <div className="order-right-meta">
-          <div className="student-name">{studentName}</div>
           <div className="order-id">{shortOrderId}</div>
+          <div className="student-name">{studentName}</div>
         </div>
       </div>
 
@@ -94,10 +98,9 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady }) => {
           const readyQty = Math.min(Number(it.assignedReadyQty || 0), itemQty);
           const isItemReady = itemQty > 0 && readyQty >= itemQty;
           const canMarkItemReady = !isItemReady && !['COMPLETED', 'CANCELLED'].includes(status);
-          const isMatchingDish = dishFilterKey && dishFilterKey !== 'ALL' && normalizeDishName(itemName) === dishFilterKey;
 
           return (
-          <div key={idx} className={`item-row ${isMatchingDish ? 'matching-dish' : ''}`}>
+          <div key={idx} className="item-row">
             <div className="item-thumb-wrap">
               {it.menuItem?.imageUrl ? (
                 <img className="item-thumb" src={it.menuItem.imageUrl} alt={itemName} />
@@ -108,7 +111,6 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady }) => {
             <div className="item-main">
               <div className="item-title">
                 {itemQty}x {itemName}
-                {isMatchingDish && <span className="item-match-pill">Filtered</span>}
               </div>
               <div className="item-ready-meta">
                 {readyQty}/{itemQty} ready

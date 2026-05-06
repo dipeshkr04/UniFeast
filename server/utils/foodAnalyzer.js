@@ -1,229 +1,292 @@
-const { ClarifaiStub, grpc } = require("clarifai-nodejs-grpc");
 const axios = require('axios');
-const MenuItem = require('../models/MenuItem');
-const { INDIAN_FOOD_NUTRITION } = require('./indianFoodNutrition');
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-// ── Local ResNet inference service configuration ──
-const RESNET_SERVICE_URL = process.env.RESNET_SERVICE_URL || 'http://localhost:8000';
-const RESNET_CONFIDENCE_THRESHOLD = parseFloat(process.env.RESNET_CONFIDENCE_THRESHOLD || '0.45');
+const GEMINI_API_VERSION = process.env.GEMINI_API_VERSION || 'v1beta';
+const GEMINI_BASE_URL = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}`;
+const CONFIGURED_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+const FALLBACK_GEMINI_MODELS = [
+  CONFIGURED_GEMINI_MODEL,
+  'gemini-flash-latest',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash',
+];
 
-const stub = ClarifaiStub.grpc();
+const LOW_CONFIDENCE_THRESHOLD = Number(process.env.GEMINI_NUTRITION_CONFIDENCE_THRESHOLD || 0.65);
+const MAX_IMAGE_BYTES = Number(process.env.GEMINI_MAX_IMAGE_BYTES || 8 * 1024 * 1024);
+let cachedGeminiModel = null;
 
-// ── Common single-serving weights (grams) for foods USDA reports per 100g ──
-const SERVING_WEIGHTS = {
-  egg: 50, apple: 182, banana: 118, orange: 131, mango: 200,
-  sandwich: 150, burger: 200, pizza: 107, sushi: 30, rice: 158,
-  bread: 30, cookie: 30, donut: 60, cake: 80, pie: 125,
-  chicken: 140, steak: 170, salmon: 170, bacon: 8,
-  potato: 150, tomato: 123, broccoli: 91, carrot: 61,
-  samosa: 50, idli: 40, dosa: 100, poha: 200, paneer: 40,
-  noodles: 200, pasta: 200, ramen: 200, soup: 240,
-  milk: 244, coffee: 240, tea: 240, juice: 248,
-  default: 100 // fallback: per-100g as-is
-};
-
-function getServingWeight(foodName) {
-  const lower = foodName.toLowerCase();
-  for (const [key, weight] of Object.entries(SERVING_WEIGHTS)) {
-    if (lower.includes(key)) return weight;
+function requireGeminiKey() {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured');
   }
-  return SERVING_WEIGHTS.default;
+  return apiKey;
+}
+
+function clampConfidence(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0.5;
+  return Math.max(0, Math.min(1, parsed > 1 ? parsed / 100 : parsed));
+}
+
+function roundMacro(value, decimals = 1) {
+  const parsed = typeof value === 'string'
+    ? Number(value.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/)?.[0] || 0)
+    : Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return 0;
+  const factor = 10 ** decimals;
+  return Math.round(parsed * factor) / factor;
+}
+
+function normalizeNutrition(nutrition = {}) {
+  return {
+    calories: Math.round(roundMacro(nutrition.calories, 0)),
+    protein: roundMacro(nutrition.protein),
+    carbs: roundMacro(nutrition.carbs),
+    fat: roundMacro(nutrition.fat),
+    fiber: roundMacro(nutrition.fiber),
+  };
+}
+
+function normalizeModelName(modelName) {
+  return String(modelName || '').trim().replace(/^models\//, '');
+}
+
+function buildGenerateContentUrl(modelName) {
+  return `${GEMINI_BASE_URL}/models/${normalizeModelName(modelName)}:generateContent`;
+}
+
+function uniqueModels(models) {
+  const seen = new Set();
+  return models
+    .filter(Boolean)
+    .map(normalizeModelName)
+    .filter((model) => {
+      if (!model || seen.has(model)) return false;
+      seen.add(model);
+      return true;
+    });
+}
+
+function isModelAvailabilityError(error) {
+  const status = error.response?.status;
+  const message = String(error.response?.data?.error?.message || error.message || '').toLowerCase();
+  return status === 404 ||
+    message.includes('is not found') ||
+    message.includes('not supported for generatecontent') ||
+    message.includes('models/') && message.includes('not found');
+}
+
+function supportsGenerateContent(model) {
+  return Array.isArray(model.supportedGenerationMethods) &&
+    model.supportedGenerationMethods.includes('generateContent');
+}
+
+async function discoverAvailableGeminiModel(apiKey, alreadyTried = new Set()) {
+  const response = await axios.get(`${GEMINI_BASE_URL}/models?key=${encodeURIComponent(apiKey)}`, {
+    timeout: 15000,
+  });
+
+  const models = (response.data?.models || [])
+    .filter(supportsGenerateContent)
+    .map((model) => ({
+      ...model,
+      shortName: normalizeModelName(model.name),
+    }));
+
+  const preferred = uniqueModels(FALLBACK_GEMINI_MODELS);
+  for (const candidate of preferred) {
+    const found = models.find((model) => model.shortName === candidate && !alreadyTried.has(candidate));
+    if (found) return found.shortName;
+  }
+
+  const flashModel = models.find((model) =>
+    model.shortName.toLowerCase().includes('flash') && !alreadyTried.has(model.shortName)
+  );
+  if (flashModel) return flashModel.shortName;
+
+  const anyModel = models.find((model) => !alreadyTried.has(model.shortName));
+  return anyModel?.shortName || null;
+}
+
+function inferMimeType(imageUrl, contentType) {
+  if (contentType && contentType.startsWith('image/')) return contentType.split(';')[0];
+  const lower = String(imageUrl || '').toLowerCase();
+  if (lower.includes('.png')) return 'image/png';
+  if (lower.includes('.webp')) return 'image/webp';
+  if (lower.includes('.gif')) return 'image/gif';
+  return 'image/jpeg';
+}
+
+async function downloadImageAsInlineData(imageUrl) {
+  const response = await axios.get(imageUrl, {
+    responseType: 'arraybuffer',
+    timeout: 15000,
+    maxContentLength: MAX_IMAGE_BYTES,
+    maxBodyLength: MAX_IMAGE_BYTES,
+  });
+
+  const buffer = Buffer.from(response.data);
+  if (buffer.length > MAX_IMAGE_BYTES) {
+    throw new Error('Image is too large for nutrition analysis');
+  }
+
+  return {
+    inline_data: {
+      mime_type: inferMimeType(imageUrl, response.headers['content-type']),
+      data: buffer.toString('base64'),
+    },
+  };
+}
+
+function extractText(responseData) {
+  const parts = responseData?.candidates?.[0]?.content?.parts || [];
+  return parts.map((part) => part.text || '').join('\n').trim();
+}
+
+function parseGeminiJson(text) {
+  const cleaned = String(text || '')
+    .replace(/^```(?:json)?/i, '')
+    .replace(/```$/i, '')
+    .trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Gemini response did not contain JSON');
+    return JSON.parse(jsonMatch[0]);
+  }
+}
+
+function parseNutritionNumber(value) {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return 0;
+  const match = value.replace(/,/g, '').match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : 0;
+}
+
+function normalizeGeminiResult(raw, modelName) {
+  const confidence = clampConfidence(raw.confidence);
+  const nutrition = normalizeNutrition(raw.nutrition || {
+    calories: parseNutritionNumber(raw.calories),
+    protein: parseNutritionNumber(raw.protein),
+    carbs: parseNutritionNumber(raw.carbs),
+    fat: parseNutritionNumber(raw.fat),
+    fiber: parseNutritionNumber(raw.fiber),
+  });
+  const foodName =
+    String(raw.foodName || raw.food_name || raw.name || 'Detected food')
+      .trim()
+      .replace(/\s+/g, ' ');
+
+  return {
+    foodName,
+    confidence,
+    nutrition,
+    servingSize: raw.servingSize || raw.serving_size || 'visible serving',
+    detectedItems: Array.isArray(raw.detectedItems || raw.detected_items)
+      ? (raw.detectedItems || raw.detected_items).map((item) => ({
+        name: String(item.name || 'Food item').trim(),
+        quantity: Number(item.quantity || 1),
+        unit: item.unit || 'serving',
+        confidence: clampConfidence(item.confidence ?? confidence),
+      }))
+      : [],
+    notes: Array.isArray(raw.notes) ? raw.notes.map((note) => String(note)) : [],
+    source: 'gemini_flash',
+    model: modelName,
+    isLowConfidenceWarning: confidence < LOW_CONFIDENCE_THRESHOLD,
+  };
+}
+
+function buildNutritionPrompt() {
+  return `Analyze this image and identify the food. Provide its approximate nutritional content for the full visible serving.
+Prioritize Indian college canteen foods such as paratha, chai, dosa, idli, poha, samosa, thali, rice, dal, paneer, noodles, sandwiches, snacks, and beverages.
+Please respond ONLY with a valid JSON object strictly following this structure. No markdown, no backticks, just the raw JSON object:
+{
+  "name": "Name of the food",
+  "calories": "value with unit (e.g., 250 kcal)",
+  "protein": "value with unit (e.g., 10g)",
+  "fiber": "value with unit (e.g., 5g)",
+  "fat": "value with unit (e.g., 12g)",
+  "carbs": "value with unit (e.g., 30g)",
+  "confidence": 0.85,
+  "servingSize": "brief visible serving estimate"
+}`;
 }
 
 async function analyzeFoodImage(imageUrl) {
-  return new Promise((resolve, reject) => {
-    const metadata = new grpc.Metadata();
-    metadata.set("authorization", `Key ${process.env.CLARIFAI_PAT}`);
+  const apiKey = requireGeminiKey();
+  const imagePart = await downloadImageAsInlineData(imageUrl);
 
-    stub.PostModelOutputs(
+  const payload = {
+    contents: [
       {
-        user_app_id: {
-          user_id: 'clarifai',
-          app_id: 'main'
-        },
-        model_id: "food-item-recognition",
-        inputs: [
-          { data: { image: { url: imageUrl } } }
-        ]
+        parts: [
+          { text: buildNutritionPrompt() },
+          imagePart,
+        ],
       },
-      metadata,
-      (err, response) => {
-        if (err) {
-          console.error("Clarifai Error:", err);
-          return reject(err);
-        }
+    ],
+    generationConfig: {
+      response_mime_type: 'application/json',
+      temperature: 0.1,
+      topP: 0.8,
+      topK: 32,
+      maxOutputTokens: 700,
+    },
+  };
 
-        if (response.status.code !== 10000) {
-          console.error("Clarifai Request failed:", response.status.description);
-          return reject(new Error(response.status.description));
-        }
+  const triedModels = new Set();
+  let lastModelError = null;
+  let candidates = uniqueModels([cachedGeminiModel, ...FALLBACK_GEMINI_MODELS]);
 
-        const concepts = response.outputs[0].data.concepts;
-        if (concepts && concepts.length > 0) {
-          resolve({
-            name: concepts[0].name,
-            confidence: concepts[0].value
-          });
-        } else {
-          resolve(null);
-        }
-      }
-    );
-  });
-}
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (const modelName of candidates) {
+      if (triedModels.has(modelName)) continue;
+      triedModels.add(modelName);
 
-async function getNutritionByName(foodName) {
-  try {
-    // USDA FoodData Central — free, no key required with DEMO_KEY
-    // First try searching for the raw/whole version for accurate base values
-    let response = await axios.get(
-      `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=DEMO_KEY&query=${encodeURIComponent(foodName + ' raw whole')}&pageSize=5`
-    );
+      try {
+        const response = await axios.post(`${buildGenerateContentUrl(modelName)}?key=${encodeURIComponent(apiKey)}`, payload, {
+          timeout: 30000,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
 
-    if (!response.data.foods || response.data.foods.length === 0) {
-      // Retry with just the food name
-      response = await axios.get(
-        `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=DEMO_KEY&query=${encodeURIComponent(foodName)}&pageSize=5`
-      );
-      if (!response.data.foods || response.data.foods.length === 0) return null;
-    }
-
-    // Prefer "raw" / "fresh" / "whole" matches for unprocessed foods
-    let bestMatch = response.data.foods[0];
-    for (const food of response.data.foods) {
-      const desc = food.description.toLowerCase();
-      const query = foodName.toLowerCase();
-      if (desc.includes(query) && (desc.includes('raw') || desc.includes('fresh') || desc.includes('whole'))) {
-        bestMatch = food;
-        break;
+        cachedGeminiModel = modelName;
+        const text = extractText(response.data);
+        const raw = parseGeminiJson(text);
+        return normalizeGeminiResult(raw, modelName);
+      } catch (error) {
+        if (!isModelAvailabilityError(error)) throw error;
+        lastModelError = error;
       }
     }
 
-    // USDA values are ALWAYS per 100g — scale to a typical single serving
-    const servingGrams = getServingWeight(foodName);
-    const scale = servingGrams / 100;
-
-    const raw = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
-    bestMatch.foodNutrients.forEach(n => {
-      if (n.nutrientName === 'Energy' && (n.unitName === 'KCAL' || n.unitName === 'kcal')) raw.calories = n.value;
-      if (n.nutrientName === 'Protein') raw.protein = n.value;
-      if (n.nutrientName.includes('Carbohydrate')) raw.carbs = n.value;
-      if (n.nutrientName === 'Total lipid (fat)') raw.fat = n.value;
-      if (n.nutrientName.includes('Fiber')) raw.fiber = n.value;
-    });
-
-    return {
-      calories: Math.round(raw.calories * scale),
-      protein: Math.round(raw.protein * scale * 10) / 10,
-      carbs: Math.round(raw.carbs * scale * 10) / 10,
-      fat: Math.round(raw.fat * scale * 10) / 10,
-      fiber: Math.round(raw.fiber * scale * 10) / 10,
-    };
-  } catch (error) {
-    console.error("USDA API Error:", error.message);
-    return null;
+    const discoveredModel = await discoverAvailableGeminiModel(apiKey, triedModels);
+    if (!discoveredModel) break;
+    candidates = [discoveredModel];
   }
-}
 
-// ── Call local ResNet Python service ──
-async function analyzeWithLocalResNet(imageUrl) {
-  try {
-    const response = await axios.post(
-      `${RESNET_SERVICE_URL}/predict-url`,
-      { url: imageUrl },
-      { timeout: 15000 }
-    );
-    return response.data; // { label, confidence }
-  } catch (error) {
-    console.warn('Local ResNet service unavailable or failed:', error.message);
-    return null;
-  }
+  throw lastModelError || new Error('No Gemini model that supports generateContent is available for this API key');
 }
 
 async function analyzeFoodComplete(imageUrl) {
   try {
-    // ── STEP 1: Try local ResNet first (free, fast, Indian-food specialist) ──
-    const localResult = await analyzeWithLocalResNet(imageUrl);
-
-    if (localResult && localResult.confidence >= RESNET_CONFIDENCE_THRESHOLD) {
-      // ── STEP 2: Check hardcoded nutrition map ──
-      const localNutrition = INDIAN_FOOD_NUTRITION[localResult.label];
-      if (localNutrition) {
-        console.log(`✅ Local ResNet identified: ${localResult.label} (${(localResult.confidence * 100).toFixed(1)}%)`);
-        return {
-          foodName: localResult.label.replace(/_/g, ' '),
-          confidence: localResult.confidence,
-          nutrition: localNutrition,
-          source: 'local_resnet',
-          isLowConfidenceWarning: localResult.confidence < 0.50,
-        };
-      }
-    }
-
-    // ── STEP 3: Fallback to Clarifai (broad-spectrum) ──
-    console.log('⚠️  Local model low-confidence or unavailable. Falling back to Clarifai...');
-    const food = await analyzeFoodImage(imageUrl);
-
-    if (!food) {
-      throw new Error("Could not detect food in image");
-    }
-
-    const clarifaiThresh = 0.85;
-    if (food.confidence < clarifaiThresh) {
-      if (localResult && INDIAN_FOOD_NUTRITION[localResult.label]) {
-        const localDev = RESNET_CONFIDENCE_THRESHOLD - localResult.confidence;
-        const clarifaiDev = clarifaiThresh - food.confidence;
-
-        if (localDev < clarifaiDev) {
-          console.log(`⚠️ Using Local ResNet fallback (Deviation: Local ${localDev.toFixed(2)} < Clarifai ${clarifaiDev.toFixed(2)})`);
-          return {
-            foodName: localResult.label.replace(/_/g, ' '),
-            confidence: localResult.confidence,
-            nutrition: INDIAN_FOOD_NUTRITION[localResult.label],
-            source: 'local_resnet_deviation_fallback',
-            isLowConfidenceWarning: localResult.confidence < 0.50,
-          };
-        }
-      }
-      throw new Error("LOW_CONFIDENCE");
-    }
-
-    // ── STEP 4: Fetch nutrition via USDA ──
-    let nutrition = await getNutritionByName(food.name);
-
-    if (!nutrition || nutrition.calories === 0) {
-      // ── STEP 5: Final fallback — MenuItem DB ──
-      const localItem = await MenuItem.findOne({
-        name: { $regex: food.name, $options: 'i' }
-      });
-
-      if (localItem) {
-        nutrition = {
-          calories: localItem.nutrition.calories,
-          protein: localItem.nutrition.protein,
-          carbs: localItem.nutrition.carbs,
-          fat: localItem.nutrition.fat,
-          fiber: localItem.nutrition.fiber,
-        };
-      } else {
-        nutrition = { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
-      }
-    }
-
-    return {
-      foodName: food.name,
-      confidence: food.confidence,
-      nutrition,
-      source: 'clarifai_usda',
-    };
+    return await analyzeFoodImage(imageUrl);
   } catch (error) {
-    console.error("analyzeFoodComplete Error:", error);
-    throw error;
+    const detail = error.response?.data?.error?.message || error.message;
+    console.error('Gemini nutrition analysis error:', detail);
+    throw new Error(detail || 'Gemini nutrition analysis failed');
   }
 }
 
 module.exports = {
   analyzeFoodImage,
-  getNutritionByName,
-  analyzeFoodComplete
+  analyzeFoodComplete,
 };

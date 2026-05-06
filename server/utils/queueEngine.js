@@ -1,26 +1,16 @@
 /**
- * UniFeast Queue Engine — M/M/c Queueing Model for ETA Calculation
- * 
- * This implements the Erlang-C formula for multi-server queueing systems.
- * 
- * Parameters:
- *   λ (lambda) = arrival rate (orders per minute)
- *   μ (mu)     = service rate per server (orders per minute per station)
- *   c          = number of active kitchen stations
- *   ρ          = λ / (c * μ)  — server utilization (must be < 1 for stability)
- * 
- * Key formulas:
- *   P₀ = [Σ(k=0 to c-1) (a^k/k!) + (a^c/c!) * (1/(1-ρ))]^(-1)
- *   where a = λ/μ
- * 
- *   C(c,a) = (a^c/c!) * P₀ / (1-ρ)   — Erlang-C probability
- *   Wq = C(c,a) / (c*μ - λ)          — expected wait in queue
- *   W  = Wq + 1/μ                     — total expected time in system
+ * UniFeast Queue Engine
+ *
+ * Student-facing ETA is a strict FCFS workload estimate:
+ * ETA = unfinished work ahead + this order's remaining prep work.
+ *
+ * Item quantity matters. Example: 2 parathas at 10 min each = 20 min.
+ * If another 1 paratha order is behind it, that second order gets 30 min.
  */
 
 const Order = require('../models/Order');
 
-// ─── Math Helpers ───────────────────────────────────
+// Math helpers
 
 function factorial(n) {
   if (n <= 1) return 1;
@@ -29,10 +19,10 @@ function factorial(n) {
   return result;
 }
 
-// ─── Arrival Rate Calculation ───────────────────────
+// Arrival-rate helpers
 
 /**
- * Calculate arrival rate λ (orders per minute) from recent order history
+ * Calculate arrival rate Î» (orders per minute) from recent order history
  * Uses a sliding window of the last `windowMinutes` minutes
  */
 async function calculateArrivalRate(windowMinutes = 30) {
@@ -43,38 +33,38 @@ async function calculateArrivalRate(windowMinutes = 30) {
     status: { $nin: ['cancelled'] },
   });
 
-  // λ = orders / time window (in minutes)
+  // Î» = orders / time window (in minutes)
   const lambda = count / windowMinutes;
   
   // Return at least a small value to avoid division by zero
   return Math.max(lambda, 0.1);
 }
 
-// ─── Service Rate Calculation ───────────────────────
+// Service-rate helpers
 
 /**
- * Calculate service rate μ (orders per minute per station)
+ * Calculate service rate Î¼ (orders per minute per station)
  * Based on item prep time
  */
 function calculateServiceRate(prepTimeMinutes) {
-  // μ = 1 / average service time
+  // Î¼ = 1 / average service time
   return 1 / Math.max(prepTimeMinutes, 1);
 }
 
-// ─── P₀ Calculation (Probability of empty system) ──
+// Legacy Erlang-C helpers retained for queue metrics
 
 /**
- * Calculate P₀ using summation method (exact, for low traffic)
+ * Calculate Pâ‚€ using summation method (exact, for low traffic)
  */
 function calculateP0Summation(a, c, rho) {
   let sum = 0;
   
-  // Summation: Σ(k=0 to c-1) (a^k / k!)
+  // Summation: Î£(k=0 to c-1) (a^k / k!)
   for (let k = 0; k < c; k++) {
     sum += Math.pow(a, k) / factorial(k);
   }
   
-  // Add the last term: (a^c / c!) * (1 / (1 - ρ))
+  // Add the last term: (a^c / c!) * (1 / (1 - Ï))
   const lastTerm = (Math.pow(a, c) / factorial(c)) * (1 / (1 - rho));
   sum += lastTerm;
   
@@ -82,7 +72,7 @@ function calculateP0Summation(a, c, rho) {
 }
 
 /**
- * Calculate P₀ using averaging method (approximate, for peak traffic)
+ * Calculate Pâ‚€ using averaging method (approximate, for peak traffic)
  * Uses Stirling's approximation for large factorials
  */
 function calculateP0Averaging(a, c, rho) {
@@ -90,13 +80,13 @@ function calculateP0Averaging(a, c, rho) {
   // that's more numerically stable
   const utilization = rho;
   
-  // Approximate P₀ ≈ (1 - ρ) for high utilization
+  // Approximate Pâ‚€ â‰ˆ (1 - Ï) for high utilization
   // More accurate: use the Jagerman approximation
   const approxP0 = (1 - rho) * (1 + rho) / (1 + 2 * rho);
   return Math.max(approxP0, 0.001);
 }
 
-// ─── Erlang-C Formula ───────────────────────────────
+// Erlang-C probability helper
 
 /**
  * Calculate Erlang-C probability C(c, a)
@@ -109,7 +99,7 @@ function erlangC(c, a, rho, p0) {
   return numerator * p0;
 }
 
-// ─── Main ETA Calculator ────────────────────────────
+// Main ETA calculator
 
 /**
  * Calculate ETA for an order
@@ -120,70 +110,24 @@ function erlangC(c, a, rho, p0) {
  * @returns {object} { eta, waitTime, serviceTime, utilization, method }
  */
 async function calculateETA(itemPrepTime, activeStations = 3, currentPendingOrders = null) {
-  const c = Math.max(activeStations, 1);
-  const mu = calculateServiceRate(itemPrepTime);
+  const serviceTime = Math.max(Number(itemPrepTime || 0), 1);
   const lambda = await calculateArrivalRate();
-  
-  // a = λ/μ (offered load)
-  const a = lambda / mu;
-  
-  // ρ = λ / (c * μ) (server utilization)
-  const rho = lambda / (c * mu);
-  
-  let p0, method;
-  
-  if (rho >= 1) {
-    // System is overloaded — use a simple estimate
-    const queuePosition = currentPendingOrders ?? await getPendingOrderCount();
-    const eta = (queuePosition / c) * itemPrepTime + itemPrepTime;
-    return {
-      eta: Math.round(eta),
-      waitTime: Math.round((queuePosition / c) * itemPrepTime),
-      serviceTime: itemPrepTime,
-      utilization: rho,
-      method: 'overloaded',
-      arrivalRate: lambda,
-      serviceRate: mu,
-    };
-  }
-  
-  // Traffic-aware P₀ calculation
-  if (rho < 0.7) {
-    // Low traffic → exact summation method
-    p0 = calculateP0Summation(a, c, rho);
-    method = 'summation';
-  } else {
-    // Peak traffic → averaging method  
-    p0 = calculateP0Averaging(a, c, rho);
-    method = 'averaging';
-  }
-  
-  // Erlang-C probability
-  const ec = erlangC(c, a, rho, p0);
-  
-  // Wq = C(c,a) / (c*μ - λ) — expected wait time in queue (minutes)
-  const wq = ec / (c * mu - lambda);
-  
-  // W = Wq + 1/μ — total expected time in system (minutes)
-  const w = wq + (1 / mu);
-  
-  // Add buffer for practical purposes (min 1 minute)
-  const eta = Math.max(Math.round(w), 1);
-  
+  const eta = Math.max(Math.round(serviceTime), 1);
+
   return {
     eta,
-    waitTime: Math.round(wq * 100) / 100,
-    serviceTime: itemPrepTime,
-    utilization: Math.round(rho * 1000) / 1000,
-    method,
-    erlangC: Math.round(ec * 1000) / 1000,
+    waitTime: 0,
+    serviceTime,
+    utilization: 0,
+    method: 'strict-workload',
+    erlangC: 0,
     arrivalRate: Math.round(lambda * 100) / 100,
-    serviceRate: Math.round(mu * 100) / 100,
-    p0: Math.round(p0 * 10000) / 10000,
+    serviceRate: Math.round((1 / serviceTime) * 100) / 100,
+    p0: 1,
   };
 }
 
-// ─── Helpers ────────────────────────────────────────
+// Helpers
 
 async function getPendingOrderCount() {
   return await Order.countDocuments({
@@ -200,30 +144,58 @@ async function recalculateAllETAs(activeStations = 3) {
     status: { $in: ['pending', 'queued', 'preparing'] },
   }).populate('items.menuItem').sort({ createdAt: 1 });
 
+  const stations = Math.max(activeStations, 1);
+  const estimateOrderServiceMinutes = (order) => {
+    // Queue-aware workload: only unfinished item quantities contribute to ETA.
+    const total = (order.items || []).reduce((sum, item) => {
+      const prepTime = Number(item.menuItem?.prepTime || 10);
+      const qty = Number(item.quantity || 1);
+      const readyQty = Math.min(Number(item.assignedReadyQty || 0), qty);
+      const remainingQty = Math.max(0, qty - readyQty);
+      return sum + prepTime * remainingQty;
+    }, 0);
+    return Math.max(1, total);
+  };
+  const estimateRemainingMinutes = (order, serviceMinutes) => {
+    if (order.status !== 'preparing' || !order.startedAt) return serviceMinutes;
+    const elapsedMinutes = (Date.now() - new Date(order.startedAt).getTime()) / 60000;
+    return Math.max(0, serviceMinutes - elapsedMinutes);
+  };
+
   const updates = [];
+  let backlogWorkMinutes = 0;
   
   for (let i = 0; i < activeOrders.length; i++) {
     const order = activeOrders[i];
-    
-    // Use the longest item's prep time as the bottleneck for this order
-    const maxPrepTime = order.items.reduce((max, item) => {
-      const prepTime = item.menuItem?.prepTime || 10;
-      return Math.max(max, prepTime);
-    }, 0);
-    
-    const etaResult = await calculateETA(maxPrepTime, activeStations, i);
-    
-    order.estimatedTime = etaResult.eta;
-    order.estimatedReadyAt = new Date(Date.now() + etaResult.eta * 60 * 1000);
+
+    const orderServiceMinutes = estimateOrderServiceMinutes(order);
+    const remainingServiceMinutes = estimateRemainingMinutes(order, orderServiceMinutes);
+    const etaResult = await calculateETA(remainingServiceMinutes, stations, i);
+
+    // Strict FCFS cumulative delay for student-facing ETA:
+    // every order waits for total workload ahead in the queue.
+    const queueDelayMinutes = backlogWorkMinutes;
+    const queueAwareEta = Math.max(
+      1,
+      Math.ceil(queueDelayMinutes + remainingServiceMinutes)
+    );
+
+    order.estimatedTime = queueAwareEta;
+    order.estimatedReadyAt = new Date(Date.now() + queueAwareEta * 60 * 1000);
     await order.save();
     
     updates.push({
       orderId: order._id,
       userId: order.user,
-      eta: etaResult.eta,
       estimatedReadyAt: order.estimatedReadyAt,
+      queuePosition: i + 1,
+      serviceMinutes: orderServiceMinutes,
+      remainingServiceMinutes,
       ...etaResult,
+      eta: queueAwareEta,
     });
+
+    backlogWorkMinutes += remainingServiceMinutes;
   }
   
   return updates;
@@ -256,3 +228,4 @@ module.exports = {
   getQueueStats,
   erlangC,
 };
+

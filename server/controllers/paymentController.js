@@ -26,6 +26,7 @@ async function createOrder(req, res) {
     const order = await razorpay.orders.create(options);
 
     const newPayment = await paymentModel.create({
+      user: req.user.id,
       orderId: order.id,
       price: {
         amount: parsedAmount,
@@ -62,7 +63,7 @@ async function verifyPayment(req, res) {
       .digest('hex');
 
     if (expectedSignature === signature) {
-      const payment = await paymentModel.findOne({ orderId: razorpayOrderId });
+      const payment = await paymentModel.findOne({ orderId: razorpayOrderId, user: req.user.id });
       if (!payment) {
         return res.status(404).send('Payment record not found');
       }
@@ -75,7 +76,7 @@ async function verifyPayment(req, res) {
       res.status(400).send('Invalid signature');
     }
   } catch (error) {
-    console.log(error);
+    console.error('Error verifying payment:', error);
     res.status(500).send('Error verifying payment');
   }
 }

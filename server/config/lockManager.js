@@ -5,6 +5,30 @@ class LockManager {
   constructor() {
     this.locks = new Map();
     this.poolCache = new Map();
+    this.kv = new Map();
+    this.zsets = new Map();
+    this.client = {
+      get: async (key) => {
+        const entry = this.kv.get(key);
+        if (!entry) return null;
+        if (entry.expiresAt && Date.now() > entry.expiresAt) {
+          this.kv.delete(key);
+          return null;
+        }
+        return entry.value;
+      },
+      setex: async (key, ttlSec, value) => {
+        this.kv.set(key, { value, expiresAt: Date.now() + ttlSec * 1000 });
+      },
+      zadd: async (key, score, member) => {
+        if (!this.zsets.has(key)) this.zsets.set(key, new Map());
+        this.zsets.get(key).set(member, score);
+      },
+      zrem: async (key, member) => {
+        const set = this.zsets.get(key);
+        if (set) set.delete(member);
+      },
+    };
   }
 
   async acquireLock(key, ttlMs = 5000) {
@@ -45,6 +69,11 @@ class LockManager {
       for (const [key, lock] of this.locks.entries()) {
         if (now >= lock.expiresAt) {
           this.locks.delete(key);
+        }
+      }
+      for (const [key, entry] of this.kv.entries()) {
+        if (entry.expiresAt && now >= entry.expiresAt) {
+          this.kv.delete(key);
         }
       }
     }, intervalMs);

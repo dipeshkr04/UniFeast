@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const paymentSchema = new mongoose.Schema({
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+  },
   orderId: {
     type: String,
     required: true,
@@ -28,6 +33,9 @@ const paymentSchema = new mongoose.Schema({
     enum: ['PENDING', 'SUCCESS', 'FAILED'],
   },
 }, { timestamps: true });
+
+paymentSchema.index({ user: 1, orderId: 1 });
+paymentSchema.index({ user: 1, paymentId: 1 });
 
 const Payment = mongoose.model('Payment', paymentSchema);
 

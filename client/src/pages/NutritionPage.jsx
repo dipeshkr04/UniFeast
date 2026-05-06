@@ -264,7 +264,7 @@ export default function NutritionPage() {
                      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce" style={{ animationDelay: '150ms' }} />
                      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce" style={{ animationDelay: '300ms' }} />
                    </div>
-                   <p className="text-xs font-semibold text-primary-400">Clarifai AI scanning image...</p>
+                   <p className="text-xs font-semibold text-primary-400">Gemini Flash scanning image...</p>
                 </div>
               )}
             </div>

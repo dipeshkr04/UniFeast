@@ -38,6 +38,10 @@ const orderSchema = new mongoose.Schema({
     required: true,
     min: 0,
   },
+  razorpayPaymentId: {
+    type: String,
+    default: null,
+  },
   status: {
     type: String,
     enum: ['pending', 'queued', 'preparing', 'ready', 'completed', 'cancelled'],
@@ -55,12 +59,24 @@ const orderSchema = new mongoose.Schema({
     type: Date,
     default: null,
   },
+  startedAt: {
+    type: Date,
+    default: null,
+  },
+  preparedAt: {
+    type: Date,
+    default: null,
+  },
+  completedAt: {
+    type: Date,
+    default: null,
+  },
   statusHistory: [{
     status: String,
     timestamp: { type: Date, default: Date.now },
   }],
   actualCompletionTime: {
-    type: Date,
+    type: Number,
     default: null,
   },
   specialInstructions: {
@@ -74,5 +90,10 @@ const orderSchema = new mongoose.Schema({
 
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ user: 1, razorpayPaymentId: 1 });
+orderSchema.index(
+  { razorpayPaymentId: 1 },
+  { unique: true, partialFilterExpression: { razorpayPaymentId: { $type: 'string' } } }
+);
 
 module.exports = mongoose.model('Order', orderSchema);

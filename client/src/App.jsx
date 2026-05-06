@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import { useEffect, useState } from 'react';
+import { Toaster, toast } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { orderAPI } from './api';
 import { SocketProvider } from './contexts/SocketContext';
 import { CartProvider } from './contexts/CartContext';
 import Layout from './components/common/Layout';
@@ -22,6 +24,67 @@ function ProtectedRoute({ children, roles }) {
   if (!user) return <Navigate to="/" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
+}
+
+function PendingOrderBanner() {
+  const { user } = useAuth();
+  const [pendingOrder, setPendingOrder] = useState(null);
+  const [retrying, setRetrying] = useState(false);
+
+  useEffect(() => {
+    if (!user || user.role !== 'student') return;
+    try {
+      const raw = localStorage.getItem('unifeast_pending_order');
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (!parsed?.timestamp) return;
+      const ageMs = Date.now() - parsed.timestamp;
+      if (ageMs > 24 * 60 * 60 * 1000) {
+        localStorage.removeItem('unifeast_pending_order');
+        return;
+      }
+      setPendingOrder(parsed);
+    } catch {
+      localStorage.removeItem('unifeast_pending_order');
+    }
+  }, [user]);
+
+  const retryCreateOrder = async () => {
+    if (!pendingOrder) return;
+    setRetrying(true);
+    try {
+      await orderAPI.create({
+        items: pendingOrder.items,
+        totalAmount: pendingOrder.totalAmount,
+        specialInstructions: pendingOrder.specialInstructions || '',
+        razorpayPaymentId: pendingOrder.razorpayPaymentId || pendingOrder.razorpay_payment_id,
+      });
+      localStorage.removeItem('unifeast_pending_order');
+      setPendingOrder(null);
+      toast.success('Pending order completed successfully.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to complete pending order. Please retry.');
+    } finally {
+      setRetrying(false);
+    }
+  };
+
+  if (!pendingOrder) return null;
+
+  return (
+    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[95%] max-w-2xl">
+      <div className="rounded-xl border border-amber-400/40 bg-amber-500/15 backdrop-blur-md px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <p className="text-sm text-amber-100">You have a pending order from a previous session - tap to complete.</p>
+        <button
+          onClick={retryCreateOrder}
+          disabled={retrying}
+          className="px-3 py-2 rounded-lg bg-amber-400 text-black text-sm font-semibold disabled:opacity-60"
+        >
+          {retrying ? 'Retrying...' : 'Retry Now'}
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function AppRoutes() {
@@ -96,6 +159,7 @@ export default function App() {
       <AuthProvider>
         <SocketProvider>
           <CartProvider>
+            <PendingOrderBanner />
             <AppRoutes />
             <Toaster
               position="top-center"

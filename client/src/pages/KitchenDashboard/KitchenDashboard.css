@@ -2,7 +2,8 @@
 
 .kitchen-page {
   display: flex;
-  height: calc(100vh - 136px);
+  height: calc(100vh - 88px);
+  min-height: calc(100vh - 88px);
   overflow: hidden;
   font-family: inherit;
   background: var(--color-surface-950, #050505);
@@ -15,7 +16,8 @@
 
 @media (min-width: 768px) {
   .kitchen-page {
-    height: calc(100vh - 172px);
+    height: calc(100vh - 100px);
+    min-height: calc(100vh - 100px);
     padding: 16px;
     gap: 16px;
   }
@@ -23,7 +25,8 @@
 
 @media (min-width: 1024px) {
   .kitchen-page {
-    height: calc(100vh - 192px);
+    height: calc(100vh - 112px);
+    min-height: calc(100vh - 112px);
     padding: 20px;
     gap: 20px;
   }
@@ -62,7 +65,7 @@
   display: flex;
   overflow-x: auto;
   scrollbar-width: none;
-  padding: 0 16px;
+  padding: 0 10px;
   gap: 0;
   box-shadow: 0 2px 8px rgba(0,0,0,0.3);
   border-radius: 12px 12px 0 0;
@@ -79,19 +82,29 @@
   border-right: 1px solid var(--color-surface-800, #27272a);
   flex-shrink: 0;
   min-height: 52px;
-  gap: 8px;
+  gap: 10px;
   font-size: 13px;
   white-space: nowrap;
 }
 
 .kitchen-sidebar-toggle,
 .desktop-hide {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: 48px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--color-surface-100, #f4f4f5);
+}
+
+.kitchen-sidebar-toggle {
+  margin-left: -6px;
+  border-radius: 10px;
+}
+
+.kitchen-sidebar-toggle-icon {
+  width: 26px;
+  height: 26px;
 }
 
 .desktop-only {

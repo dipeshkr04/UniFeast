@@ -77,14 +77,14 @@ export default function AdminDashboard({ mode = 'analytics' }) {
   })) : [];
 
   return (
-    <div className="flex flex-col gap-6 max-w-7xl mx-auto">
+    <div className="admin-dashboard-page flex flex-col gap-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="mb-4">
+      <div className="admin-dashboard-header">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h1 className="text-[clamp(22px,5vw,32px)] font-semibold leading-tight tracking-normal text-white drop-shadow-2xl">
-            {isUsersMode ? 'User ' : 'System '}<span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-primary-500">{isUsersMode ? 'Directory.' : 'Analytics.'}</span>
+          <h1 className="text-[clamp(22px,5vw,32px)] font-semibold leading-tight tracking-normal text-white">
+            {isUsersMode ? 'User Directory' : 'System Analytics'}
           </h1>
-          <p className="text-surface-400 font-bold uppercase tracking-widest text-xs mt-3 bg-white/5 inline-block py-1.5 px-3 rounded-md border border-white/5">
+          <p className="admin-dashboard-kicker text-surface-400">
             {isUsersMode ? 'Administrator User Management' : 'Administrator Analytics Console'}
           </p>
         </motion.div>
@@ -164,56 +164,56 @@ export default function AdminDashboard({ mode = 'analytics' }) {
             </div>
           </motion.div>
         ) : (
-          <motion.div key="users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            
-            <div className="flex gap-2 mb-8 overflow-x-auto pb-3 scrollbar-none">
+          <motion.div key="users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="admin-users-section">
+            <div className="admin-user-filters">
               {['', 'student', 'kitchen', 'admin'].map((r, i) => (
                 <button
                   key={i}
                   onClick={() => setUserFilter(r)}
-                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all min-h-[44px] whitespace-nowrap
-                    ${userFilter === r ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'bg-[#18181b] text-surface-400 hover:text-white border border-surface-800'}`}
+                  className={`admin-user-filter ${userFilter === r ? 'is-active' : ''}`}
                 >
                   {r || 'All Accounts'}
                 </button>
               ))}
             </div>
 
-            <div className="glass-card bg-[#09090b]/40 border-surface-800 p-0 overflow-hidden table-responsive">
-              <div className="min-w-[600px]">
-               <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-surface-900 border-b border-white/5 text-xs font-black uppercase tracking-[0.2em] text-surface-500">
-                 <div className="col-span-5 md:col-span-6">Identity</div>
-                 <div className="col-span-4 md:col-span-3">System Role</div>
-                 <div className="col-span-3 text-right">Actions</div>
+            <div className="admin-users-card">
+              <div className="admin-users-table">
+               <div className="admin-users-head">
+                 <div>Identity</div>
+                 <div>System Role</div>
+                 <div>Actions</div>
                </div>
 
-              <div className="divide-y divide-white/5">
+              <div className="admin-users-body">
                 {users.map(u => (
-                  <div key={u._id} className="grid grid-cols-12 gap-4 px-6 py-5 items-center hover:bg-white/[0.02] transition-colors">
-                    <div className="col-span-5 md:col-span-6 flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-2xl bg-[#18181b] border border-white/10 flex items-center justify-center text-primary-400 font-black text-lg shadow-inner shrink-0 hidden md:flex">
+                  <div key={u._id} className="admin-user-row">
+                    <div className="admin-user-identity">
+                      <div className="admin-user-avatar gradient-dark border border-white/10 text-primary-400">
                         {u.name?.charAt(0)?.toUpperCase()}
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-black text-white text-[14px] md:text-base truncate">{u.name}</p>
-                        <p className="text-xs text-surface-500 font-medium truncate mt-0.5">{u.email}</p>
+                      <div className="admin-user-copy">
+                        <p className="admin-user-name text-white">{u.name}</p>
+                        <p className="admin-user-email text-surface-500">{u.email}</p>
                       </div>
                     </div>
-                    <div className="col-span-4 md:col-span-3">
+                    <div className="admin-role-cell">
+                      <span className="admin-cell-label text-surface-500">Role</span>
                       <select
                         value={u.role}
                         onChange={(e) => handleRoleChange(u._id, e.target.value)}
-                        className="input-field py-2.5 px-4 text-xs font-bold uppercase tracking-wider cursor-pointer bg-[#121214]"
+                        className="input-field admin-role-select"
                       >
                         <option value="student">STUDENT</option>
                         <option value="kitchen">KITCHEN</option>
                         <option value="admin">ADMIN</option>
                       </select>
                     </div>
-                    <div className="col-span-3 flex justify-end">
+                    <div className="admin-actions-cell">
+                      <span className="admin-cell-label text-surface-500">Action</span>
                       <button 
                         onClick={() => handleDeleteUser(u._id, u.name)} 
-                        className="px-4 py-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 hover:text-red-400 border border-red-500/20 text-xs font-bold transition-colors min-h-[44px]"
+                        className="admin-revoke-btn"
                       >
                         REVOKE
                       </button>
@@ -221,7 +221,7 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                   </div>
                 ))}
                 {users.length === 0 && (
-                   <div className="py-16 text-center text-surface-500 font-bold">No users match this filter.</div>
+                   <div className="admin-users-empty text-surface-500">No users match this filter.</div>
                 )}
               </div>
               </div>

@@ -16,8 +16,8 @@ const KitchenStatusNav = ({ summary, activeFilter, onFilterChange, isConnected, 
           <HiOutlineMenuAlt2 className="kitchen-sidebar-toggle-icon" />
         </button>
         <span className="live-indicator">
-          {isConnected ? <span className="dot green pulse"></span> : <span className="dot red"></span>}
-          {isConnected ? 'Live' : 'Connecting...'}
+          <span className={`dot green ${isConnected ? 'pulse' : ''}`}></span>
+          Live
         </span>
       </div>
       <div className="nav-tabs">

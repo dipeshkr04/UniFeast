@@ -69,7 +69,7 @@ export default function Layout() {
               : 'glass-card-static min-h-[calc(100vh-128px)] shadow-2xl p-4 md:p-6 lg:p-8'
             }
           >
-            <Outlet context={{ canteenLive }} />
+            <Outlet context={{ canteenLive, setCanteenLive }} />
           </motion.div>
         </div>
       </main>

@@ -7,11 +7,13 @@ export const useKitchenOrders = () => {
   const [orders, setOrders] = useState(new Map());
   const [activeFilter, setActiveFilter] = useState('ACTIVE');
   const [dishFilter, setDishFilter] = useState('ALL');
+  const [searchQuery, setSearchQuery] = useState('');
   const [summary, setSummary] = useState({
     PENDING: 0, QUEUED: 0, PREPARING: 0, READY: 0, COMPLETED: 0, CANCELLED: 0, totalActive: 0, queueStats: {}
   });
   const [isConnected, setIsConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const [hasConnected, setHasConnected] = useState(false);
 
   const fetchLiveOrders = useCallback(async () => {
     try {
@@ -54,6 +56,7 @@ export const useKitchenOrders = () => {
     if (!socket) return;
 
     const onConnect = async () => {
+      setHasConnected(true);
       setIsConnected(true);
       setReconnecting(false);
       socket.emit('kitchen:join');
@@ -71,12 +74,18 @@ export const useKitchenOrders = () => {
 
     const onDisconnect = () => {
       setIsConnected(false);
-      setReconnecting(true);
+      setReconnecting(hasConnected);
     };
 
-    const onConnectError = () => setReconnecting(true);
+    const onConnectError = () => {
+      setIsConnected(false);
+      setReconnecting(hasConnected);
+    };
 
     setIsConnected(socket.connected);
+    if (socket.connected) {
+      setHasConnected(true);
+    }
 
     socket.on('connect', onConnect);
     socket.on('reconnect', onReconnect);
@@ -185,7 +194,7 @@ export const useKitchenOrders = () => {
       socket.off('queue:etasBulkUpdated');
       socket.off('kitchen:summary');
     };
-  }, [socket, fetchLiveOrders, refreshSummary]);
+  }, [socket, fetchLiveOrders, refreshSummary, hasConnected]);
 
   const updateOrderStatus = async (orderId, newStatus) => {
     const nextStatus = (newStatus || '').toLowerCase();
@@ -271,6 +280,21 @@ export const useKitchenOrders = () => {
     String(value || '').trim().toLowerCase()
   ), []);
 
+  const getOrderSearchText = useCallback((order) => {
+    const user = order.user || order.student || {};
+    const btId = String(user.btId || order.btId || user.email || '').split('@')[0];
+    const token = String(order.orderId || order._id?.slice(-4) || '');
+    return [
+      btId,
+      user.name,
+      order.user?.name,
+      order.student?.name,
+      token,
+      order.orderId,
+      order._id,
+    ].filter(Boolean).join(' ').toLowerCase();
+  }, []);
+
   const dishOptions = useMemo(() => {
     const stats = new Map();
 
@@ -322,14 +346,13 @@ export const useKitchenOrders = () => {
       ));
     }
 
-    return arr.sort((a, b) => {
-      const aS = (a.status || '').toUpperCase();
-      const bS = (b.status || '').toUpperCase();
-      if (aS === 'QUEUED' && bS === 'QUEUED') return (a.queuePosition || 999) - (b.queuePosition || 999);
-      if (aS === 'PREPARING' && bS === 'PREPARING') return new Date(a.startedAt || a.createdAt) - new Date(b.startedAt || b.createdAt);
-      return new Date(a.createdAt) - new Date(b.createdAt);
-    });
-  }, [orders, activeFilter, dishFilter, getItemName, normalizeDishName]);
+    const query = searchQuery.trim().toLowerCase();
+    if (query) {
+      arr = arr.filter((order) => getOrderSearchText(order).includes(query));
+    }
+
+    return arr.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  }, [orders, activeFilter, dishFilter, searchQuery, getItemName, getOrderSearchText, normalizeDishName]);
 
   const isOverloaded = Boolean(summary?.queueStats?.isOverloaded);
 
@@ -340,6 +363,8 @@ export const useKitchenOrders = () => {
     setActiveFilter,
     dishFilter,
     setDishFilter,
+    searchQuery,
+    setSearchQuery,
     dishOptions,
     selectedDish,
     summary,

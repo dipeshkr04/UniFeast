@@ -150,11 +150,11 @@ export default function CartPage() {
 
   if (items.length === 0) {
     return (
-      <div className="animate-fadeIn text-center py-16 md:py-24">
+      <div className="cart-page cart-empty-page animate-fadeIn">
         <div className="text-6xl mb-6">🛒</div>
-        <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
-        <p className="text-surface-400 mb-8 max-w-xs mx-auto">Add some delicious items from the menu!</p>
-        <button onClick={() => navigate('/')} className="btn-primary min-h-[48px] px-6 py-3" id="go-to-menu">
+        <h2 className="cart-empty-title">Your cart is empty</h2>
+        <p className="cart-empty-copy">Add some delicious items from the menu!</p>
+        <button onClick={() => navigate('/')} className="cart-primary-btn btn-primary" id="go-to-menu">
           Browse Menu
         </button>
       </div>
@@ -162,23 +162,23 @@ export default function CartPage() {
   }
 
   return (
-    <div className="animate-fadeIn">
+    <div className="cart-page animate-fadeIn">
       {/* Header */}
-      <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8">
-        <button onClick={() => navigate('/')} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors bg-white/5 border border-white/10 shrink-0">
+      <div className="cart-header">
+        <button onClick={() => navigate('/')} className="cart-back-btn">
           <HiArrowLeft className="w-5 h-5 text-surface-200" />
         </button>
-        <div>
-          <h1 className="text-[clamp(22px,5vw,32px)] font-semibold tracking-normal leading-tight">Your Cart</h1>
+        <div className="cart-title-block">
+          <h1 className="cart-title">Your Cart</h1>
           <p className="text-surface-400 mt-1 text-sm">{totalItems} item{totalItems > 1 ? 's' : ''} • Review your order below</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 lg:gap-8 items-start">
+      <div className="cart-layout">
         {/* Left Column: Cart Items & Instructions */}
-        <div className="w-full space-y-6 md:space-y-8 min-w-0">
+        <div className="cart-main">
           {/* Cart items */}
-          <div className="space-y-3 md:space-y-4">
+          <div className="cart-items-list">
             <AnimatePresence mode="popLayout">
               {items.map(({ menuItem, quantity }) => (
                 <MotionItem
@@ -187,12 +187,12 @@ export default function CartPage() {
                   initial={{ opacity: 0, scale: 0.95, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, x: -20 }}
-                  className="glass-card-static p-4 md:p-5 flex items-center gap-3 md:gap-4 relative group min-w-0" 
+                  className="cart-item-card glass-card-static group"
                   id={`cart-item-${menuItem._id}`}
                 >
-                  <div className="w-[60px] h-[60px] rounded-lg bg-surface-800/80 flex items-center justify-center text-2xl shrink-0 border border-surface-700/50 overflow-hidden">
+                  <div className="cart-item-media">
                     {menuItem.imageUrl ? (
-                      <img src={menuItem.imageUrl} alt={menuItem.name} className="w-full h-full object-cover" />
+                      <img src={menuItem.imageUrl} alt={menuItem.name} className="cart-item-image" />
                     ) : (
                       menuItem.category === 'snacks' ? '🥟' :
                       menuItem.category === 'meals' ? '🍛' :
@@ -200,35 +200,35 @@ export default function CartPage() {
                     )}
                   </div>
                   
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-[14px] font-medium leading-[1.3] text-surface-50 truncate">{menuItem.name}</h3>
+                  <div className="cart-item-copy">
+                    <h3 className="cart-item-title">{menuItem.name}</h3>
                     <p className="text-[13px] font-medium text-primary-400">₹{menuItem.price} <span className="text-surface-500 font-normal">each</span></p>
                   </div>
 
-                  <div className="flex items-center gap-3 md:gap-4 shrink-0">
+                  <div className="cart-item-actions">
                     {/* Quantity Controls */}
-                    <div className="flex items-center gap-2 p-1 bg-surface-800/60 rounded-xl border border-surface-700/50">
+                    <div className="cart-qty-control">
                       <button
                         onClick={() => updateQuantity(menuItem._id, quantity - 1)}
-                        className="min-w-[44px] min-h-[44px] rounded-full bg-surface-700/50 flex items-center justify-center hover:bg-surface-600 text-surface-300 transition-all text-base"
+                        className="cart-qty-btn"
                       >
                         <HiMinus className="w-3.5 h-3.5" />
                       </button>
-                      <span className="min-w-5 text-center font-bold text-surface-100 text-[14px]">{quantity}</span>
+                      <span className="cart-qty-value">{quantity}</span>
                       <button
                         onClick={() => updateQuantity(menuItem._id, quantity + 1)}
-                        className="min-w-[44px] min-h-[44px] rounded-full bg-surface-700/50 flex items-center justify-center hover:bg-surface-600 text-surface-300 transition-all text-base"
+                        className="cart-qty-btn"
                       >
                         <HiPlus className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
                     {/* Price & Remove */}
-                    <div className="text-right hidden md:block min-w-[72px]">
+                    <div className="cart-item-total">
                       <p className="text-base font-bold text-white">₹{(menuItem.price * quantity).toFixed(0)}</p>
                       <button
                         onClick={() => removeItem(menuItem._id)}
-                        className="text-xs text-surface-500 hover:text-red-400 flex items-center gap-1 transition-colors mt-1 min-h-[44px] justify-end ml-auto"
+                        className="cart-remove-btn cart-remove-desktop"
                       >
                         <HiOutlineTrash className="w-3 h-3" /> Remove
                       </button>
@@ -238,7 +238,7 @@ export default function CartPage() {
                   {/* Mobile remove button */}
                   <button
                     onClick={() => removeItem(menuItem._id)}
-                    className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center text-surface-500 hover:text-red-400 transition-colors shrink-0"
+                    className="cart-remove-btn cart-remove-mobile"
                   >
                     <HiOutlineTrash className="w-4 h-4" />
                   </button>
@@ -248,49 +248,49 @@ export default function CartPage() {
           </div>
 
           {/* Special instructions */}
-          <div className="glass-card-static p-4 md:p-6">
-            <h3 className="text-sm font-semibold text-surface-300 mb-3 flex items-center gap-2">
+          <div className="cart-instructions-card glass-card-static">
+            <h3 className="cart-section-title">
               <span className="text-base">📝</span>
               Special Instructions
             </h3>
             <textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              className="input-field resize-none bg-surface-900/50 border-surface-700/50 focus:border-primary-500/50 rounded-xl px-4 py-3"
+              className="cart-instructions-input input-field resize-none"
               rows={3}
               placeholder="E.g., No onions, extra spicy, etc."
               maxLength={300}
               id="special-instructions"
             />
-            <p className="text-right text-xs text-surface-500 mt-2">{instructions.length}/300</p>
+            <p className="cart-input-count">{instructions.length}/300</p>
           </div>
         </div>
 
         {/* Right Column: Order Summary (Sticky) */}
-        <div className="w-full lg:sticky lg:top-20">
-          <div className="glass-card-static p-5 border border-surface-700/50 rounded-xl">
-            <h3 className="font-bold text-lg mb-5 text-white">Order Summary</h3>
+        <div className="cart-summary-wrap">
+          <div className="cart-summary-card glass-card-static">
+            <h3 className="cart-summary-title">Order Summary</h3>
             
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between text-surface-300">
+            <div className="cart-summary-lines">
+              <div className="cart-summary-line">
                 <span>Subtotal ({totalItems} items)</span>
                 <span className="text-surface-100">₹{totalAmount}</span>
               </div>
-              <div className="flex justify-between text-surface-300">
+              <div className="cart-summary-line">
                 <span>Platform Fee</span>
-                <span className="text-success text-xs font-semibold">FREE</span>
+                <span className="cart-free-label">FREE</span>
               </div>
               
-              <div className="border-t border-surface-700/50 pt-4 mt-4">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-surface-200 font-medium">Total</span>
+              <div className="cart-total-divider">
+                <div className="cart-total-row">
+                  <span>Total</span>
                   <span className="text-2xl font-black text-primary-400">₹{totalAmount}</span>
                 </div>
               </div>
             </div>
 
             {!canteenLive && (
-              <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 text-center font-semibold">
+              <div className="cart-closed-notice">
                 🔴 Canteen is currently closed. You cannot place orders right now.
               </div>
             )}
@@ -298,7 +298,7 @@ export default function CartPage() {
             <button
               onClick={handlePlaceOrder}
               disabled={loading || !canteenLive}
-              className={`w-full mt-4 p-[14px] text-[15px] font-semibold rounded-[10px] relative overflow-hidden group min-h-[48px] ${!canteenLive ? 'bg-surface-800 text-surface-500 cursor-not-allowed border border-surface-700' : 'btn-primary'}`}
+              className={`cart-primary-btn cart-place-order-btn ${!canteenLive ? 'cart-place-order-btn-disabled' : 'btn-primary'}`}
               id="place-order-btn"
             >
               <span className="relative z-10 flex items-center justify-center gap-2">

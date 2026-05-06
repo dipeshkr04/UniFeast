@@ -58,15 +58,15 @@ export default function MenuPage() {
   };
 
   return (
-    <div className="flex flex-col gap-6 lg:gap-8 max-w-7xl mx-auto overflow-x-hidden">
+    <div className="student-menu-page">
       {/* Header section */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
-        <div>
+      <div className="student-menu-header">
+        <div className="student-menu-title-block">
           <Motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-            <h1 className="text-[clamp(22px,5vw,32px)] font-semibold leading-tight tracking-normal text-white drop-shadow-2xl">
+            <h1 className="student-menu-title text-white drop-shadow-2xl">
               Discover <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-accent-500">Flavors</span>
             </h1>
-            <p className="text-surface-400 font-medium tracking-wide uppercase text-xs md:text-[14px] mt-3">Elite Culinary Experience • IIIT Nagpur</p>
+            <p className="student-menu-subtitle text-surface-400">Elite Culinary Experience • IIIT Nagpur</p>
           </Motion.div>
         </div>
         
@@ -74,15 +74,15 @@ export default function MenuPage() {
         <motion.div 
           initial={{ opacity: 0, y: 20 }} 
           animate={{ opacity: 1, y: 0 }}
-          className="relative w-full md:w-96 group"
+          className="student-menu-search group"
         >
-          <div className="absolute inset-0 bg-gradient-to-r from-primary-500 to-accent-500 rounded-2xl blur opacity-20 group-hover:opacity-40 transition-opacity" />
-          <HiOutlineSearch className="absolute left-5 top-1/2 -translate-y-1/2 w-6 h-6 text-surface-400 z-10" />
+          <div className="student-menu-search-glow" />
+          <HiOutlineSearch className="student-menu-search-icon text-surface-400" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#09090b]/80 border border-white/10 text-white rounded-2xl py-3 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary-500/50 backdrop-blur-xl relative z-10 text-[14px] font-medium transition-all min-h-[44px]"
+            className="student-menu-search-input text-white"
             placeholder="Search for amazing food..."
           />
         </motion.div>
@@ -93,43 +93,42 @@ export default function MenuPage() {
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         transition={{ delay: 0.1 }}
-        className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
+        className="student-menu-categories scrollbar-none"
       >
         {categories.map(cat => (
           <button
             key={cat.key}
             onClick={() => setCategory(cat.key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium whitespace-nowrap transition-all duration-300 min-h-[44px]
-              ${category === cat.key ? 'bg-primary-500 text-white shadow-[0_0_20px_rgba(255,71,20,0.4)] scale-105' : 'bg-white/5 text-surface-400 hover:text-white hover:bg-white/10 border border-white/5'}`}
+            className={`student-menu-category-tab ${category === cat.key ? 'is-active' : ''}`}
           >
-            <span className='text-base'>{cat.icon}</span>
-            <span className="tracking-wide">{cat.label}</span>
+            <span className="student-menu-category-icon">{cat.icon}</span>
+            <span>{cat.label}</span>
           </button>
         ))}
       </motion.div>
 
       {/* Menu Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6 items-stretch">
+        <div className="student-menu-grid">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="glass-card-static p-4 border border-white/5 h-full">
-              <div className="skeleton h-[180px] md:h-[200px] lg:h-[220px] mb-4 rounded-xl" />
-              <div className="skeleton h-6 w-3/4 mb-3" />
-              <div className="skeleton h-4 w-1/2" />
+            <div key={i} className="student-menu-skeleton-card glass-card-static">
+              <div className="skeleton student-menu-skeleton-media" />
+              <div className="skeleton student-menu-skeleton-title" />
+              <div className="skeleton student-menu-skeleton-line" />
             </div>
           ))}
         </div>
       ) : items.length === 0 ? (
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-          className="text-center py-24 glass-card max-w-2xl mx-auto border border-white/5 bg-[#09090b]/40"
+          className="student-menu-empty glass-card"
         >
-          <MdOutlineLocalDining className="w-24 h-24 text-surface-700 mx-auto mb-6" />
-          <p className="text-white text-2xl font-black">No items found</p>
-          <p className="text-surface-400 text-base font-medium mt-3">We couldn't find anything matching your criteria.</p>
+          <MdOutlineLocalDining className="student-menu-empty-icon text-surface-700" />
+          <p className="student-menu-empty-title text-white">No items found</p>
+          <p className="student-menu-empty-copy text-surface-400">We couldn't find anything matching your criteria.</p>
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6 items-stretch stagger-children">
+        <div className="student-menu-grid stagger-children">
           <AnimatePresence>
             {items.map(item => {
               const qty = getCartQty(item._id);
@@ -140,14 +139,14 @@ export default function MenuPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   key={item._id} 
-                  className="glass-card group flex flex-col h-full !p-0 !rounded-xl !overflow-hidden border border-white/5 hover:border-primary-500/30 bg-[#09090b]/60"
+                  className="student-menu-card glass-card group"
                 >
-                  <div className="relative h-[180px] md:h-[200px] lg:h-[220px] overflow-hidden bg-surface-900 border-b border-white/5 isolation-auto shrink-0">
+                  <div className="student-menu-card-media bg-surface-900">
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                      <img src={item.imageUrl} alt={item.name} className="student-menu-card-image" />
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-surface-800 to-surface-900 transition-transform duration-700 group-hover:scale-110">
-                        <span className="text-6xl drop-shadow-2xl">{
+                      <div className="student-menu-card-fallback">
+                        <span>{
                           item.category === 'snacks' ? '🥟' :
                           item.category === 'meals' ? '🍛' :
                           item.category === 'beverages' ? '☕' : '🍮'
@@ -156,31 +155,31 @@ export default function MenuPage() {
                     )}
 
                     {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent opacity-80" />
+                    <div className="student-menu-card-overlay" />
 
                     {/* Prep time badge */}
-                    <div className="absolute top-3 left-3 flex items-center gap-2 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10 text-xs font-bold text-white shadow-lg">
+                    <div className="student-menu-prep-badge text-white">
                       <HiOutlineClock className="w-4 h-4 text-primary-400" />
                       <span>{item.prepTime}m</span>
                     </div>
 
                   </div>
 
-                  <div className="flex-1 flex flex-col p-[14px] lg:p-4">
-                    <div>
-                      <h3 className="text-[15px] font-semibold text-white leading-[1.3] mb-2 group-hover:text-primary-400 transition-colors line-clamp-2">{item.name}</h3>
-                      <p className="text-[13px] text-surface-400 leading-[1.5] line-clamp-2 font-medium">{item.description}</p>
+                  <div className="student-menu-card-body">
+                    <div className="student-menu-card-copy">
+                      <h3 className="student-menu-card-title text-white">{item.name}</h3>
+                      <p className="student-menu-card-desc text-surface-400">{item.description}</p>
 
                       <div 
                         onClick={() => setSelectedItem(item)}
-                        className="flex flex-wrap items-center gap-3 mt-3 mb-4 cursor-pointer group/nutri hover:bg-white/5 p-1 -ml-1 rounded-lg transition-colors min-h-[44px]"
+                        className="student-menu-nutrition group/nutri"
                         title="View detailed nutrition breakdown"
                       >
-                        <div className="flex items-center gap-1.5 text-xs text-white font-bold bg-white/5 py-1 px-2.5 rounded-md border border-white/5 group-hover/nutri:border-primary-500/30 transition-colors">
+                        <div className="student-menu-calorie-pill text-white">
                           <HiOutlineFire className="w-4 h-4 text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)]" />
                           <span>{item.nutrition?.calories || 0} kcal</span>
                         </div>
-                        <div className="text-xs text-surface-500 font-bold uppercase tracking-widest flex gap-2 items-center group-hover/nutri:text-surface-300 transition-colors">
+                        <div className="student-menu-macros text-surface-500">
                           <span>P:{item.nutrition?.protein || 0}</span>
                           <span>C:{item.nutrition?.carbs || 0}</span>
                           <span>F:{item.nutrition?.fat || 0}</span>
@@ -189,23 +188,23 @@ export default function MenuPage() {
                       </div>
                     </div>
 
-                    <div className="mt-auto pt-3">
-                      <div className="text-base font-bold text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">
+                    <div className="student-menu-card-footer">
+                      <div className="student-menu-price text-white">
                         <span className="text-primary-500 text-lg mr-0.5">₹</span>{item.price}
                       </div>
 
                       {qty > 0 ? (
-                        <div className="flex items-center justify-between gap-2 bg-white/5 rounded-xl border border-white/10 p-1 backdrop-blur-sm mt-3 min-h-[44px]">
+                        <div className="student-menu-qty-control">
                           <button
                             onClick={() => addItem(item, -1)}
-                            className="min-w-[44px] min-h-[44px] rounded-lg bg-surface-800 flex items-center justify-center hover:bg-surface-700 transition-colors text-white hover:text-red-400"
+                            className="student-menu-qty-btn text-white"
                           >
                             <HiMinus className="w-4 h-4" />
                           </button>
-                          <span className="min-w-5 text-center font-black text-white text-[14px]">{qty}</span>
+                          <span className="student-menu-qty-value text-white">{qty}</span>
                           <button
                             onClick={() => handleAddToCart(item)}
-                            className="min-w-[44px] min-h-[44px] rounded-lg gradient-primary flex items-center justify-center hover:opacity-90 transition-opacity text-white shadow-[0_0_10px_rgba(255,71,20,0.5)]"
+                            className="student-menu-qty-btn is-plus text-white"
                           >
                             <HiPlus className="w-4 h-4" />
                           </button>
@@ -213,7 +212,7 @@ export default function MenuPage() {
                       ) : (
                         <button
                           onClick={() => handleAddToCart(item)}
-                          className="btn-primary w-full p-2.5 mt-3 text-[14px] font-semibold flex items-center justify-center gap-2 group-hover:shadow-[0_0_20px_rgba(255,71,20,0.5)] transition-all overflow-hidden relative min-h-[44px] rounded-lg"
+                          className="student-menu-add-btn btn-primary"
                         >
                           <HiPlus className="w-4 h-4" />
                           <span className="font-bold tracking-wide">Add</span>

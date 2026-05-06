@@ -25,8 +25,8 @@ const KitchenSidebar = ({ summary, orders, isOpen, onClose, queueStats, isOverlo
             <h2>Kitchen Overview</h2>
           </div>
           <span className="live-indicator desktop-only">
-            {isConnected ? <span className="dot green pulse"></span> : <span className="dot red"></span>}
-            {isConnected ? 'Live' : '...'}
+            <span className={`dot green ${isConnected ? 'pulse' : ''}`}></span>
+            Live
           </span>
         </div>
 

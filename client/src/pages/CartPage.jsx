@@ -76,12 +76,60 @@ export default function CartPage() {
               signature: response.razorpay_signature,
             });
 
-            const { data } = await orderAPI.create({ items: orderItems, specialInstructions: instructions });
-            clearCart();
-            toast.success(`Payment successful. Order placed! ETA: ${data.eta?.eta || data.data?.estimatedTime} min`, { icon: '🎉', duration: 5000 });
-            navigate('/orders');
+            const submitOrder = async (payload, retries = 3) => {
+              let lastError;
+              for (let i = 0; i < retries; i++) {
+                try {
+                  return await orderAPI.create(payload);
+                } catch (e) {
+                  lastError = e;
+                  if (i < retries - 1) {
+                    await new Promise((res) => setTimeout(res, 1000));
+                  }
+                }
+              }
+              throw lastError;
+            };
+
+            try {
+              const createPayload = {
+                items: orderItems,
+                totalAmount,
+                specialInstructions: instructions,
+                razorpayPaymentId: response.razorpay_payment_id,
+              };
+              const { data } = await submitOrder(createPayload);
+              clearCart();
+              localStorage.removeItem('unifeast_pending_order');
+              toast.success(`Payment successful. Order placed! ETA: ${data.eta?.eta || data.data?.estimatedTime || '?'} min`, { icon: '🎉', duration: 5000 });
+              navigate('/orders');
+            } catch (createErr) {
+              const pendingPayload = {
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                items: orderItems,
+                totalAmount,
+                specialInstructions: instructions,
+                timestamp: Date.now()
+              };
+              localStorage.setItem('unifeast_pending_order', JSON.stringify(pendingPayload));
+              toast.custom((t) => (
+                <div className={`bg-[#18181b] border border-[#3f3f46] text-white rounded-xl p-3 ${t.visible ? 'animate-enter' : 'animate-leave'}`}>
+                  <p className="text-sm">Payment verified, but order placement failed. Your payment is safe.</p>
+                  <button
+                    className="mt-2 px-3 py-1.5 rounded-lg bg-primary-500 text-white text-xs font-semibold"
+                    onClick={() => {
+                      toast.dismiss(t.id);
+                      navigate('/orders');
+                    }}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ), { duration: 9000, id: 'pending-order-create-failed' });
+            }
           } catch (error) {
-            toast.error(error.response?.data?.message || 'Payment verified, but order placement failed');
+            toast.error(error.response?.data?.message || 'Payment verification failed.');
           }
         },
         modal: {

@@ -3,30 +3,65 @@
  * Manages real-time communication between clients and server
  */
 
-const { recalculateAllETAs, getQueueStats } = require('./queueEngine');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const { getQueueStats } = require('./queueEngine');
+const { getKitchenSummary } = require('../services/queueService');
 
 function setupSocketHandlers(io) {
-  io.on('connection', (socket) => {
-    console.log(`🔌 Client connected: ${socket.id}`);
+  io.use(async (socket, next) => {
+    try {
+      const token = socket.handshake.auth?.token;
+      if (!token) {
+        return next(new Error('Unauthorized'));
+      }
 
-    // Join user-specific room
-    socket.on('join-room', (data) => {
-      const { userId, role } = data;
-      if (userId) {
-        socket.join(`user:${userId}`);
-        console.log(`  → User ${userId} joined their room`);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.id).select('_id role');
+      if (!user) {
+        return next(new Error('Unauthorized'));
       }
-      if (role === 'kitchen' || role === 'admin') {
-        socket.join('kitchen');
-        console.log(`  → ${role} joined kitchen room`);
-      }
-      if (role === 'admin') {
-        socket.join('admin');
-        console.log(`  → Admin joined admin room`);
-      }
+
+      socket.user = {
+        id: user._id.toString(),
+        role: user.role,
+      };
+      next();
+    } catch (error) {
+      next(new Error('Unauthorized'));
+    }
+  });
+
+  io.on('connection', (socket) => {
+    const { id: userId, role } = socket.user;
+    console.log(`[socket] client connected: ${socket.id} (${role}:${userId})`);
+
+    socket.join(`user:${userId}`);
+    socket.join(`student:${userId}`);
+    if (role === 'kitchen' || role === 'admin') socket.join('kitchen');
+    if (role === 'admin') socket.join('admin');
+
+    // Compatibility event: room membership is derived from the verified token, not client payload.
+    socket.on('join-room', () => {
+      socket.join(`user:${userId}`);
+      socket.join(`student:${userId}`);
+      if (role === 'kitchen' || role === 'admin') socket.join('kitchen');
+      if (role === 'admin') socket.join('admin');
     });
 
-    // Request queue stats
+    socket.on('kitchen:join', async () => {
+      if (role !== 'kitchen' && role !== 'admin') {
+        return socket.emit('kitchen:error', { message: 'Kitchen access denied' });
+      }
+      socket.join('kitchen');
+      getKitchenSummary().then(summary => socket.emit('kitchen:summary', summary)).catch(console.error);
+    });
+
+    socket.on('kitchen:requestSummary', async () => {
+      if (role !== 'kitchen' && role !== 'admin') return;
+      getKitchenSummary().then(summary => socket.emit('kitchen:summary', summary)).catch(console.error);
+    });
+
     socket.on('get-queue-stats', async () => {
       try {
         const stats = await getQueueStats();
@@ -36,42 +71,36 @@ function setupSocketHandlers(io) {
       }
     });
 
-    // Handle disconnect
     socket.on('disconnect', () => {
-      console.log(`🔌 Client disconnected: ${socket.id}`);
+      console.log(`[socket] client disconnected: ${socket.id}`);
     });
   });
 
   return {
-    // Emit new order to kitchen
     notifyNewOrder: (order) => {
-      io.to('kitchen').emit('new-order', order);
+      io.to('kitchen').emit('order:new', { order });
     },
 
-    // Emit order status update to specific user and kitchen
     notifyOrderUpdate: (userId, orderUpdate) => {
       io.to(`user:${userId}`).emit('order-update', orderUpdate);
+      io.to(`user:${userId}`).emit('order:statusChanged', orderUpdate);
       io.to('kitchen').emit('order-update', orderUpdate);
     },
 
-    // Emit ETA update to specific user
     notifyETAUpdate: (userId, etaData) => {
       io.to(`user:${userId}`).emit('eta-update', etaData);
     },
 
-    // Emit ETA updates to all active order users
     notifyAllETAUpdates: async (updates) => {
       updates.forEach(update => {
         io.to(`user:${update.userId}`).emit('eta-update', update);
       });
     },
 
-    // Emit pool updates
     notifyPoolUpdate: (poolUpdate) => {
       io.emit('pool-update', poolUpdate);
     },
 
-    // Emit queue stats to kitchen
     notifyQueueStats: async () => {
       try {
         const stats = await getQueueStats();

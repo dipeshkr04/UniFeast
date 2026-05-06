@@ -3,14 +3,17 @@ const MenuItem = require('../models/MenuItem');
 const NutritionLog = require('../models/NutritionLog');
 const Settings = require('../models/Settings');
 const KitchenStock = require('../models/KitchenStock');
+const Payment = require('../models/paymentModel');
 const { calculateETA, recalculateAllETAs } = require('../utils/queueEngine');
+const { recalculateQueueETAs, getKitchenSummary } = require('../services/queueService');
+const lockManager = require('../config/lockManager');
 
 function getItemRequestedQty(orderItem) {
-  return Number(orderItem.quantity || 0);
+  return Number(orderItem?.quantity || 0);
 }
 
 function getItemAssignedQty(orderItem) {
-  return Math.min(Number(orderItem.assignedReadyQty || 0), Number(orderItem.quantity || 0));
+  return Math.min(Number(orderItem?.assignedReadyQty || 0), Number(orderItem?.quantity || 0));
 }
 
 function isOrderFullyAssigned(order) {
@@ -67,6 +70,9 @@ async function autoAllocateForMenuItem(menuItemId, app) {
 
     if (isOrderFullyAssigned(order) && order.status !== 'ready') {
       order.status = 'ready';
+      order.preparedAt = new Date();
+      order.estimatedTime = 0;
+      order.estimatedReadyAt = new Date();
       order.statusHistory.push({ status: 'ready', timestamp: new Date() });
     }
 
@@ -182,11 +188,43 @@ async function buildKitchenStockSummary() {
 // @desc    Create new order
 // @route   POST /api/orders
 exports.createOrder = async (req, res) => {
+  let attemptedRazorpayPaymentId = null;
   try {
     const { items, specialInstructions } = req.body;
+    const razorpayPaymentId = req.body.razorpayPaymentId || req.body.razorpay_payment_id || null;
+    attemptedRazorpayPaymentId = razorpayPaymentId;
+
+    if (!razorpayPaymentId) {
+      return res.status(400).json({ success: false, message: 'Verified payment is required before creating an order' });
+    }
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, message: 'Please add items to your order' });
+    }
+
+    if (razorpayPaymentId) {
+      const existingOrder = await Order.findOne({ user: req.user.id, razorpayPaymentId })
+        .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+        .populate('user', 'name email');
+
+      if (existingOrder) {
+        return res.status(200).json({
+          success: true,
+          data: existingOrder,
+          eta: { eta: existingOrder.estimatedTime || 0 },
+          idempotent: true,
+        });
+      }
+    }
+
+    const verifiedPayment = await Payment.findOne({
+      user: req.user.id,
+      paymentId: razorpayPaymentId,
+      status: 'SUCCESS',
+    });
+
+    if (!verifiedPayment) {
+      return res.status(400).json({ success: false, message: 'Payment is not verified for this order' });
     }
 
     // Check if canteen is open
@@ -197,7 +235,7 @@ exports.createOrder = async (req, res) => {
 
     // Fetch menu items and calculate total
     let totalAmount = 0;
-    let maxPrepTime = 0;
+    let orderServiceTime = 0;
     const orderItems = [];
 
     for (const item of items) {
@@ -211,9 +249,8 @@ exports.createOrder = async (req, res) => {
 
       const quantity = item.quantity || 1;
       totalAmount += menuItem.price * quantity;
-      // Use the longest item's prep time as the bottleneck
-      // (items within a single order are prepped in parallel on one station)
-      maxPrepTime = Math.max(maxPrepTime, menuItem.prepTime);
+      // Queue-aware service load: quantity contributes to ETA.
+      orderServiceTime += (menuItem.prepTime || 10) * quantity;
 
       orderItems.push({
         menuItem: menuItem._id,
@@ -224,21 +261,36 @@ exports.createOrder = async (req, res) => {
       });
     }
 
-    // Calculate ETA using queue engine (Erlang-C handles queue depth)
-    const etaResult = await calculateETA(maxPrepTime);
+    if (Math.round(verifiedPayment.price.amount * 100) !== Math.round(totalAmount * 100)) {
+      return res.status(400).json({ success: false, message: 'Paid amount does not match the order total' });
+    }
+
+    // Calculate the order's own workload; recalculateAllETAs adds existing queue backlog.
+    const etaResult = await calculateETA(Math.max(1, orderServiceTime));
 
     const order = await Order.create({
       user: req.user.id,
       items: orderItems,
       totalAmount,
+      razorpayPaymentId,
       estimatedTime: etaResult.eta,
       estimatedReadyAt: new Date(Date.now() + etaResult.eta * 60 * 1000),
       specialInstructions,
       statusHistory: [{ status: 'pending', timestamp: new Date() }],
     });
 
+    order.status = 'queued';
+    order.statusHistory.push({ status: 'queued', timestamp: new Date() });
+    await order.save();
+    if (lockManager?.client?.zadd) {
+      await lockManager.client.zadd('kitchen:queue', Date.now(), order._id.toString());
+    }
+
     const distinctMenuItemIds = [...new Set(orderItems.map((i) => i.menuItem.toString()))];
     await Promise.all(distinctMenuItemIds.map((id) => autoAllocateForMenuItem(id, req.app)));
+
+    // Recalculate ETA snapshot immediately so later orders include queue backlog.
+    const etaUpdates = await recalculateAllETAs();
 
     // Populate for response
     const populatedOrder = await Order.findById(order._id)
@@ -249,15 +301,33 @@ exports.createOrder = async (req, res) => {
     if (req.app.get('socketHandlers')) {
       const handlers = req.app.get('socketHandlers');
       handlers.notifyNewOrder(populatedOrder);
+      handlers.notifyAllETAUpdates(etaUpdates);
       handlers.notifyQueueStats();
     }
 
     res.status(201).json({
       success: true,
       data: populatedOrder,
-      eta: etaResult,
+      eta: {
+        ...etaResult,
+        eta: populatedOrder?.estimatedTime || etaResult.eta,
+      },
     });
   } catch (error) {
+    if (error.code === 11000 && attemptedRazorpayPaymentId) {
+      const existingOrder = await Order.findOne({ user: req.user.id, razorpayPaymentId: attemptedRazorpayPaymentId })
+        .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+        .populate('user', 'name email');
+
+      if (existingOrder) {
+        return res.status(200).json({
+          success: true,
+          data: existingOrder,
+          eta: { eta: existingOrder.estimatedTime || 0 },
+          idempotent: true,
+        });
+      }
+    }
     console.error('Create order error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
@@ -267,14 +337,23 @@ exports.createOrder = async (req, res) => {
 // @route   GET /api/orders/my
 exports.getMyOrders = async (req, res) => {
   try {
-    const { status, limit = 20 } = req.query;
+    const { status, limit } = req.query;
     const filter = { user: req.user.id };
-    if (status) filter.status = status;
+    if (status) {
+      filter.status = status;
+    } else {
+      filter.status = { $ne: 'cancelled' };
+    }
 
-    const orders = await Order.find(filter)
+    const query = Order.find(filter)
       .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
-      .sort({ createdAt: -1 })
-      .limit(parseInt(limit));
+      .sort({ createdAt: -1 });
+
+    if (limit) {
+      query.limit(parseInt(limit));
+    }
+
+    const orders = await query;
 
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {
@@ -342,7 +421,9 @@ exports.updateOrderStatus = async (req, res) => {
     order.statusHistory.push({ status, timestamp: new Date() });
     
     if (status === 'completed') {
-      order.actualCompletionTime = new Date();
+      const preparingStartedAt =
+        order.statusHistory.find((h) => h.status === 'preparing')?.timestamp || order.createdAt;
+      order.actualCompletionTime = Date.now() - new Date(preparingStartedAt).getTime();
       await consumeMadeStockForCompletedOrder(order);
       // Auto-log nutrition on completion
       await autoLogNutrition(order);
@@ -376,6 +457,118 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
+// @desc    Mark one order item line as ready and recalculate queue ETA
+// @route   PATCH /api/orders/:id/items/:itemId/ready
+exports.markOrderItemReady = async (req, res) => {
+  try {
+    const { id, itemId } = req.params;
+    const io = req.app.get('io');
+
+    const order = await Order.findById(id)
+      .populate('items.menuItem', 'name imageUrl prepTime nutrition')
+      .populate('user', 'name email phone _id btId');
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    if (['completed', 'cancelled'].includes(order.status)) {
+      return res.status(400).json({ success: false, message: 'Completed or cancelled orders cannot be changed' });
+    }
+
+    const item = order.items.id(itemId) || order.items.find((x) => x.menuItem?._id?.toString() === itemId || x.menuItem?.toString() === itemId);
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Order item not found' });
+    }
+
+    const requestedQty = getItemRequestedQty(item);
+    const previousReadyQty = getItemAssignedQty(item);
+    const remainingQty = Math.max(0, requestedQty - previousReadyQty);
+    const itemName = item.menuItem?.name || item.name || 'Item';
+
+    if (remainingQty <= 0) {
+      return res.json({
+        success: true,
+        message: `${itemName} is already marked ready`,
+        order,
+        alreadyReady: true,
+      });
+    }
+
+    item.assignedReadyQty = requestedQty;
+
+    const now = new Date();
+    const becameFullyReady = isOrderFullyAssigned(order);
+    if (becameFullyReady && order.status !== 'ready') {
+      order.status = 'ready';
+      order.preparedAt = now;
+      order.estimatedTime = 0;
+      order.estimatedReadyAt = now;
+      order.statusHistory.push({ status: 'ready', timestamp: now });
+      if (lockManager?.client?.zrem) {
+        await lockManager.client.zrem('kitchen:queue', order._id.toString());
+      }
+    }
+
+    await order.save();
+
+    const queueStats = await recalculateQueueETAs(io);
+
+    const populatedOrder = await Order.findById(order._id)
+      .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+      .populate('user', 'name email phone _id btId');
+
+    const readyQty = getItemAssignedQty(
+      populatedOrder.items.id(item._id) ||
+      populatedOrder.items.find((x) => x._id.toString() === item._id.toString())
+    );
+
+    if (io) {
+      const payload = {
+        orderId: populatedOrder._id.toString(),
+        itemId: item._id.toString(),
+        menuItemId: item.menuItem?._id?.toString() || item.menuItem?.toString(),
+        itemName,
+        readyQty,
+        totalQty: requestedQty,
+        status: populatedOrder.status,
+        newStatus: populatedOrder.status,
+        estimatedTime: populatedOrder.estimatedTime,
+        estimatedReadyAt: populatedOrder.estimatedReadyAt,
+        order: populatedOrder,
+        notification: becameFullyReady
+          ? 'Your full order is ready for pickup ✅'
+          : `${readyQty}x ${itemName} is ready. We are finishing the rest of your order.`,
+      };
+
+      io.to('kitchen').emit('order:itemReady', payload);
+      io.to('kitchen').emit('order:statusChanged', payload);
+
+      const userId = populatedOrder.user?._id?.toString() || populatedOrder.user?.toString();
+      if (userId) {
+        io.to(`user:${userId}`).emit('order:itemReady', payload);
+        io.to(`user:${userId}`).emit('order-update', payload);
+        if (becameFullyReady) {
+          io.to(`user:${userId}`).emit('order:statusChanged', payload);
+        }
+      }
+
+      const summary = await getKitchenSummary();
+      io.to('kitchen').emit('kitchen:summary', summary);
+    }
+
+    res.json({
+      success: true,
+      message: `${itemName} marked ready`,
+      order: populatedOrder,
+      queueStats,
+    });
+  } catch (error) {
+    console.error('Mark order item ready error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Add produced quantity and auto-allocate to oldest active orders
 // @route   POST /api/orders/kitchen/produce
 exports.addProducedStock = async (req, res) => {
@@ -399,7 +592,14 @@ exports.addProducedStock = async (req, res) => {
     );
 
     const impactedOrders = await autoAllocateForMenuItem(menuItemId, req.app);
+    const etaUpdates = await recalculateAllETAs();
     const stock = await buildKitchenStockSummary();
+
+    if (req.app.get('socketHandlers')) {
+      const handlers = req.app.get('socketHandlers');
+      handlers.notifyAllETAUpdates(etaUpdates);
+      handlers.notifyQueueStats();
+    }
 
     res.json({
       success: true,
@@ -467,38 +667,13 @@ exports.getOrderStats = async (req, res) => {
         { $match: { createdAt: { $gte: today, $lt: tomorrow }, status: 'completed' } },
         { $group: { _id: null, total: { $sum: '$totalAmount' } } },
       ]),
-      // Avg prep time = time from when kitchen started preparing to completion
+      // Avg prep time in minutes (actualCompletionTime is stored as duration in ms)
       Order.aggregate([
         { $match: { status: 'completed', actualCompletionTime: { $ne: null }, createdAt: { $gte: today, $lt: tomorrow } } },
         {
-          $addFields: {
-            preparingStartedAt: {
-              $ifNull: [
-                {
-                  $arrayElemAt: [
-                    {
-                      $map: {
-                        input: {
-                          $filter: {
-                            input: '$statusHistory',
-                            cond: { $eq: ['$$this.status', 'preparing'] }
-                          }
-                        },
-                        in: '$$this.timestamp'
-                      }
-                    },
-                    0
-                  ]
-                },
-                '$createdAt'
-              ]
-            }
-          }
-        },
-        {
           $project: {
             prepDuration: {
-              $divide: [{ $subtract: ['$actualCompletionTime', '$preparingStartedAt'] }, 60000],
+              $divide: ['$actualCompletionTime', 60000],
             },
           },
         },

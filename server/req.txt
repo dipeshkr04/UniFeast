@@ -1,1 +1,1 @@
-npm i bcryptjs cloudinary cors dotenv express jsonwebtoken mongoose multer multer-storage-cloudinary socket.io morgan helmet express-rate-limit cookie-parser zod clarifai-nodejs-grpc axios --legacy-peer-deps
+npm i bcryptjs cloudinary cors dotenv express jsonwebtoken mongoose multer multer-storage-cloudinary socket.io morgan helmet express-rate-limit cookie-parser zod axios --legacy-peer-deps

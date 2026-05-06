@@ -4,10 +4,21 @@ import { HiPlus, HiOutlinePencil, HiOutlineTrash, HiOutlineEye, HiOutlineEyeOff 
 import toast from 'react-hot-toast';
 
 const emptyForm = {
-  name: '', description: '', price: '', category: 'snacks', prepTime: '',
+  name: '',
+  description: '',
+  price: '',
+  category: 'snacks',
+  prepTime: '',
   isAvailable: true,
   nutrition: { calories: '', protein: '', carbs: '', fat: '', fiber: '' },
   tags: '',
+};
+
+const categoryLabels = {
+  snacks: 'Snacks',
+  meals: 'Meals',
+  beverages: 'Beverages',
+  desserts: 'Desserts',
 };
 
 export default function MenuManage() {
@@ -18,14 +29,20 @@ export default function MenuManage() {
   const [form, setForm] = useState(emptyForm);
   const [imageFile, setImageFile] = useState(null);
 
+  const availableCount = items.filter(item => item.isAvailable).length;
+  const unavailableCount = items.length - availableCount;
+
   useEffect(() => { fetchMenu(); }, []);
 
   const fetchMenu = async () => {
     try {
       const { data } = await menuAPI.getAll();
       setItems(data.data);
-    } catch { toast.error('Failed to load menu'); }
-    finally { setLoading(false); }
+    } catch {
+      toast.error('Failed to load menu');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -72,8 +89,7 @@ export default function MenuManage() {
       category: item.category,
       prepTime: item.prepTime,
       isAvailable: item.isAvailable,
-
-      nutrition: { ...item.nutrition },
+      nutrition: { ...emptyForm.nutrition, ...item.nutrition },
       tags: item.tags?.join(', ') || '',
     });
     setShowForm(true);
@@ -85,14 +101,18 @@ export default function MenuManage() {
       await menuAPI.delete(id);
       toast.success('Deleted');
       fetchMenu();
-    } catch { toast.error('Delete failed'); }
+    } catch {
+      toast.error('Delete failed');
+    }
   };
 
   const handleToggle = async (id) => {
     try {
       await menuAPI.toggle(id);
       fetchMenu();
-    } catch { toast.error('Toggle failed'); }
+    } catch {
+      toast.error('Toggle failed');
+    }
   };
 
   const resetForm = () => {
@@ -103,85 +123,176 @@ export default function MenuManage() {
   };
 
   return (
-    <div className="animate-fadeIn">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight">📋 <span className="text-primary-400">Menu</span> Management</h1>
-          <p className="text-surface-400 mt-2 text-sm">{items.length} items</p>
+    <div className="menu-manage-page animate-fadeIn">
+      <div className="menu-manage-header">
+        <div className="min-w-0">
+          <p className="text-xs text-surface-500 uppercase tracking-[0.2em] font-bold mb-2">Kitchen Tools</p>
+          <h1 className="text-[clamp(22px,5vw,32px)] font-semibold leading-tight tracking-normal">
+            <span className="text-primary-400">Menu</span> Management
+          </h1>
+          <p className="text-surface-400 mt-2 text-[14px]">Create, edit, and control live availability for kitchen items.</p>
         </div>
-        <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary flex items-center gap-2 text-sm min-h-[44px] px-5 py-2.5 self-start" id="add-menu-item">
+        <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary menu-add-btn text-[14px]" id="add-menu-item">
           <HiPlus className="w-4 h-4" /> Add Item
         </button>
       </div>
 
-      {/* Form */}
+      <div className="menu-summary-grid">
+        <div className="menu-summary-card glass-card-static">
+          <p className="text-xs text-surface-500 uppercase tracking-wider font-bold">Total Items</p>
+          <p className="text-2xl font-black text-white mt-1">{items.length}</p>
+        </div>
+        <div className="menu-summary-card glass-card-static">
+          <p className="text-xs text-surface-500 uppercase tracking-wider font-bold">Available</p>
+          <p className="text-2xl font-black text-success mt-1">{availableCount}</p>
+        </div>
+        <div className="menu-summary-card glass-card-static">
+          <p className="text-xs text-surface-500 uppercase tracking-wider font-bold">Hidden</p>
+          <p className="text-2xl font-black text-surface-300 mt-1">{unavailableCount}</p>
+        </div>
+      </div>
+
       {showForm && (
-        <div className="glass-card-static p-4 md:p-6 mb-6 md:mb-8 animate-slideUp">
-          <h3 className="font-semibold mb-4 text-lg">{editId ? 'Edit' : 'Add'} Menu Item</h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input-field py-3 px-4 rounded-xl" placeholder="Item name" required id="form-name" />
-              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="input-field py-3 px-4 rounded-xl" id="form-category">
-                <option value="snacks">Snacks</option>
-                <option value="meals">Meals</option>
-                <option value="beverages">Beverages</option>
-                <option value="desserts">Desserts</option>
-              </select>
+        <div className="menu-form-card glass-card-static animate-slideUp">
+          <div className="menu-form-header">
+            <div>
+              <h3 className="font-semibold text-lg">{editId ? 'Edit Menu Item' : 'Add Menu Item'}</h3>
+              <p className="text-[14px] text-surface-400 mt-1">Keep names short and use realistic prep times for better kitchen flow.</p>
             </div>
-            <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="input-field py-3 px-4 rounded-xl" placeholder="Description" rows={2} id="form-desc" />
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input-field py-3 px-4 rounded-xl" placeholder="Price ₹" required id="form-price" />
-              <input type="number" value={form.prepTime} onChange={e => setForm({ ...form, prepTime: e.target.value })} className="input-field py-3 px-4 rounded-xl" placeholder="Prep (min)" required id="form-prep" />
-              <label className="flex items-center gap-2 text-sm text-surface-300 min-h-[44px]">
-                <input type="checkbox" checked={form.isAvailable} onChange={e => setForm({ ...form, isAvailable: e.target.checked })} className="rounded" /> Available
+          </div>
+
+          <form onSubmit={handleSubmit} className="menu-manage-form">
+            <div className="menu-form-grid menu-form-grid-two">
+              <div className="menu-field">
+                <label className="text-surface-300">Item name</label>
+                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input-field" placeholder="Paneer sandwich" required id="form-name" />
+              </div>
+              <div className="menu-field">
+                <label className="text-surface-300">Category</label>
+                <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="input-field" id="form-category">
+                  <option value="snacks">Snacks</option>
+                  <option value="meals">Meals</option>
+                  <option value="beverages">Beverages</option>
+                  <option value="desserts">Desserts</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="menu-field">
+              <label className="text-surface-300">Description</label>
+              <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="input-field" placeholder="Short description for students" rows={3} id="form-desc" />
+            </div>
+
+            <div className="menu-form-grid menu-form-grid-three">
+              <div className="menu-field">
+                <label className="text-surface-300">Price</label>
+                <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input-field" placeholder="Rs." required id="form-price" />
+              </div>
+              <div className="menu-field">
+                <label className="text-surface-300">Prep time</label>
+                <input type="number" value={form.prepTime} onChange={e => setForm({ ...form, prepTime: e.target.value })} className="input-field" placeholder="Minutes" required id="form-prep" />
+              </div>
+              <label className="menu-availability-toggle glass-card-static text-surface-300">
+                <input type="checkbox" checked={form.isAvailable} onChange={e => setForm({ ...form, isAvailable: e.target.checked })} className="rounded" />
+                <span>Available on menu</span>
               </label>
             </div>
-            <p className="text-xs text-surface-500 uppercase tracking-wider font-semibold pt-2">Nutrition (per serving)</p>
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-              {['calories', 'protein', 'carbs', 'fat', 'fiber'].map(n => (
-                <input key={n} type="number" value={form.nutrition[n]} onChange={e => setForm({ ...form, nutrition: { ...form.nutrition, [n]: e.target.value } })} className="input-field text-xs py-2.5 px-3 rounded-lg" placeholder={n} />
-              ))}
+
+            <div>
+              <p className="text-xs text-surface-500 uppercase tracking-wider font-semibold mb-3">Nutrition per serving</p>
+              <div className="menu-nutrition-grid">
+                {['calories', 'protein', 'carbs', 'fat', 'fiber'].map(n => (
+                  <div className="menu-field" key={n}>
+                    <label className="text-surface-300 capitalize">{n}</label>
+                    <input type="number" value={form.nutrition[n]} onChange={e => setForm({ ...form, nutrition: { ...form.nutrition, [n]: e.target.value } })} className="input-field" placeholder="0" />
+                  </div>
+                ))}
+              </div>
             </div>
-            <input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} className="input-field py-3 px-4 rounded-xl" placeholder="Tags (comma-separated)" />
-            <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} className="input-field py-2.5 px-4 rounded-xl" />
-            <div className="flex gap-3 pt-2">
-              <button type="submit" className="btn-primary text-sm min-h-[44px] px-5 py-2.5" id="form-submit">{editId ? 'Update' : 'Create'} Item</button>
-              <button type="button" onClick={resetForm} className="btn-secondary text-sm min-h-[44px] px-5 py-2.5">Cancel</button>
+
+            <div className="menu-form-grid menu-form-grid-two">
+              <div className="menu-field">
+                <label className="text-surface-300">Tags</label>
+                <input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} className="input-field" placeholder="spicy, vegan, popular" />
+              </div>
+              <div className="menu-field">
+                <label className="text-surface-300">Image</label>
+                <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} className="input-field" />
+              </div>
+            </div>
+
+            <div className="menu-form-actions">
+              <button type="button" onClick={resetForm} className="btn-secondary text-[14px] min-h-[44px] px-5 py-2.5">Cancel</button>
+              <button type="submit" className="btn-primary text-[14px] min-h-[48px] px-5 py-2.5" id="form-submit">
+                {editId ? 'Update Item' : 'Create Item'}
+              </button>
             </div>
           </form>
         </div>
       )}
 
-      {/* Items List */}
-      <div className="space-y-3">
-        {items.map(item => (
-          <div key={item._id} className="glass-card-static p-4 md:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3" id={`manage-item-${item._id}`}>
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="w-12 h-12 rounded-xl bg-surface-800 flex items-center justify-center text-xl shrink-0">
-                {item.category === 'snacks' ? '🥟' : item.category === 'meals' ? '🍛' : item.category === 'beverages' ? '☕' : '🍮'}
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="font-medium truncate text-surface-200">{item.name}</p>
-                  {!item.isAvailable && <span className="badge badge-danger text-[9px] shrink-0">Unavailable</span>}
-                </div>
-                <p className="text-xs text-surface-500 mt-0.5">₹{item.price} • {item.prepTime}min • {item.nutrition?.calories}cal</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-2 ml-15 sm:ml-0">
-              <button onClick={() => handleToggle(item._id)} className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 text-surface-400" title="Toggle availability">
-                {item.isAvailable ? <HiOutlineEye className="w-4 h-4" /> : <HiOutlineEyeOff className="w-4 h-4" />}
-              </button>
-              <button onClick={() => handleEdit(item)} className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-white/5 text-surface-400" title="Edit">
-                <HiOutlinePencil className="w-4 h-4" />
-              </button>
-              <button onClick={() => handleDelete(item._id, item.name)} className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-red-500/10 text-red-400" title="Delete">
-                <HiOutlineTrash className="w-4 h-4" />
-              </button>
-            </div>
+      <div className="menu-list-card glass-card-static">
+        <div className="menu-list-header border-b border-surface-800">
+          <div>
+            <h3 className="font-semibold text-lg text-white">Menu Items</h3>
+            <p className="text-[14px] text-surface-400 mt-1">Toggle availability or edit item details from this list.</p>
           </div>
-        ))}
+        </div>
+
+        {loading ? (
+          <div className="menu-empty-state text-surface-500">Loading menu items...</div>
+        ) : items.length === 0 ? (
+          <div className="menu-empty-state text-surface-500">No menu items yet. Add your first item to get started.</div>
+        ) : (
+          <div className="menu-table">
+            <div className="menu-table-head text-surface-500">
+              <span>Item</span>
+              <span>Category</span>
+              <span>Price</span>
+              <span>Status</span>
+              <span>Actions</span>
+            </div>
+
+            {items.map(item => (
+              <div key={item._id} className="menu-manage-row" id={`manage-item-${item._id}`}>
+                <div className="menu-item-main">
+                  <div className="menu-category-mark bg-surface-800 text-primary-400 border border-surface-700">
+                    {(categoryLabels[item.category] || item.category || 'Item').charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-semibold truncate text-surface-100">{item.name}</p>
+                      {!item.isAvailable && <span className="badge badge-danger text-xs shrink-0">Unavailable</span>}
+                    </div>
+                    <p className="text-xs text-surface-500 mt-1 truncate">
+                      {item.prepTime} min prep - {item.nutrition?.calories || 0} cal
+                    </p>
+                  </div>
+                </div>
+
+                <div className="menu-row-category text-surface-300">{categoryLabels[item.category] || item.category}</div>
+                <div className="menu-row-price text-surface-100">Rs. {item.price}</div>
+                <div className="menu-row-status">
+                  <span className={`badge text-xs ${item.isAvailable ? 'badge-success' : 'badge-danger'}`}>
+                    {item.isAvailable ? 'Live' : 'Hidden'}
+                  </span>
+                </div>
+
+                <div className="menu-row-actions">
+                  <button onClick={() => handleToggle(item._id)} className="menu-icon-btn hover:bg-white/5 text-surface-400" title="Toggle availability">
+                    {item.isAvailable ? <HiOutlineEye className="w-4 h-4" /> : <HiOutlineEyeOff className="w-4 h-4" />}
+                  </button>
+                  <button onClick={() => handleEdit(item)} className="menu-icon-btn hover:bg-white/5 text-surface-400" title="Edit">
+                    <HiOutlinePencil className="w-4 h-4" />
+                  </button>
+                  <button onClick={() => handleDelete(item._id, item.name)} className="menu-icon-btn hover:bg-red-500/10 text-red-400" title="Delete">
+                    <HiOutlineTrash className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

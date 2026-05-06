@@ -53,7 +53,7 @@ const KitchenDashboardContent = () => {
         />
         
         {reconnecting && (
-          <div style={{ margin: "12px 0", padding: "10px 12px", borderRadius: "10px", border: "1px solid rgba(251,191,36,0.4)", background: "rgba(245,158,11,0.15)", color: "#fde68a", fontSize: "13px" }}>
+          <div className="kitchen-reconnect-banner">
             Reconnecting... live updates are paused
           </div>
         )}

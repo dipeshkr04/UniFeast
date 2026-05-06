@@ -8,9 +8,9 @@ const KitchenStatusNav = ({ summary, activeFilter, onFilterChange, isConnected, 
     <div className="kitchen-status-nav">
       <div className="nav-header-info mobile-only">
         <button 
-          className="desktop-hide" 
+          className="kitchen-sidebar-toggle desktop-hide" 
           onClick={onOpenSidebar}
-          style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: 'var(--color-surface-100, #f4f4f5)', marginRight: '16px', display: 'flex', alignItems: 'center' }}
+          aria-label="Open kitchen overview"
         >
           ≡
         </button>

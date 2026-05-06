@@ -58,15 +58,15 @@ export default function MenuPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8 max-w-7xl mx-auto">
+    <div className="flex flex-col gap-6 lg:gap-8 max-w-7xl mx-auto overflow-x-hidden">
       {/* Header section */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-2">
         <div>
           <Motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black leading-tight tracking-tight text-white drop-shadow-2xl">
+            <h1 className="text-[clamp(22px,5vw,32px)] font-semibold leading-tight tracking-normal text-white drop-shadow-2xl">
               Discover <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary-400 to-accent-500">Flavors</span>
             </h1>
-            <p className="text-surface-400 font-medium tracking-wide uppercase text-xs sm:text-sm mt-3">Elite Culinary Experience • IIIT Nagpur</p>
+            <p className="text-surface-400 font-medium tracking-wide uppercase text-xs md:text-[14px] mt-3">Elite Culinary Experience • IIIT Nagpur</p>
           </Motion.div>
         </div>
         
@@ -82,7 +82,7 @@ export default function MenuPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-[#09090b]/80 border border-white/10 text-white rounded-2xl py-4 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary-500/50 backdrop-blur-xl relative z-10 text-sm font-medium transition-all"
+            className="w-full bg-[#09090b]/80 border border-white/10 text-white rounded-2xl py-3 pl-14 pr-6 focus:outline-none focus:ring-2 focus:ring-primary-500/50 backdrop-blur-xl relative z-10 text-[14px] font-medium transition-all min-h-[44px]"
             placeholder="Search for amazing food..."
           />
         </motion.div>
@@ -93,16 +93,16 @@ export default function MenuPage() {
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         transition={{ delay: 0.1 }}
-        className="flex gap-4 overflow-x-auto pb-4 scrollbar-none"
+        className="flex gap-2 overflow-x-auto pb-1 scrollbar-none"
       >
         {categories.map(cat => (
           <button
             key={cat.key}
             onClick={() => setCategory(cat.key)}
-            className={`flex items-center gap-3 px-6 py-3.5 rounded-full text-sm font-bold whitespace-nowrap transition-all duration-300
+            className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-medium whitespace-nowrap transition-all duration-300 min-h-[44px]
               ${category === cat.key ? 'bg-primary-500 text-white shadow-[0_0_20px_rgba(255,71,20,0.4)] scale-105' : 'bg-white/5 text-surface-400 hover:text-white hover:bg-white/10 border border-white/5'}`}
           >
-            <span className='text-lg'>{cat.icon}</span>
+            <span className='text-base'>{cat.icon}</span>
             <span className="tracking-wide">{cat.label}</span>
           </button>
         ))}
@@ -110,10 +110,10 @@ export default function MenuPage() {
 
       {/* Menu Grid */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6 items-stretch">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="glass-card-static p-4 border border-white/5">
-              <div className="skeleton h-48 mb-4 rounded-2xl" />
+            <div key={i} className="glass-card-static p-4 border border-white/5 h-full">
+              <div className="skeleton h-[180px] md:h-[200px] lg:h-[220px] mb-4 rounded-xl" />
               <div className="skeleton h-6 w-3/4 mb-3" />
               <div className="skeleton h-4 w-1/2" />
             </div>
@@ -129,7 +129,7 @@ export default function MenuPage() {
           <p className="text-surface-400 text-base font-medium mt-3">We couldn't find anything matching your criteria.</p>
         </motion.div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8 stagger-children">
+        <div className="grid grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(280px,1fr))] lg:grid-cols-3 gap-4 md:gap-5 lg:gap-6 items-stretch stagger-children">
           <AnimatePresence>
             {items.map(item => {
               const qty = getCartQty(item._id);
@@ -140,9 +140,9 @@ export default function MenuPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9 }}
                   key={item._id} 
-                  className="glass-card group flex flex-col justify-between border border-white/5 hover:border-primary-500/30 bg-[#09090b]/60"
+                  className="glass-card group flex flex-col h-full !p-0 !rounded-xl !overflow-hidden border border-white/5 hover:border-primary-500/30 bg-[#09090b]/60"
                 >
-                  <div className="relative h-48 sm:h-56 mb-5 overflow-hidden rounded-2xl bg-surface-900 border border-white/5 isolation-auto">
+                  <div className="relative h-[180px] md:h-[200px] lg:h-[220px] overflow-hidden bg-surface-900 border-b border-white/5 isolation-auto shrink-0">
                     {item.imageUrl ? (
                       <img src={item.imageUrl} alt={item.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
                     ) : (
@@ -159,28 +159,28 @@ export default function MenuPage() {
                     <div className="absolute inset-0 bg-gradient-to-t from-[#09090b] via-transparent to-transparent opacity-80" />
 
                     {/* Prep time badge */}
-                    <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 bg-black/40 backdrop-blur-md rounded-full border border-white/10 text-xs font-bold text-white shadow-lg">
+                    <div className="absolute top-3 left-3 flex items-center gap-2 px-3 py-1 bg-black/40 backdrop-blur-md rounded-full border border-white/10 text-xs font-bold text-white shadow-lg">
                       <HiOutlineClock className="w-4 h-4 text-primary-400" />
                       <span>{item.prepTime}m</span>
                     </div>
 
                   </div>
 
-                    <div className="flex-1 flex flex-col justify-between">
+                  <div className="flex-1 flex flex-col p-[14px] lg:p-4">
                     <div>
-                      <h3 className="text-xl font-black text-white leading-tight mb-2 group-hover:text-primary-400 transition-colors line-clamp-1">{item.name}</h3>
-                      <p className="text-xs text-surface-400 leading-relaxed line-clamp-2 min-h-[2.5rem] font-medium">{item.description}</p>
+                      <h3 className="text-[15px] font-semibold text-white leading-[1.3] mb-2 group-hover:text-primary-400 transition-colors line-clamp-2">{item.name}</h3>
+                      <p className="text-[13px] text-surface-400 leading-[1.5] line-clamp-2 font-medium">{item.description}</p>
 
                       <div 
                         onClick={() => setSelectedItem(item)}
-                        className="flex items-center gap-3 mt-4 mb-5 cursor-pointer group/nutri hover:bg-white/5 p-1 -ml-1 rounded-lg transition-colors"
+                        className="flex flex-wrap items-center gap-3 mt-3 mb-4 cursor-pointer group/nutri hover:bg-white/5 p-1 -ml-1 rounded-lg transition-colors min-h-[44px]"
                         title="View detailed nutrition breakdown"
                       >
                         <div className="flex items-center gap-1.5 text-xs text-white font-bold bg-white/5 py-1 px-2.5 rounded-md border border-white/5 group-hover/nutri:border-primary-500/30 transition-colors">
                           <HiOutlineFire className="w-4 h-4 text-orange-500 drop-shadow-[0_0_5px_rgba(249,115,22,0.8)]" />
                           <span>{item.nutrition?.calories || 0} kcal</span>
                         </div>
-                        <div className="text-[10px] text-surface-500 font-bold uppercase tracking-widest flex gap-2 items-center group-hover/nutri:text-surface-300 transition-colors">
+                        <div className="text-xs text-surface-500 font-bold uppercase tracking-widest flex gap-2 items-center group-hover/nutri:text-surface-300 transition-colors">
                           <span>P:{item.nutrition?.protein || 0}</span>
                           <span>C:{item.nutrition?.carbs || 0}</span>
                           <span>F:{item.nutrition?.fat || 0}</span>
@@ -189,23 +189,23 @@ export default function MenuPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between mt-auto">
-                      <div className="text-2xl font-black text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">
+                    <div className="mt-auto pt-3">
+                      <div className="text-base font-bold text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.1)]">
                         <span className="text-primary-500 text-lg mr-0.5">₹</span>{item.price}
                       </div>
 
                       {qty > 0 ? (
-                        <div className="flex items-center gap-2 bg-white/5 rounded-xl border border-white/10 p-1 backdrop-blur-sm">
+                        <div className="flex items-center justify-between gap-2 bg-white/5 rounded-xl border border-white/10 p-1 backdrop-blur-sm mt-3 min-h-[44px]">
                           <button
                             onClick={() => addItem(item, -1)}
-                            className="w-8 h-8 rounded-lg bg-surface-800 flex items-center justify-center hover:bg-surface-700 transition-colors text-white hover:text-red-400"
+                            className="min-w-[44px] min-h-[44px] rounded-lg bg-surface-800 flex items-center justify-center hover:bg-surface-700 transition-colors text-white hover:text-red-400"
                           >
                             <HiMinus className="w-4 h-4" />
                           </button>
-                          <span className="w-6 text-center font-black text-white">{qty}</span>
+                          <span className="min-w-5 text-center font-black text-white text-[14px]">{qty}</span>
                           <button
                             onClick={() => handleAddToCart(item)}
-                            className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center hover:opacity-90 transition-opacity text-white shadow-[0_0_10px_rgba(255,71,20,0.5)]"
+                            className="min-w-[44px] min-h-[44px] rounded-lg gradient-primary flex items-center justify-center hover:opacity-90 transition-opacity text-white shadow-[0_0_10px_rgba(255,71,20,0.5)]"
                           >
                             <HiPlus className="w-4 h-4" />
                           </button>
@@ -213,7 +213,7 @@ export default function MenuPage() {
                       ) : (
                         <button
                           onClick={() => handleAddToCart(item)}
-                          className="btn-primary py-2.5 px-5 text-sm flex items-center gap-2 group-hover:shadow-[0_0_20px_rgba(255,71,20,0.5)] transition-all overflow-hidden relative"
+                          className="btn-primary w-full p-2.5 mt-3 text-[14px] font-semibold flex items-center justify-center gap-2 group-hover:shadow-[0_0_20px_rgba(255,71,20,0.5)] transition-all overflow-hidden relative min-h-[44px] rounded-lg"
                         >
                           <HiPlus className="w-4 h-4" />
                           <span className="font-bold tracking-wide">Add</span>
@@ -235,7 +235,7 @@ export default function MenuPage() {
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
+            className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
             onClick={() => setSelectedItem(null)}
           >
             <motion.div 
@@ -243,14 +243,14 @@ export default function MenuPage() {
               animate={{ scale: 1, y: 0 }}
               exit={{ scale: 0.95, y: 20 }}
               onClick={e => e.stopPropagation()}
-              className="glass-card-static w-full max-w-md p-6 relative border border-surface-700/50 shadow-2xl overflow-hidden"
+              className="glass-card-static w-full max-w-[480px] p-6 lg:p-8 relative border border-surface-700/50 shadow-2xl overflow-y-auto max-h-[calc(100vh-32px)] rounded-2xl lg:rounded-[20px] z-[2001]"
             >
               {/* Background gradient blur */}
               <div className="absolute top-[-50px] right-[-50px] w-32 h-32 bg-primary-500/20 rounded-full blur-3xl pointer-events-none" />
 
               <button 
                 onClick={() => setSelectedItem(null)}
-                className="absolute top-4 right-4 p-2 rounded-xl bg-surface-800/50 hover:bg-surface-700 transition-colors text-surface-400 hover:text-white"
+                className="absolute top-4 right-4 w-9 h-9 rounded-full bg-surface-800/50 hover:bg-surface-700 transition-colors text-surface-400 hover:text-white flex items-center justify-center"
               >
                 <HiOutlineX className="w-5 h-5" />
               </button>
@@ -271,7 +271,7 @@ export default function MenuPage() {
 
               {/* Calorie Donut */}
               <div className="glass-card-static p-4 mb-5 flex flex-col items-center relative border border-transparent shadow-inner">
-                <h4 className="text-[10px] font-bold text-surface-400 uppercase tracking-widest absolute top-4 left-4 z-10">Calories</h4>
+                <h4 className="text-xs font-bold text-surface-400 uppercase tracking-widest absolute top-4 left-4 z-10">Calories</h4>
                 <div className="h-36 w-36 relative mt-2">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
@@ -293,14 +293,14 @@ export default function MenuPage() {
                   <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                     <HiOutlineFire className="w-5 h-5 text-primary-400 drop-shadow-[0_0_5px_rgba(224,100,73,0.8)]" />
                     <p className="text-2xl font-black text-white leading-none mt-1">{selectedItem.nutrition?.calories || 0}</p>
-                    <p className="text-[9px] font-bold text-surface-500 uppercase tracking-widest mt-1">kcal</p>
+                    <p className="text-xs font-bold text-surface-500 uppercase tracking-widest mt-1">kcal</p>
                   </div>
                 </div>
               </div>
 
               {/* Macro Bars */}
               <div className="space-y-4">
-                <h4 className="text-[10px] font-bold text-surface-400 uppercase tracking-widest mb-1">Macronutrients vs Daily Goals</h4>
+                <h4 className="text-xs font-bold text-surface-400 uppercase tracking-widest mb-1">Macronutrients vs Daily Goals</h4>
                 
                 {[
                   { label: 'Protein', key: 'protein', color: COLORS[0], goal: user?.dailyProteinGoal || 50 },
@@ -320,7 +320,7 @@ export default function MenuPage() {
                         </span>
                         <div className="text-xs font-black text-white flex items-center gap-1.5">
                           <span>{val}g</span>
-                          <span className="text-[10px] font-semibold text-surface-500 px-1.5 py-0.5 rounded bg-white/5 border border-white/5">{Math.round(pct)}%</span>
+                          <span className="text-xs font-semibold text-surface-500 px-2 py-0.5 rounded bg-white/5 border border-white/5">{Math.round(pct)}%</span>
                         </div>
                       </div>
                       <div className="h-2 bg-surface-800 rounded-full overflow-hidden shadow-inner flex">
@@ -337,14 +337,14 @@ export default function MenuPage() {
                 })}
               </div>
 
-              <div className="mt-8 pt-5 border-t border-surface-800 flex gap-3">
-                <button onClick={() => setSelectedItem(null)} className="btn-secondary flex-1 font-bold py-3 text-sm border border-surface-700/50">Close</button>
+              <div className="mt-6 pt-5 border-t border-surface-800 flex flex-col-reverse lg:flex-row gap-3">
+                <button onClick={() => setSelectedItem(null)} className="btn-secondary flex-1 font-bold py-3 text-[14px] border border-surface-700/50 min-h-[44px]">Close</button>
                 <button 
                   onClick={() => {
                     handleAddToCart(selectedItem);
                     setSelectedItem(null);
                   }} 
-                  className="btn-primary flex-1 flex justify-center items-center gap-2 font-bold py-3 text-sm shadow-[0_0_15px_rgba(255,71,20,0.3)] hover:shadow-[0_0_25px_rgba(255,71,20,0.5)] transition-shadow"
+                  className="btn-primary flex-1 flex justify-center items-center gap-2 font-bold py-3 text-[14px] shadow-[0_0_15px_rgba(255,71,20,0.3)] hover:shadow-[0_0_25px_rgba(255,71,20,0.5)] transition-shadow min-h-[44px]"
                 >
                   <HiPlus className="w-4 h-4" /> Add to Cart — ₹{selectedItem.price}
                 </button>

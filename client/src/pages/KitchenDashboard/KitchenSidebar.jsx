@@ -19,12 +19,12 @@ const KitchenSidebar = ({ summary, orders, isOpen, onClose, queueStats, isOverlo
   return (
     <>
       <div className={`kitchen-sidebar ${isOpen ? 'open' : ''}`}>
-        <div className="sidebar-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button className="sidebar-close-btn desktop-hide" onClick={onClose} style={{ background: 'none', border: 'none', color: '#fff', fontSize: '20px', cursor: 'pointer' }}>✕</button>
-            <h2 style={{ margin: 0, fontSize: '18px' }}>Kitchen Overview</h2>
+        <div className="sidebar-header">
+          <div className="sidebar-title-row">
+            <button className="sidebar-close-btn desktop-hide" onClick={onClose} aria-label="Close kitchen overview">✕</button>
+            <h2>Kitchen Overview</h2>
           </div>
-          <span className="live-indicator desktop-only" style={{ display: 'flex', alignItems: 'center', fontSize: '12px', fontWeight: 'bold' }}>
+          <span className="live-indicator desktop-only">
             {isConnected ? <span className="dot green pulse"></span> : <span className="dot red"></span>}
             {isConnected ? 'Live' : '...'}
           </span>
@@ -79,7 +79,7 @@ const KitchenSidebar = ({ summary, orders, isOpen, onClose, queueStats, isOverlo
             <div className="overload-banner">⚠ Kitchen Overloaded!</div>
           )}
           <ul className="stats-list">
-            <li>Util (ρ): <span style={{ color: queueStats?.rho >= 0.8 ? 'red' : 'inherit' }}>{((queueStats?.rho || 0) * 100).toFixed(1)}%</span></li>
+            <li>Util (ρ): <span style={{ color: queueStats?.rho >= 0.8 ? 'var(--color-danger, #ef4444)' : 'inherit' }}>{((queueStats?.rho || 0) * 100).toFixed(1)}%</span></li>
             <li>Arrival (λ): <span>{(queueStats?.lambda || 0).toFixed(2)}/min</span></li>
             <li>Prep Time: <span>5 min</span></li>
           </ul>

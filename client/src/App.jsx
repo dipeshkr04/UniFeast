@@ -72,13 +72,13 @@ function PendingOrderBanner() {
   if (!pendingOrder) return null;
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-[95%] max-w-2xl">
-      <div className="rounded-xl border border-amber-400/40 bg-amber-500/15 backdrop-blur-md px-4 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="fixed top-4 md:top-5 left-1/2 -translate-x-1/2 z-[1100] w-[calc(100vw-32px)] max-w-2xl">
+      <div className="rounded-xl border border-amber-400/40 bg-amber-500/15 backdrop-blur-md px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <p className="text-sm text-amber-100">You have a pending order from a previous session - tap to complete.</p>
         <button
           onClick={retryCreateOrder}
           disabled={retrying}
-          className="px-3 py-2 rounded-lg bg-amber-400 text-black text-sm font-semibold disabled:opacity-60"
+          className="px-4 py-2 rounded-lg bg-amber-400 text-black text-sm font-semibold disabled:opacity-60 min-h-[44px]"
         >
           {retrying ? 'Retrying...' : 'Retry Now'}
         </button>
@@ -162,15 +162,17 @@ export default function App() {
             <PendingOrderBanner />
             <AppRoutes />
             <Toaster
-              position="top-center"
+              position="bottom-center"
+              containerStyle={{ zIndex: 3000 }}
               toastOptions={{
+                className: 'unifeast-toast',
                 style: {
                   background: 'rgba(24,24,27,0.85)',
                   backdropFilter: 'blur(16px)',
                   color: '#fff',
                   border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '16px',
-                  fontSize: '0.9rem',
+                  borderRadius: '10px',
+                  fontSize: '14px',
                   fontWeight: '600',
                   boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
                 },

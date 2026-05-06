@@ -68,14 +68,14 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[#050505] overflow-hidden selection:bg-primary-500/30">
+    <div className="auth-shell bg-[#050505] selection:bg-primary-500/30">
       
       {/* Left Branding Panel */}
       <motion.div 
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
-        className="hidden lg:flex lg:w-5/12 xl:w-1/2 bg-gradient-to-br from-primary-600 via-primary-500 to-primary-900 p-12 xl:p-20 text-white flex-col relative overflow-hidden"
+        className="hidden"
       >
         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-white/10 rounded-full blur-[100px]" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-black/40 rounded-full blur-[120px]" />
@@ -89,7 +89,7 @@ export default function Register() {
           </motion.div>
           <motion.h1 
              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8 }}
-             className="text-5xl xl:text-6xl font-black tracking-tight mb-8 leading-tight"
+             className="text-5xl lg:text-6xl font-black tracking-tight mb-8 leading-tight"
           >
             Join Uni<span className="text-white/80">Feast</span>
           </motion.h1>
@@ -114,10 +114,10 @@ export default function Register() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="w-full lg:w-7/12 xl:w-1/2 min-h-screen flex flex-col justify-center relative bg-[#09090b] overflow-y-auto"
+        className="w-full flex items-center justify-center relative"
       >
         {/* Premium Animated Mesh Background */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 fixed">
+        <div className="hidden">
           <motion.div 
             animate={{ x: [0, 50, -50, 0], y: [0, -50, 50, 0], scale: [1, 1.2, 0.8, 1] }}
             transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
@@ -130,36 +130,36 @@ export default function Register() {
           />
         </div>
 
-        <div className="w-full max-w-xl mx-auto p-8 sm:p-12 lg:p-16 relative z-10 flex flex-col justify-center min-h-screen py-12 items-center">
+        <div className="auth-card glass-card-static relative z-10">
+          <div className="auth-card-inner flex flex-col items-center">
           
-          {/* Mobile logo */}
-          <div className="lg:hidden flex flex-col items-center text-center mb-10">
-            <div className="w-16 h-16 rounded-3xl gradient-primary flex items-center justify-center shadow-2xl shadow-primary-500/30 mb-6">
+          <div className="flex flex-col items-center text-center mb-7">
+            <div className="w-14 h-14 rounded-2xl gradient-primary flex items-center justify-center shadow-2xl shadow-primary-500/30 mb-4">
               <MdRestaurantMenu className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-black tracking-tight mb-2">Uni<span className="text-primary-500">Feast</span></h1>
-            <p className="text-xs uppercase tracking-widest text-surface-500 font-bold">IIIT Nagpur</p>
+            <h1 className="text-[22px] font-bold tracking-normal mb-1">Uni<span className="text-primary-500">Feast</span></h1>
+            <p className="text-[14px] text-surface-400 font-medium">IIIT Nagpur</p>
           </div>
 
-          <div className="mb-10 relative text-center w-full">
+          <div className="mb-7 relative text-center w-full">
             {step === 2 && (
               <button 
                 type="button"
                 onClick={() => setStep(1)}
-                className="absolute -top-12 left-1/2 -translate-x-1/2 lg:-left-12 lg:-top-2 lg:translate-x-0 p-3 hover:bg-white/5 rounded-full text-surface-400 hover:text-white transition-colors"
+                className="absolute -top-12 left-1/2 -translate-x-1/2 lg:-left-12 lg:-top-2 lg:translate-x-0 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-white/5 rounded-full text-surface-400 hover:text-white transition-colors"
               >
                 <MdArrowBack size={24} />
               </button>
             )}
-            <h2 className="text-4xl sm:text-5xl font-black mb-4 text-white tracking-tight">
+            <h2 className="text-[22px] font-bold mb-1 text-white tracking-normal">
                {step === 1 ? 'Create Account' : 'Verify Email'}
             </h2>
-            <p className="text-surface-400 font-medium text-lg">
+            <p className="text-surface-400 font-medium text-[14px]">
                {step === 1 ? 'Join the smartest canteen network.' : 'Enter the verification OTP sent to your email.'}
             </p>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6 flex-1 lg:flex-none w-full max-w-md">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-[18px] w-full">
             <AnimatePresence mode="wait">
               {step === 1 && (
                   <motion.div 
@@ -167,32 +167,32 @@ export default function Register() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
-                    className="space-y-6"
+                    className="flex flex-col gap-[18px]"
                   >
-                      <div className="text-left">
-                        <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Full Name</label>
-                        <input name="name" value={form.name} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center" placeholder="John Doe" required />
+                      <div className="text-left flex flex-col gap-2">
+                        <label className="block text-[13px] font-medium text-surface-300">Full Name</label>
+                        <input name="name" value={form.name} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center" placeholder="John Doe" required />
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="text-left">
-                          <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Email Address</label>
-                          <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center" placeholder="bt23xxx@iiitn.ac.in" required />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="text-left flex flex-col gap-2">
+                          <label className="block text-[13px] font-medium text-surface-300">Email Address</label>
+                          <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center" placeholder="bt23xxx@iiitn.ac.in" required />
                         </div>
-                        <div className="text-left">
-                          <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Phone</label>
-                          <input name="phone" type="tel" value={form.phone} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center" placeholder="9876543210" />
+                        <div className="text-left flex flex-col gap-2">
+                          <label className="block text-[13px] font-medium text-surface-300">Phone</label>
+                          <input name="phone" type="tel" value={form.phone} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center" placeholder="9876543210" />
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <div className="text-left">
-                          <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Password</label>
-                          <input name="password" type="password" value={form.password} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center tracking-widest" placeholder="••••••••" required minLength={6} />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="text-left flex flex-col gap-2">
+                          <label className="block text-[13px] font-medium text-surface-300">Password</label>
+                          <input name="password" type="password" value={form.password} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center tracking-widest" placeholder="••••••••" required minLength={6} />
                         </div>
-                        <div className="text-left">
-                          <label className="block text-sm font-bold text-surface-300 mb-2 ml-1">Confirm Password</label>
-                          <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} className="input-field py-4 bg-[#121214] border-surface-800 text-base text-center tracking-widest" placeholder="••••••••" required />
+                        <div className="text-left flex flex-col gap-2">
+                          <label className="block text-[13px] font-medium text-surface-300">Confirm Password</label>
+                          <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center tracking-widest" placeholder="••••••••" required />
                         </div>
                       </div>
                   </motion.div>
@@ -204,15 +204,15 @@ export default function Register() {
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 20 }}
-                    className="space-y-6"
+                    className="flex flex-col gap-[18px]"
                   >
                     <div>
-                      <label className="block text-sm font-bold text-surface-300 mb-4 ml-1 text-center">One-Time Password</label>
+                      <label className="block text-[13px] font-medium text-surface-300 mb-4 text-center">One-Time Password</label>
                       <input
                         type="text"
                         value={otp}
                         onChange={(e) => setOtp(e.target.value)}
-                        className="input-field py-6 text-center text-4xl tracking-[0.5em] font-black w-full bg-[#121214] border-surface-800 text-primary-400 focus:border-primary-500"
+                        className="input-field py-4 text-center text-3xl tracking-[0.4em] font-black w-full bg-[#121214] border-surface-800 text-primary-400 focus:border-primary-500"
                         placeholder="000000"
                         maxLength={6}
                         required
@@ -222,14 +222,14 @@ export default function Register() {
               )}
             </AnimatePresence>
 
-            <button type="submit" disabled={loading} className="btn-primary w-full py-4 text-lg rounded-xl mt-8 h-[60px]">
+            <button type="submit" disabled={loading} className="btn-primary w-full py-3 text-[15px] font-semibold rounded-[10px] mt-2 min-h-[48px]">
               {loading ? 'Processing...' : (step === 1 ? 'Continue' : 'Complete Registration')}
             </button>
           </form>
 
           {step === 1 && (
-              <div className="mt-12 text-center pt-6 border-t border-white/5 w-full max-w-md">
-                <p className="text-surface-400 font-medium text-base">
+              <div className="mt-4 text-center pt-4 border-t border-white/5 w-full">
+                <p className="text-surface-400 font-medium text-[14px]">
                     Already have an account?{' '}
                     <Link to="/login" className="text-primary-500 hover:text-primary-400 font-black transition-colors underline decoration-primary-500/30 underline-offset-4">
                       Sign in
@@ -237,6 +237,7 @@ export default function Register() {
                 </p>
               </div>
           )}
+          </div>
         </div>
       </motion.div>
     </div>

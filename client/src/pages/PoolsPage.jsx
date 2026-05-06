@@ -67,9 +67,9 @@ export default function PoolsPage() {
   return (
     <div className="animate-fadeIn">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold leading-tight tracking-tight">Student <span className="text-primary-400">Pool Board</span></h1>
+          <h1 className="text-[clamp(22px,5vw,32px)] font-semibold leading-tight tracking-normal">Student <span className="text-primary-400">Pool Board</span></h1>
           <p className="text-surface-400 mt-2 text-sm">A separate space for students to coordinate pool partners outside the canteen flow.</p>
         </div>
         <button onClick={fetchPools} className="btn-secondary flex items-center gap-2 text-sm min-h-11 px-4 py-2.5 self-start">
@@ -85,7 +85,7 @@ export default function PoolsPage() {
       </div>
 
       {loading ? (
-        <div className="grid gap-4 md:gap-6 sm:grid-cols-2">
+        <div className="grid gap-4 md:gap-6 md:grid-cols-2">
           {[1,2,3].map(i => <div key={i} className="skeleton h-48 rounded-2xl" />)}
         </div>
       ) : pools.length === 0 ? (
@@ -95,7 +95,7 @@ export default function PoolsPage() {
           <p className="text-surface-400 text-sm">Use this board when you want to look for pool partners.</p>
         </div>
       ) : (
-        <div className="grid gap-4 md:gap-6 sm:grid-cols-2">
+        <div className="grid gap-4 md:gap-6 md:grid-cols-2">
           {pools.map(pool => (
             <div key={pool._id} className="glass-card-static p-4 md:p-6 relative overflow-hidden" id={`pool-${pool._id}`}>
               {/* Glow effect */}
@@ -120,17 +120,17 @@ export default function PoolsPage() {
                   <div className="text-center p-3 rounded-xl bg-surface-900/50">
                     <HiOutlineUserGroup className="w-5 h-5 text-blue-400 mx-auto mb-1" />
                     <p className="text-lg font-bold">{pool.currentSize}/{pool.maxSize}</p>
-                    <p className="text-[10px] text-surface-500">Members</p>
+                    <p className="text-xs text-surface-500">Members</p>
                   </div>
                   <div className="text-center p-3 rounded-xl bg-surface-900/50">
                     <HiOutlineClock className="w-5 h-5 text-amber-400 mx-auto mb-1" />
                     <p className="text-lg font-bold font-mono">{getTimeLeft(pool.closesAt)}</p>
-                    <p className="text-[10px] text-surface-500">Time Left</p>
+                    <p className="text-xs text-surface-500">Time Left</p>
                   </div>
                   <div className="text-center p-3 rounded-xl bg-surface-900/50">
                     <span className="text-lg block">💰</span>
                     <p className="text-lg font-bold text-green-400">{pool.savingsPercent}%</p>
-                    <p className="text-[10px] text-surface-500">Savings</p>
+                    <p className="text-xs text-surface-500">Savings</p>
                   </div>
                 </div>
 

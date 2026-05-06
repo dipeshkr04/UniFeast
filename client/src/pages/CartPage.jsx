@@ -154,7 +154,7 @@ export default function CartPage() {
         <div className="text-6xl mb-6">🛒</div>
         <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
         <p className="text-surface-400 mb-8 max-w-xs mx-auto">Add some delicious items from the menu!</p>
-        <button onClick={() => navigate('/')} className="btn-primary min-h-[44px] px-6 py-3" id="go-to-menu">
+        <button onClick={() => navigate('/')} className="btn-primary min-h-[48px] px-6 py-3" id="go-to-menu">
           Browse Menu
         </button>
       </div>
@@ -164,19 +164,19 @@ export default function CartPage() {
   return (
     <div className="animate-fadeIn">
       {/* Header */}
-      <div className="flex items-center gap-3 sm:gap-4 mb-6 md:mb-8">
-        <button onClick={() => navigate('/')} className="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors bg-white/5 border border-white/10 shrink-0">
+      <div className="flex items-center gap-3 md:gap-4 mb-6 md:mb-8">
+        <button onClick={() => navigate('/')} className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors bg-white/5 border border-white/10 shrink-0">
           <HiArrowLeft className="w-5 h-5 text-surface-200" />
         </button>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight leading-tight">Your Cart</h1>
+          <h1 className="text-[clamp(22px,5vw,32px)] font-semibold tracking-normal leading-tight">Your Cart</h1>
           <p className="text-surface-400 mt-1 text-sm">{totalItems} item{totalItems > 1 ? 's' : ''} • Review your order below</p>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 lg:gap-8 items-start">
         {/* Left Column: Cart Items & Instructions */}
-        <div className="flex-1 w-full space-y-6 md:space-y-8">
+        <div className="w-full space-y-6 md:space-y-8 min-w-0">
           {/* Cart items */}
           <div className="space-y-3 md:space-y-4">
             <AnimatePresence mode="popLayout">
@@ -187,43 +187,48 @@ export default function CartPage() {
                   initial={{ opacity: 0, scale: 0.95, y: 20 }}
                   animate={{ opacity: 1, scale: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.9, x: -20 }}
-                  className="glass-card-static p-4 md:p-5 flex items-center gap-3 sm:gap-4 relative group" 
+                  className="glass-card-static p-4 md:p-5 flex items-center gap-3 md:gap-4 relative group min-w-0" 
                   id={`cart-item-${menuItem._id}`}
-                >                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl bg-surface-800/80 flex items-center justify-center text-2xl sm:text-3xl shrink-0 border border-surface-700/50">
-                    {menuItem.category === 'snacks' ? '🥟' :
-                     menuItem.category === 'meals' ? '🍛' :
-                     menuItem.category === 'beverages' ? '☕' : '🍮'}
+                >
+                  <div className="w-[60px] h-[60px] rounded-lg bg-surface-800/80 flex items-center justify-center text-2xl shrink-0 border border-surface-700/50 overflow-hidden">
+                    {menuItem.imageUrl ? (
+                      <img src={menuItem.imageUrl} alt={menuItem.name} className="w-full h-full object-cover" />
+                    ) : (
+                      menuItem.category === 'snacks' ? '🥟' :
+                      menuItem.category === 'meals' ? '🍛' :
+                      menuItem.category === 'beverages' ? '☕' : '🍮'
+                    )}
                   </div>
                   
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-sm sm:text-base font-bold text-surface-50 truncate">{menuItem.name}</h3>
-                    <p className="text-xs sm:text-sm font-medium text-primary-400">₹{menuItem.price} <span className="text-surface-500 font-normal">each</span></p>
+                    <h3 className="text-[14px] font-medium leading-[1.3] text-surface-50 truncate">{menuItem.name}</h3>
+                    <p className="text-[13px] font-medium text-primary-400">₹{menuItem.price} <span className="text-surface-500 font-normal">each</span></p>
                   </div>
 
-                  <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+                  <div className="flex items-center gap-3 md:gap-4 shrink-0">
                     {/* Quantity Controls */}
-                    <div className="flex items-center gap-1 p-1 bg-surface-800/60 rounded-xl border border-surface-700/50">
+                    <div className="flex items-center gap-2 p-1 bg-surface-800/60 rounded-xl border border-surface-700/50">
                       <button
                         onClick={() => updateQuantity(menuItem._id, quantity - 1)}
-                        className="w-8 h-8 rounded-lg bg-surface-700/50 flex items-center justify-center hover:bg-surface-600 text-surface-300 transition-all"
+                        className="min-w-[44px] min-h-[44px] rounded-full bg-surface-700/50 flex items-center justify-center hover:bg-surface-600 text-surface-300 transition-all text-base"
                       >
                         <HiMinus className="w-3.5 h-3.5" />
                       </button>
-                      <span className="w-7 text-center font-bold text-surface-100 text-sm">{quantity}</span>
+                      <span className="min-w-5 text-center font-bold text-surface-100 text-[14px]">{quantity}</span>
                       <button
                         onClick={() => updateQuantity(menuItem._id, quantity + 1)}
-                        className="w-8 h-8 rounded-lg bg-surface-700/50 flex items-center justify-center hover:bg-surface-600 text-surface-300 transition-all"
+                        className="min-w-[44px] min-h-[44px] rounded-full bg-surface-700/50 flex items-center justify-center hover:bg-surface-600 text-surface-300 transition-all text-base"
                       >
                         <HiPlus className="w-3.5 h-3.5" />
                       </button>
                     </div>
 
                     {/* Price & Remove */}
-                    <div className="text-right hidden sm:block min-w-[70px]">
+                    <div className="text-right hidden md:block min-w-[72px]">
                       <p className="text-base font-bold text-white">₹{(menuItem.price * quantity).toFixed(0)}</p>
                       <button
                         onClick={() => removeItem(menuItem._id)}
-                        className="text-xs text-surface-500 hover:text-red-400 flex items-center gap-1 transition-colors mt-0.5"
+                        className="text-xs text-surface-500 hover:text-red-400 flex items-center gap-1 transition-colors mt-1 min-h-[44px] justify-end ml-auto"
                       >
                         <HiOutlineTrash className="w-3 h-3" /> Remove
                       </button>
@@ -233,7 +238,7 @@ export default function CartPage() {
                   {/* Mobile remove button */}
                   <button
                     onClick={() => removeItem(menuItem._id)}
-                    className="sm:hidden w-8 h-8 flex items-center justify-center text-surface-500 hover:text-red-400 transition-colors shrink-0"
+                    className="md:hidden min-w-[44px] min-h-[44px] flex items-center justify-center text-surface-500 hover:text-red-400 transition-colors shrink-0"
                   >
                     <HiOutlineTrash className="w-4 h-4" />
                   </button>
@@ -262,8 +267,8 @@ export default function CartPage() {
         </div>
 
         {/* Right Column: Order Summary (Sticky) */}
-        <div className="w-full lg:w-[360px] lg:sticky lg:top-20">
-          <div className="glass-card-static p-5 md:p-6 border border-surface-700/50">
+        <div className="w-full lg:sticky lg:top-20">
+          <div className="glass-card-static p-5 border border-surface-700/50 rounded-xl">
             <h3 className="font-bold text-lg mb-5 text-white">Order Summary</h3>
             
             <div className="space-y-3 text-sm">
@@ -293,7 +298,7 @@ export default function CartPage() {
             <button
               onClick={handlePlaceOrder}
               disabled={loading || !canteenLive}
-              className={`w-full mt-4 py-3.5 text-base rounded-xl relative overflow-hidden group min-h-[48px] ${!canteenLive ? 'bg-surface-800 text-surface-500 cursor-not-allowed border border-surface-700' : 'btn-primary'}`}
+              className={`w-full mt-4 p-[14px] text-[15px] font-semibold rounded-[10px] relative overflow-hidden group min-h-[48px] ${!canteenLive ? 'bg-surface-800 text-surface-500 cursor-not-allowed border border-surface-700' : 'btn-primary'}`}
               id="place-order-btn"
             >
               <span className="relative z-10 flex items-center justify-center gap-2">

@@ -5,6 +5,7 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady }) => {
   const normalizedStatus = (order.status || 'pending').toLowerCase();
   const status = normalizedStatus.toUpperCase();
   const colors = STATUS_COLORS[status] || STATUS_COLORS.PENDING;
+  const isOrderCompleted = status === 'COMPLETED';
 
   let extraClasses = '';
   let shadow = URGENCY.NORMAL.shadow;
@@ -95,7 +96,9 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady }) => {
         {(order.items || []).map((it, idx) => {
           const itemName = it.menuItem?.name || it.name || 'Item';
           const itemQty = Number(it.quantity || 0);
-          const readyQty = Math.min(Number(it.assignedReadyQty || 0), itemQty);
+          const readyQty = isOrderCompleted
+            ? itemQty
+            : Math.min(Number(it.assignedReadyQty || 0), itemQty);
           const isItemReady = itemQty > 0 && readyQty >= itemQty;
           const canMarkItemReady = !isItemReady && !['COMPLETED', 'CANCELLED'].includes(status);
 

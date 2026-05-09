@@ -8,6 +8,7 @@ require('dotenv').config({ path: path.join(__dirname, '.env') });
 const connectDB = require('./config/db');
 const setupSocketHandlers = require('./utils/socketHandler');
 const { startPoolCleanup } = require('./utils/poolEngine');
+const { startDailyStockReset } = require('./utils/dailyStock');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -79,6 +80,7 @@ const startServer = async () => {
     
     // Start pool cleanup timer
     startPoolCleanup(io);
+    startDailyStockReset(io);
     
     server.listen(PORT, () => {
       console.log(`

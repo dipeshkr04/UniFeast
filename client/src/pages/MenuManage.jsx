@@ -1,17 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { menuAPI } from '../api';
-import { HiPlus, HiOutlinePencil, HiOutlineTrash, HiOutlineEye, HiOutlineEyeOff } from 'react-icons/hi';
+import { HiPlus, HiOutlinePencil, HiOutlineTrash, HiOutlineSearch } from 'react-icons/hi';
 import toast from 'react-hot-toast';
+import { useSocket } from '../contexts/SocketContext';
 
 const emptyForm = {
   name: '',
-  description: '',
   price: '',
   category: 'snacks',
   prepTime: '',
   isAvailable: true,
   nutrition: { calories: '', protein: '', carbs: '', fat: '', fiber: '' },
-  tags: '',
 };
 
 const categoryLabels = {
@@ -21,49 +20,174 @@ const categoryLabels = {
   desserts: 'Desserts',
 };
 
+function hasNumericStock(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string' && !value.trim()) return false;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0;
+}
+
+function sortKitchenItems(list = []) {
+  return [...list].sort((a, b) => {
+    if (a.isAvailable !== b.isAvailable) return a.isAvailable ? -1 : 1;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+}
+
 export default function MenuManage() {
+  const { socket } = useSocket() || {};
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [analyzingNutrition, setAnalyzingNutrition] = useState(false);
+  const [nutritionFetched, setNutritionFetched] = useState(false);
+  const [stockDrafts, setStockDrafts] = useState({});
+  const [menuSearch, setMenuSearch] = useState('');
 
   const availableCount = items.filter(item => item.isAvailable).length;
   const unavailableCount = items.length - availableCount;
+  const visibleItems = useMemo(() => {
+    const query = menuSearch.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((item) => String(item.name || '').toLowerCase().includes(query));
+  }, [items, menuSearch]);
 
-  useEffect(() => { fetchMenu(); }, []);
+  const getStockDisplay = useCallback((item) => {
+    const quantity = item?.dailyStock?.quantity;
+    return hasNumericStock(quantity) ? String(quantity) : '0';
+  }, []);
 
-  const fetchMenu = async () => {
+  const fetchMenu = useCallback(async () => {
     try {
       const { data } = await menuAPI.getAll();
-      setItems(data.data);
+      const sortedItems = sortKitchenItems(data.data);
+      setItems(sortedItems);
+      setStockDrafts(Object.fromEntries(
+        sortedItems.map((item) => [item._id, getStockDisplay(item)])
+      ));
     } catch {
       toast.error('Failed to load menu');
     } finally {
       setLoading(false);
+    }
+  }, [getStockDisplay]);
+
+  useEffect(() => { fetchMenu(); }, [fetchMenu]);
+
+  useEffect(() => {
+    if (!socket) return undefined;
+    const refreshMenu = () => fetchMenu();
+    socket.on('menu:stockChanged', refreshMenu);
+    return () => socket.off('menu:stockChanged', refreshMenu);
+  }, [socket, fetchMenu]);
+
+  const normalizeStockInput = (value) => {
+    const next = String(value || '').trim();
+    if (!next) return '0';
+    if (!/^\d+$/.test(next)) return null;
+    return next;
+  };
+
+  const handleStockDraftChange = (id, value) => {
+    const cleaned = value.replace(/\D/g, '').slice(0, 6);
+    setStockDrafts(prev => ({ ...prev, [id]: cleaned }));
+  };
+
+  const handleStockCommit = async (item) => {
+    const normalized = normalizeStockInput(stockDrafts[item._id]);
+    if (normalized === null) {
+      toast.error('Avl. Stock must be a whole number');
+      setStockDrafts(prev => ({ ...prev, [item._id]: getStockDisplay(item) }));
+      return;
+    }
+
+    try {
+      const { data } = await menuAPI.updateStock(item._id, normalized);
+      setItems(prev => sortKitchenItems(prev.map(row => row._id === item._id ? data.data : row)));
+      setStockDrafts(prev => ({ ...prev, [item._id]: getStockDisplay(data.data) }));
+      toast.success('Available stock updated');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Stock update failed');
+      setStockDrafts(prev => ({ ...prev, [item._id]: getStockDisplay(item) }));
+    }
+  };
+
+  const applyNutrition = (nutrition = {}) => {
+    setForm(prev => ({
+      ...prev,
+      nutrition: {
+        calories: nutrition.calories ?? '',
+        protein: nutrition.protein ?? '',
+        carbs: nutrition.carbs ?? '',
+        fat: nutrition.fat ?? '',
+        fiber: nutrition.fiber ?? '',
+      },
+    }));
+    setNutritionFetched(true);
+  };
+
+  const fetchNutrition = async ({ name = form.name, file = imageFile, showErrors = true } = {}) => {
+    const itemName = String(name || '').trim();
+    if (!itemName) return null;
+
+    setAnalyzingNutrition(true);
+    try {
+      const fd = new FormData();
+      fd.append('name', itemName);
+      if (file) fd.append('image', file);
+
+      const { data } = await menuAPI.analyzeNutrition(fd);
+      if (data.success && data.data?.nutrition) {
+        applyNutrition(data.data.nutrition);
+        return data.data;
+      }
+      return null;
+    } catch (err) {
+      setNutritionFetched(false);
+      if (showErrors) {
+        toast.error(err.response?.data?.message || 'Nutrition lookup failed');
+      }
+      return null;
+    } finally {
+      setAnalyzingNutrition(false);
+    }
+  };
+
+  const handleNameChange = (value) => {
+    setForm({
+      ...form,
+      name: value,
+      nutrition: emptyForm.nutrition,
+    });
+    setNutritionFetched(false);
+  };
+
+  const handleImageChange = async (file) => {
+    setImageFile(file || null);
+    setImagePreview(file ? URL.createObjectURL(file) : '');
+    setNutritionFetched(false);
+    if (file && form.name.trim()) {
+      await fetchNutrition({ file });
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      if (!nutritionFetched) {
+        await fetchNutrition({ showErrors: false });
+      }
+
       const fd = new FormData();
       fd.append('name', form.name);
-      fd.append('description', form.description);
       fd.append('price', form.price);
       fd.append('category', form.category);
       fd.append('prepTime', form.prepTime);
       fd.append('isAvailable', form.isAvailable);
-
-      fd.append('nutrition', JSON.stringify({
-        calories: Number(form.nutrition.calories) || 0,
-        protein: Number(form.nutrition.protein) || 0,
-        carbs: Number(form.nutrition.carbs) || 0,
-        fat: Number(form.nutrition.fat) || 0,
-        fiber: Number(form.nutrition.fiber) || 0,
-      }));
-      fd.append('tags', JSON.stringify(form.tags.split(',').map(t => t.trim()).filter(Boolean)));
       if (imageFile) fd.append('image', imageFile);
 
       if (editId) {
@@ -84,14 +208,15 @@ export default function MenuManage() {
     setEditId(item._id);
     setForm({
       name: item.name,
-      description: item.description || '',
       price: item.price,
       category: item.category,
       prepTime: item.prepTime,
       isAvailable: item.isAvailable,
       nutrition: { ...emptyForm.nutrition, ...item.nutrition },
-      tags: item.tags?.join(', ') || '',
     });
+    setImageFile(null);
+    setImagePreview(item.imageUrl || '');
+    setNutritionFetched(true);
     setShowForm(true);
   };
 
@@ -120,6 +245,9 @@ export default function MenuManage() {
     setEditId(null);
     setForm(emptyForm);
     setImageFile(null);
+    setImagePreview('');
+    setAnalyzingNutrition(false);
+    setNutritionFetched(false);
   };
 
   return (
@@ -147,7 +275,7 @@ export default function MenuManage() {
           <p className="text-2xl font-black text-success mt-1">{availableCount}</p>
         </div>
         <div className="menu-summary-card glass-card-static">
-          <p className="text-xs text-surface-500 uppercase tracking-wider font-bold">Hidden</p>
+          <p className="text-xs text-surface-500 uppercase tracking-wider font-bold">Hide</p>
           <p className="text-2xl font-black text-surface-300 mt-1">{unavailableCount}</p>
         </div>
       </div>
@@ -165,8 +293,26 @@ export default function MenuManage() {
             <div className="menu-form-grid menu-form-grid-two">
               <div className="menu-field">
                 <label className="text-surface-300">Item name</label>
-                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input-field" placeholder="Paneer sandwich" required id="form-name" />
+                <input
+                  value={form.name}
+                  onChange={e => handleNameChange(e.target.value)}
+                  onBlur={() => fetchNutrition()}
+                  className="input-field"
+                  placeholder="Paneer sandwich"
+                  required
+                  id="form-name"
+                />
               </div>
+              <div className="menu-field">
+                <label className="text-surface-300">Image</label>
+                <div className="menu-image-input-row">
+                  <input type="file" accept="image/*" onChange={e => handleImageChange(e.target.files[0])} className="input-field" />
+                  {imagePreview && <img src={imagePreview} alt={form.name || 'Menu item preview'} className="menu-image-preview" />}
+                </div>
+              </div>
+            </div>
+
+            <div className="menu-form-grid menu-form-grid-three">
               <div className="menu-field">
                 <label className="text-surface-300">Category</label>
                 <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="input-field" id="form-category">
@@ -176,14 +322,6 @@ export default function MenuManage() {
                   <option value="desserts">Desserts</option>
                 </select>
               </div>
-            </div>
-
-            <div className="menu-field">
-              <label className="text-surface-300">Description</label>
-              <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} className="input-field" placeholder="Short description for students" rows={3} id="form-desc" />
-            </div>
-
-            <div className="menu-form-grid menu-form-grid-three">
               <div className="menu-field">
                 <label className="text-surface-300">Price</label>
                 <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input-field" placeholder="Rs." required id="form-price" />
@@ -199,32 +337,32 @@ export default function MenuManage() {
             </div>
 
             <div>
-              <p className="text-xs text-surface-500 uppercase tracking-wider font-semibold mb-3">Nutrition per serving</p>
+              <div className="menu-nutrition-heading">
+                <p className="text-xs text-surface-500 uppercase tracking-wider font-semibold">Nutrition per serving</p>
+                <span className={`menu-ai-status ${nutritionFetched ? 'is-ready' : ''}`}>
+                  {analyzingNutrition ? 'Analyzing with Ollama...' : nutritionFetched ? 'AI locked' : 'Auto fetched'}
+                </span>
+              </div>
               <div className="menu-nutrition-grid">
                 {['calories', 'protein', 'carbs', 'fat', 'fiber'].map(n => (
                   <div className="menu-field" key={n}>
                     <label className="text-surface-300 capitalize">{n}</label>
-                    <input type="number" value={form.nutrition[n]} onChange={e => setForm({ ...form, nutrition: { ...form.nutrition, [n]: e.target.value } })} className="input-field" placeholder="0" />
+                    <input
+                      type="number"
+                      value={form.nutrition[n]}
+                      readOnly
+                      className="input-field menu-nutrition-input-locked"
+                      placeholder={analyzingNutrition ? '...' : '0'}
+                    />
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="menu-form-grid menu-form-grid-two">
-              <div className="menu-field">
-                <label className="text-surface-300">Tags</label>
-                <input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} className="input-field" placeholder="spicy, vegan, popular" />
-              </div>
-              <div className="menu-field">
-                <label className="text-surface-300">Image</label>
-                <input type="file" accept="image/*" onChange={e => setImageFile(e.target.files[0])} className="input-field" />
-              </div>
-            </div>
-
             <div className="menu-form-actions">
               <button type="button" onClick={resetForm} className="btn-secondary text-[14px] min-h-[44px] px-5 py-2.5">Cancel</button>
-              <button type="submit" className="btn-primary text-[14px] min-h-[48px] px-5 py-2.5" id="form-submit">
-                {editId ? 'Update Item' : 'Create Item'}
+              <button type="submit" className="btn-primary text-[14px] min-h-[48px] px-5 py-2.5" id="form-submit" disabled={analyzingNutrition}>
+                {analyzingNutrition ? 'Analyzing...' : editId ? 'Update Item' : 'Create Item'}
               </button>
             </div>
           </form>
@@ -237,23 +375,38 @@ export default function MenuManage() {
             <h3 className="font-semibold text-lg text-white">Menu Items</h3>
             <p className="text-[14px] text-surface-400 mt-1">Toggle availability or edit item details from this list.</p>
           </div>
+          {!loading && items.length > 0 && (
+            <div className="menu-list-search">
+              <HiOutlineSearch className="menu-list-search-icon" />
+              <input
+                type="text"
+                value={menuSearch}
+                onChange={(e) => setMenuSearch(e.target.value)}
+                className="menu-list-search-input"
+                placeholder="Search menu item by name"
+                aria-label="Search menu item by name"
+              />
+            </div>
+          )}
         </div>
 
         {loading ? (
           <div className="menu-empty-state text-surface-500">Loading menu items...</div>
         ) : items.length === 0 ? (
           <div className="menu-empty-state text-surface-500">No menu items yet. Add your first item to get started.</div>
+        ) : visibleItems.length === 0 ? (
+          <div className="menu-empty-state text-surface-500">No menu items match your search.</div>
         ) : (
           <div className="menu-table">
             <div className="menu-table-head text-surface-500">
               <span>Item</span>
-              <span>Category</span>
               <span>Price</span>
               <span>Status</span>
+              <span>Avl. Stock</span>
               <span>Actions</span>
             </div>
 
-            {items.map(item => (
+            {visibleItems.map(item => (
               <div key={item._id} className="menu-manage-row" id={`manage-item-${item._id}`}>
                 <div className="menu-item-main">
                   <div className="menu-category-mark bg-surface-800 text-primary-400 border border-surface-700">
@@ -270,18 +423,38 @@ export default function MenuManage() {
                   </div>
                 </div>
 
-                <div className="menu-row-category text-surface-300">{categoryLabels[item.category] || item.category}</div>
                 <div className="menu-row-price text-surface-100">Rs. {item.price}</div>
                 <div className="menu-row-status">
-                  <span className={`badge text-xs ${item.isAvailable ? 'badge-success' : 'badge-danger'}`}>
-                    {item.isAvailable ? 'Live' : 'Hidden'}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleToggle(item._id)}
+                    className={`badge text-xs menu-status-toggle ${item.isAvailable ? 'badge-success' : 'badge-danger'}`}
+                    title={item.isAvailable ? 'Click to hide item' : 'Click to make item live'}
+                  >
+                    {item.isAvailable ? 'Live' : 'Hide'}
+                  </button>
+                </div>
+
+                <div className="menu-row-stock">
+                  <input
+                    value={stockDrafts[item._id] ?? getStockDisplay(item)}
+                    onChange={e => handleStockDraftChange(item._id, e.target.value)}
+                    onBlur={() => handleStockCommit(item)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') e.currentTarget.blur();
+                      if (e.key === 'Escape') {
+                        setStockDrafts(prev => ({ ...prev, [item._id]: getStockDisplay(item) }));
+                        e.currentTarget.blur();
+                      }
+                    }}
+                    className="menu-stock-input"
+                    disabled={!item.isAvailable}
+                    aria-label={`${item.name} available stock`}
+                    title={item.isAvailable ? 'Enter a whole number' : 'Make item live to edit stock'}
+                  />
                 </div>
 
                 <div className="menu-row-actions">
-                  <button onClick={() => handleToggle(item._id)} className="menu-icon-btn hover:bg-white/5 text-surface-400" title="Toggle availability">
-                    {item.isAvailable ? <HiOutlineEye className="w-4 h-4" /> : <HiOutlineEyeOff className="w-4 h-4" />}
-                  </button>
                   <button onClick={() => handleEdit(item)} className="menu-icon-btn hover:bg-white/5 text-surface-400" title="Edit">
                     <HiOutlinePencil className="w-4 h-4" />
                   </button>

@@ -15,6 +15,14 @@ export const useKitchenOrders = () => {
   const [reconnecting, setReconnecting] = useState(false);
   const [hasConnected, setHasConnected] = useState(false);
 
+  const markEveryItemReady = useCallback((order) => ({
+    ...order,
+    items: (order.items || []).map((item) => ({
+      ...item,
+      assignedReadyQty: item.quantity,
+    })),
+  }), []);
+
   const fetchLiveOrders = useCallback(async () => {
     try {
       const res = await fetch('/api/orders/kitchen/live', {
@@ -202,7 +210,11 @@ export const useKitchenOrders = () => {
     const current = previousMap.get(orderId);
     if (!current) return;
 
-    setOrders((prev) => new Map(prev).set(orderId, { ...current, status: nextStatus }));
+    const optimisticOrder = nextStatus === 'completed'
+      ? markEveryItemReady({ ...current, status: nextStatus })
+      : { ...current, status: nextStatus };
+
+    setOrders((prev) => new Map(prev).set(orderId, optimisticOrder));
 
     try {
       const idempotencyKey = `${orderId}-${nextStatus}`;
@@ -224,6 +236,15 @@ export const useKitchenOrders = () => {
         }
         throw new Error('Update failed');
       }
+
+      const data = await res.json().catch(() => ({}));
+      if (data.order?._id) {
+        const nextOrder = nextStatus === 'completed'
+          ? markEveryItemReady(data.order)
+          : data.order;
+        setOrders((prev) => new Map(prev).set(nextOrder._id, nextOrder));
+      }
+      await refreshSummary();
     } catch (err) {
       console.error(err);
       setOrders(previousMap);

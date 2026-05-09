@@ -18,6 +18,17 @@ import KitchenDashboard from './pages/KitchenDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import MenuManage from './pages/MenuManage';
 
+const PENDING_ORDER_KEY = 'unifeast_pending_order';
+
+function getUserId(user) {
+  return user?._id || user?.id || '';
+}
+
+function isClientOrderRetryError(error) {
+  const status = error.response?.status;
+  return status >= 400 && status < 500;
+}
+
 function ProtectedRoute({ children, roles }) {
   const { user, loading } = useAuth();
   if (loading) return null; // Let AppRoutes handle global loading
@@ -31,21 +42,46 @@ function PendingOrderBanner() {
   const [pendingOrder, setPendingOrder] = useState(null);
   const [retrying, setRetrying] = useState(false);
 
+  const clearPendingOrder = () => {
+    localStorage.removeItem(PENDING_ORDER_KEY);
+    setPendingOrder(null);
+  };
+
   useEffect(() => {
-    if (!user || user.role !== 'student') return;
+    if (!user || user.role !== 'student') {
+      setPendingOrder(null);
+      return;
+    }
+
     try {
-      const raw = localStorage.getItem('unifeast_pending_order');
+      const raw = localStorage.getItem(PENDING_ORDER_KEY);
       if (!raw) return;
       const parsed = JSON.parse(raw);
-      if (!parsed?.timestamp) return;
+      const currentUserId = getUserId(user);
+      const paymentId = parsed.razorpayPaymentId || parsed.razorpay_payment_id;
+      const isValidPendingOrder =
+        parsed?.timestamp &&
+        parsed.userId === currentUserId &&
+        Array.isArray(parsed.items) &&
+        parsed.items.length > 0 &&
+        paymentId;
+
+      if (!isValidPendingOrder) {
+        localStorage.removeItem(PENDING_ORDER_KEY);
+        setPendingOrder(null);
+        return;
+      }
+
       const ageMs = Date.now() - parsed.timestamp;
       if (ageMs > 24 * 60 * 60 * 1000) {
-        localStorage.removeItem('unifeast_pending_order');
+        localStorage.removeItem(PENDING_ORDER_KEY);
+        setPendingOrder(null);
         return;
       }
       setPendingOrder(parsed);
     } catch {
-      localStorage.removeItem('unifeast_pending_order');
+      localStorage.removeItem(PENDING_ORDER_KEY);
+      setPendingOrder(null);
     }
   }, [user]);
 
@@ -59,11 +95,17 @@ function PendingOrderBanner() {
         specialInstructions: pendingOrder.specialInstructions || '',
         razorpayPaymentId: pendingOrder.razorpayPaymentId || pendingOrder.razorpay_payment_id,
       });
-      localStorage.removeItem('unifeast_pending_order');
+      localStorage.removeItem(PENDING_ORDER_KEY);
       setPendingOrder(null);
       toast.success('Pending order completed successfully.');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to complete pending order. Please retry.');
+      const message = err.response?.data?.message || 'Failed to complete pending order.';
+      if (isClientOrderRetryError(err)) {
+        clearPendingOrder();
+        toast.error(`${message} Pending retry cleared.`);
+      } else {
+        toast.error(`${message} Please retry.`);
+      }
     } finally {
       setRetrying(false);
     }
@@ -75,13 +117,22 @@ function PendingOrderBanner() {
     <div className="fixed top-4 md:top-5 left-1/2 -translate-x-1/2 z-[1100] w-[calc(100vw-32px)] max-w-2xl">
       <div className="rounded-xl border border-amber-400/40 bg-amber-500/15 backdrop-blur-md px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <p className="text-sm text-amber-100">You have a pending order from a previous session - tap to complete.</p>
-        <button
-          onClick={retryCreateOrder}
-          disabled={retrying}
-          className="px-4 py-2 rounded-lg bg-amber-400 text-black text-sm font-semibold disabled:opacity-60 min-h-[44px]"
-        >
-          {retrying ? 'Retrying...' : 'Retry Now'}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <button
+            onClick={retryCreateOrder}
+            disabled={retrying}
+            className="px-4 py-2 rounded-lg bg-amber-400 text-black text-sm font-semibold disabled:opacity-60 min-h-[44px]"
+          >
+            {retrying ? 'Retrying...' : 'Retry Now'}
+          </button>
+          <button
+            onClick={clearPendingOrder}
+            disabled={retrying}
+            className="px-4 py-2 rounded-lg bg-white/10 text-amber-100 text-sm font-semibold disabled:opacity-60 min-h-[44px]"
+          >
+            Clear
+          </button>
+        </div>
       </div>
     </div>
   );

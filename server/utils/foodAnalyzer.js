@@ -53,6 +53,37 @@ function buildOllamaHeaders(apiKey) {
   return headers;
 }
 
+async function requestOllamaJson(prompt, images = []) {
+  const { apiKey, baseUrl, model } = requireOllamaConfig();
+  const payload = {
+    model,
+    prompt,
+    stream: false,
+    format: 'json',
+    options: {
+      temperature: 0.1,
+      top_p: 0.8,
+      top_k: 32,
+      num_predict: 700,
+    },
+  };
+
+  if (images.length) {
+    payload.images = images;
+  }
+
+  const response = await axios.post(buildOllamaGenerateUrl(baseUrl), payload, {
+    timeout: OLLAMA_TIMEOUT_MS,
+    headers: buildOllamaHeaders(apiKey),
+  });
+
+  const text = extractText(response.data);
+  return {
+    raw: parseOllamaJson(text),
+    model,
+  };
+}
+
 function clampConfidence(value) {
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return 0.5;
@@ -153,6 +184,36 @@ function normalizeQuantity(value) {
   return Math.max(1, Math.min(20, Math.round(parsed * 10) / 10));
 }
 
+function normalizeFoodNameForMatch(value) {
+  return String(value || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\b(plate|bowl|cup|glass|piece|pieces|serving|food|item|with|and|the)\b/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function foodNamesMatch(enteredName, detectedName) {
+  const entered = normalizeFoodNameForMatch(enteredName);
+  const detected = normalizeFoodNameForMatch(detectedName);
+  if (!entered || !detected) return false;
+  if (entered === detected) return true;
+  if (entered.length > 3 && detected.length > 3 && (entered.includes(detected) || detected.includes(entered))) {
+    return true;
+  }
+
+  const enteredTokens = new Set(entered.split(' ').filter((token) => token.length > 2));
+  const detectedTokens = new Set(detected.split(' ').filter((token) => token.length > 2));
+  if (!enteredTokens.size || !detectedTokens.size) return false;
+
+  let overlap = 0;
+  enteredTokens.forEach((token) => {
+    if (detectedTokens.has(token)) overlap += 1;
+  });
+
+  return overlap / Math.max(enteredTokens.size, detectedTokens.size) >= 0.6;
+}
+
 function normalizeOllamaResult(raw, modelName) {
   const confidence = clampConfidence(raw.confidence);
   const detectedItems = Array.isArray(raw.detectedItems || raw.detected_items)
@@ -217,32 +278,83 @@ Please respond ONLY with a valid JSON object strictly following this structure. 
 }`;
 }
 
+function buildNameNutritionPrompt(foodName) {
+  return `Estimate nutritional content for one standard Indian college canteen serving of "${foodName}".
+Use the menu item name as the source of truth. Return nutrition for exactly 1 serving, not multiple servings.
+Please respond ONLY with a valid JSON object strictly following this structure. No markdown, no backticks, just the raw JSON object:
+{
+  "name": "${foodName}",
+  "quantity": 1,
+  "quantityUnit": "serving",
+  "calories": "value with unit (e.g., 250 kcal)",
+  "protein": "value with unit (e.g., 10g)",
+  "fiber": "value with unit (e.g., 5g)",
+  "fat": "value with unit (e.g., 12g)",
+  "carbs": "value with unit (e.g., 30g)",
+  "confidence": 0.85,
+  "servingSize": "one standard serving"
+}`;
+}
+
 async function analyzeFoodImage(imageUrl) {
-  const { apiKey, baseUrl, model } = requireOllamaConfig();
   const image = await downloadImageAsBase64(imageUrl);
-
-  const payload = {
-    model,
-    prompt: buildNutritionPrompt(),
-    images: [image.data],
-    stream: false,
-    format: 'json',
-    options: {
-      temperature: 0.1,
-      top_p: 0.8,
-      top_k: 32,
-      num_predict: 700,
-    },
-  };
-
-  const response = await axios.post(buildOllamaGenerateUrl(baseUrl), payload, {
-    timeout: OLLAMA_TIMEOUT_MS,
-    headers: buildOllamaHeaders(apiKey),
-  });
-
-  const text = extractText(response.data);
-  const raw = parseOllamaJson(text);
+  const { raw, model } = await requestOllamaJson(buildNutritionPrompt(), [image.data]);
   return normalizeOllamaResult(raw, model);
+}
+
+async function analyzeFoodName(foodName) {
+  const normalizedName = String(foodName || '').trim();
+  if (!normalizedName) {
+    throw new Error('Food name is required for nutrition analysis');
+  }
+
+  const { raw, model } = await requestOllamaJson(buildNameNutritionPrompt(normalizedName));
+  const result = normalizeOllamaResult({ ...raw, quantity: 1, quantityUnit: raw.quantityUnit || 'serving' }, model);
+  return {
+    ...result,
+    quantity: 1,
+    quantityUnit: result.quantityUnit || 'serving',
+    source: 'ollama_name_lookup',
+  };
+}
+
+async function analyzeMenuItemNutrition({ name, imageUrl }) {
+  const menuName = String(name || '').trim();
+  if (!menuName) {
+    throw new Error('Menu item name is required for nutrition analysis');
+  }
+
+  let imageResult = null;
+  if (imageUrl) {
+    try {
+      imageResult = await analyzeFoodImage(imageUrl);
+      if (foodNamesMatch(menuName, imageResult.foodName)) {
+        return {
+          ...imageResult,
+          quantity: 1,
+          quantityUnit: 'serving',
+          source: 'ollama_image_match',
+          menuNameMatch: true,
+          requestedName: menuName,
+          imageDetectedFoodName: imageResult.foodName,
+        };
+      }
+    } catch (error) {
+      console.warn('Ollama image nutrition lookup failed, falling back to name:', error.message);
+    }
+  }
+
+  const nameResult = await analyzeFoodName(menuName);
+  return {
+    ...nameResult,
+    foodName: menuName,
+    quantity: 1,
+    quantityUnit: 'serving',
+    source: imageResult ? 'ollama_name_lookup_after_image_mismatch' : 'ollama_name_lookup',
+    menuNameMatch: !imageUrl,
+    requestedName: menuName,
+    imageDetectedFoodName: imageResult?.foodName || '',
+  };
 }
 
 async function analyzeFoodComplete(imageUrl) {
@@ -257,5 +369,7 @@ async function analyzeFoodComplete(imageUrl) {
 
 module.exports = {
   analyzeFoodImage,
+  analyzeFoodName,
+  analyzeMenuItemNutrition,
   analyzeFoodComplete,
 };

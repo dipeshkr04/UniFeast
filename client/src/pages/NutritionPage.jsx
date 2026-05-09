@@ -8,6 +8,25 @@ import LeaderboardWidget from '../components/nutrition/LeaderboardWidget';
 import LeaderboardModal from '../components/nutrition/LeaderboardModal';
 
 const COLORS = ['#e06449', '#facc15', '#3b82f6', '#10b981'];
+const DEFAULT_LOG_FORM = {
+  customName: '',
+  calories: '',
+  protein: '',
+  carbs: '',
+  fat: '',
+  fiber: '',
+  quantity: '1',
+  mealType: 'snack',
+  imageFile: null,
+  imageUrl: '',
+};
+
+function getDetectedQuantity(result, fallback = '1') {
+  const value = result?.quantity ?? result?.detectedItems?.[0]?.quantity;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback || '1';
+  return String(Math.max(1, Math.min(20, Math.round(parsed * 10) / 10)));
+}
 
 export default function NutritionPage() {
   const { user, updateUser } = useAuth();
@@ -21,9 +40,7 @@ export default function NutritionPage() {
   const [chartView, setChartView] = useState('weekly');
   const fileInputRef = useRef(null);
 
-  const [logForm, setLogForm] = useState({
-    customName: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', mealType: 'snack', imageFile: null, imageUrl: ''
-  });
+  const [logForm, setLogForm] = useState(DEFAULT_LOG_FORM);
   const [goalsForm, setGoalsForm] = useState({
     dailyCalorieGoal: user?.dailyCalorieGoal || 2200,
     dailyProteinGoal: user?.dailyProteinGoal || 55,
@@ -79,6 +96,7 @@ export default function NutritionPage() {
         setLogForm(prev => ({
           ...prev,
           customName: foodName || prev.customName,
+          quantity: getDetectedQuantity(data.data, prev.quantity),
           calories: nutrition?.calories || prev.calories,
           protein: nutrition?.protein || prev.protein,
           carbs: nutrition?.carbs || prev.carbs,
@@ -108,7 +126,7 @@ export default function NutritionPage() {
       await nutritionAPI.logMeal(formData);
       toast.success('Meal logged!', { icon: '🥗' });
       setShowLogForm(false);
-      setLogForm({ customName: '', calories: '', protein: '', carbs: '', fat: '', fiber: '', mealType: 'snack', imageFile: null, imageUrl: '' });
+      setLogForm(DEFAULT_LOG_FORM);
       setAiResult(null);
       fetchData();
     } catch (err) {
@@ -264,7 +282,7 @@ export default function NutritionPage() {
                      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce" style={{ animationDelay: '150ms' }} />
                      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce" style={{ animationDelay: '300ms' }} />
                    </div>
-                   <p className="text-xs font-semibold text-primary-400">Gemini Flash scanning image...</p>
+                   <p className="text-xs font-semibold text-primary-400">Ollama scanning image...</p>
                 </div>
               )}
             </div>
@@ -295,25 +313,30 @@ export default function NutritionPage() {
                     <div>
                       <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Qty</label>
                       <input type="number" value={logForm.quantity} onChange={e => setLogForm({ ...logForm, quantity: e.target.value })} 
-                        className="input-field w-full text-center px-1 font-bold" placeholder="1" min="1" required />
+                        className={`input-field w-full text-center px-1 font-bold ${aiResult?.quantity ? 'border-primary-500/50 text-white' : ''}`} placeholder="1" min="1" step="0.1" required />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Kcal</label>
+                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center leading-tight">Kcal / Unit</label>
                       <input type="number" value={logForm.calories} onChange={e => setLogForm({ ...logForm, calories: e.target.value })} 
                         className={`input-field w-full text-center px-1 ${aiResult ? 'border-primary-500/50 text-white font-bold' : ''}`} placeholder="0" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Prot</label>
+                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center leading-tight">Protein / Unit</label>
                       <input type="number" value={logForm.protein} onChange={e => setLogForm({ ...logForm, protein: e.target.value })} 
                         className={`input-field w-full text-center px-1 ${aiResult ? 'border-primary-500/50' : ''}`} placeholder="0" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Carb</label>
+                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center leading-tight">Carb / Unit</label>
                       <input type="number" value={logForm.carbs} onChange={e => setLogForm({ ...logForm, carbs: e.target.value })} 
                         className={`input-field w-full text-center px-1 ${aiResult ? 'border-primary-500/50' : ''}`} placeholder="0" />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Fat</label>
+                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center leading-tight">Fibre / Unit</label>
+                      <input type="number" value={logForm.fiber} onChange={e => setLogForm({ ...logForm, fiber: e.target.value })} 
+                        className={`input-field w-full text-center px-1 ${aiResult ? 'border-primary-500/50' : ''}`} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center leading-tight">Fat / Unit</label>
                       <input type="number" value={logForm.fat} onChange={e => setLogForm({ ...logForm, fat: e.target.value })} 
                         className={`input-field w-full text-center px-1 ${aiResult ? 'border-primary-500/50' : ''}`} placeholder="0" />
                     </div>

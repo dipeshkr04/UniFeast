@@ -7,6 +7,11 @@ const Payment = require('../models/paymentModel');
 const { calculateETA, recalculateAllETAs } = require('../utils/queueEngine');
 const { recalculateQueueETAs, getKitchenSummary } = require('../services/queueService');
 const lockManager = require('../config/lockManager');
+const {
+  resetExpiredDailyStocks,
+  reserveDailyStock,
+  releaseDailyStock,
+} = require('../utils/dailyStock');
 
 function getItemRequestedQty(orderItem) {
   return Number(orderItem?.quantity || 0);
@@ -189,6 +194,8 @@ async function buildKitchenStockSummary() {
 // @route   POST /api/orders
 exports.createOrder = async (req, res) => {
   let attemptedRazorpayPaymentId = null;
+  let reservedStock = [];
+  let orderPersisted = false;
   try {
     const { items, specialInstructions } = req.body;
     const razorpayPaymentId = req.body.razorpayPaymentId || req.body.razorpay_payment_id || null;
@@ -233,6 +240,8 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Canteen is currently closed. Please try again later.' });
     }
 
+    await resetExpiredDailyStocks();
+
     // Fetch menu items and calculate total
     let totalAmount = 0;
     let orderServiceTime = 0;
@@ -247,7 +256,11 @@ exports.createOrder = async (req, res) => {
         return res.status(400).json({ success: false, message: `${menuItem.name} is currently unavailable` });
       }
 
-      const quantity = item.quantity || 1;
+      const quantity = Number(item.quantity || 1);
+      if (!Number.isInteger(quantity) || quantity <= 0) {
+        return res.status(400).json({ success: false, message: 'Order item quantity must be a positive whole number' });
+      }
+
       totalAmount += menuItem.price * quantity;
       // Queue-aware service load: quantity contributes to ETA.
       orderServiceTime += (menuItem.prepTime || 10) * quantity;
@@ -265,6 +278,8 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Paid amount does not match the order total' });
     }
 
+    reservedStock = await reserveDailyStock(orderItems);
+
     // Calculate the order's own workload; recalculateAllETAs adds existing queue backlog.
     const etaResult = await calculateETA(Math.max(1, orderServiceTime));
 
@@ -278,6 +293,7 @@ exports.createOrder = async (req, res) => {
       specialInstructions,
       statusHistory: [{ status: 'pending', timestamp: new Date() }],
     });
+    orderPersisted = true;
 
     order.status = 'queued';
     order.statusHistory.push({ status: 'queued', timestamp: new Date() });
@@ -304,6 +320,9 @@ exports.createOrder = async (req, res) => {
       handlers.notifyAllETAUpdates(etaUpdates);
       handlers.notifyQueueStats();
     }
+    if (reservedStock.length && req.app.get('io')) {
+      req.app.get('io').emit('menu:stockChanged', { updated: true });
+    }
 
     res.status(201).json({
       success: true,
@@ -314,6 +333,12 @@ exports.createOrder = async (req, res) => {
       },
     });
   } catch (error) {
+    if (reservedStock.length && !orderPersisted) {
+      await releaseDailyStock(reservedStock).catch((releaseError) => {
+        console.error('Daily stock release error:', releaseError.message);
+      });
+    }
+
     if (error.code === 11000 && attemptedRazorpayPaymentId) {
       const existingOrder = await Order.findOne({ user: req.user.id, razorpayPaymentId: attemptedRazorpayPaymentId })
         .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
@@ -329,7 +354,8 @@ exports.createOrder = async (req, res) => {
       }
     }
     console.error('Create order error:', error);
-    res.status(500).json({ success: false, message: error.message });
+    const statusCode = error.statusCode || error.status || 500;
+    res.status(statusCode).json({ success: false, message: error.message });
   }
 };
 
@@ -524,6 +550,7 @@ exports.markOrderItemReady = async (req, res) => {
     );
 
     if (io) {
+      const itemReadyNotification = `${readyQty}x ${itemName} is ready. We are finishing the rest of your order.`;
       const payload = {
         orderId: populatedOrder._id.toString(),
         itemId: item._id.toString(),
@@ -536,9 +563,7 @@ exports.markOrderItemReady = async (req, res) => {
         estimatedTime: populatedOrder.estimatedTime,
         estimatedReadyAt: populatedOrder.estimatedReadyAt,
         order: populatedOrder,
-        notification: becameFullyReady
-          ? 'Your full order is ready for pickup ✅'
-          : `${readyQty}x ${itemName} is ready. We are finishing the rest of your order.`,
+        notification: itemReadyNotification,
       };
 
       io.to('kitchen').emit('order:itemReady', payload);

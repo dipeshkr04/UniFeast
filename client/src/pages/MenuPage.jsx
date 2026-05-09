@@ -7,10 +7,18 @@ import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
+import { useSocket } from '../contexts/SocketContext';
 
 const Motion = motion;
 
 const COLORS = ['#e06449', '#facc15', '#3b82f6', '#10b981'];
+
+function hasNumericStock(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string' && !value.trim()) return false;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0;
+}
 
 const categories = [
   { key: '', label: 'All', icon: '🍽️' },
@@ -28,6 +36,7 @@ export default function MenuPage() {
   const [selectedItem, setSelectedItem] = useState(null);
   const { addItem, items: cartItems } = useCart();
   const { user } = useAuth();
+  const { socket } = useSocket() || {};
 
   const fetchMenu = useCallback(async () => {
     try {
@@ -47,7 +56,25 @@ export default function MenuPage() {
     fetchMenu();
   }, [fetchMenu]);
 
+  useEffect(() => {
+    if (!socket) return undefined;
+    socket.on('menu:stockChanged', fetchMenu);
+    return () => socket.off('menu:stockChanged', fetchMenu);
+  }, [socket, fetchMenu]);
+
+  const getStockLeft = (item) => {
+    const stock = item?.dailyStock?.quantity;
+    return hasNumericStock(stock) ? Number(stock) : 0;
+  };
+
   const handleAddToCart = (item) => {
+    const stockLeft = getStockLeft(item);
+    const currentQty = getCartQty(item._id);
+    if (currentQty >= stockLeft) {
+      toast.error(stockLeft === 0 ? `${item.name} is sold out for today` : `Only ${stockLeft} left today`);
+      return;
+    }
+
     addItem(item);
     toast.success(`${item.name} added to cart`, { icon: '🛒' });
   };
@@ -69,23 +96,6 @@ export default function MenuPage() {
             <p className="student-menu-subtitle text-surface-400">Elite Culinary Experience • IIIT Nagpur</p>
           </Motion.div>
         </div>
-        
-        {/* Search */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }} 
-          animate={{ opacity: 1, y: 0 }}
-          className="student-menu-search group"
-        >
-          <div className="student-menu-search-glow" />
-          <HiOutlineSearch className="student-menu-search-icon text-surface-400" />
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="student-menu-search-input text-white"
-            placeholder="Search for amazing food..."
-          />
-        </motion.div>
       </div>
 
       {/* Category Tabs */}
@@ -105,6 +115,23 @@ export default function MenuPage() {
             <span>{cat.label}</span>
           </button>
         ))}
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="student-menu-search group"
+      >
+        <div className="student-menu-search-glow" />
+        <HiOutlineSearch className="student-menu-search-icon text-surface-400" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="student-menu-search-input text-white"
+          placeholder="Search menu item by name"
+          aria-label="Search menu item by name"
+        />
       </motion.div>
 
       {/* Menu Grid */}
@@ -132,6 +159,8 @@ export default function MenuPage() {
           <AnimatePresence>
             {items.map(item => {
               const qty = getCartQty(item._id);
+              const stockLeft = getStockLeft(item);
+              const isSoldOut = stockLeft === 0;
               return (
                 <motion.div 
                   layout
@@ -161,6 +190,10 @@ export default function MenuPage() {
                     <div className="student-menu-prep-badge text-white">
                       <HiOutlineClock className="w-4 h-4 text-primary-400" />
                       <span>{item.prepTime}m</span>
+                    </div>
+
+                    <div className={`student-menu-stock-badge ${isSoldOut ? 'is-empty' : ''}`}>
+                      {stockLeft} Left
                     </div>
 
                   </div>
@@ -205,6 +238,7 @@ export default function MenuPage() {
                           <button
                             onClick={() => handleAddToCart(item)}
                             className="student-menu-qty-btn is-plus text-white"
+                            disabled={isSoldOut || qty >= stockLeft}
                           >
                             <HiPlus className="w-4 h-4" />
                           </button>
@@ -213,9 +247,10 @@ export default function MenuPage() {
                         <button
                           onClick={() => handleAddToCart(item)}
                           className="student-menu-add-btn btn-primary"
+                          disabled={isSoldOut}
                         >
                           <HiPlus className="w-4 h-4" />
-                          <span className="font-bold tracking-wide">Add</span>
+                          <span className="font-bold tracking-wide">{isSoldOut ? 'Sold Out' : 'Add'}</span>
                         </button>
                       )}
                     </div>
@@ -344,6 +379,7 @@ export default function MenuPage() {
                     setSelectedItem(null);
                   }} 
                   className="btn-primary flex-1 flex justify-center items-center gap-2 font-bold py-3 text-[14px] shadow-[0_0_15px_rgba(255,71,20,0.3)] hover:shadow-[0_0_25px_rgba(255,71,20,0.5)] transition-shadow min-h-[44px]"
+                  disabled={getStockLeft(selectedItem) === 0}
                 >
                   <HiPlus className="w-4 h-4" /> Add to Cart — ₹{selectedItem.price}
                 </button>

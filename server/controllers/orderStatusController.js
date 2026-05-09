@@ -28,6 +28,11 @@ async function consumeMadeStockForCompletedOrder(order) {
   }
 }
 
+function getOrderItemQuantity(item) {
+  const quantity = Number(item?.quantity || 0);
+  return Number.isFinite(quantity) && quantity > 0 ? quantity : 0;
+}
+
 async function autoLogNutrition(order) {
   try {
     const populatedOrder = await Order.findById(order._id).populate('items.menuItem');
@@ -120,6 +125,12 @@ exports.updateOrderStatus = async (req, res) => {
       $push: { statusHistory: { status: requestedStatus, timestamp: now } },
       $inc: { __v: 1 },
     };
+
+    if (requestedStatus === 'completed') {
+      currentOrder.items.forEach((item, index) => {
+        updateDoc.$set[`items.${index}.assignedReadyQty`] = getOrderItemQuantity(item);
+      });
+    }
 
     const updatedOrder = await Order.findOneAndUpdate(
       { _id: id, status: currentOrder.status, __v: currentOrder.__v },

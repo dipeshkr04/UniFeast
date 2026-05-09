@@ -42,6 +42,17 @@ const menuItemSchema = new mongoose.Schema({
     fat: { type: Number, default: 0 },
     fiber: { type: Number, default: 0 },
   },
+  dailyStock: {
+    quantity: {
+      type: Number,
+      default: 0,
+      min: [0, 'Available stock cannot be negative'],
+    },
+    dayKey: {
+      type: String,
+      default: '',
+    },
+  },
   tags: [{
     type: String,
     trim: true,

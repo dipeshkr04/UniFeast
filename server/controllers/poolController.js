@@ -3,6 +3,11 @@ const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const { findOrCreatePool, joinPool, closePool, getActivePools } = require('../utils/poolEngine');
 const { calculateETA } = require('../utils/queueEngine');
+const {
+  resetExpiredDailyStocks,
+  reserveDailyStock,
+  releaseDailyStock,
+} = require('../utils/dailyStock');
 
 // @desc    Get active pools
 // @route   GET /api/pools
@@ -38,14 +43,26 @@ exports.getPoolDetails = async (req, res) => {
 // @desc    Create or find pool for item and join
 // @route   POST /api/pools/join
 exports.joinOrCreatePool = async (req, res) => {
+  let reservedStock = [];
+  let orderPersisted = false;
   try {
-    const { menuItemId, quantity = 1 } = req.body;
+    const { menuItemId } = req.body;
+    const quantity = Number(req.body.quantity || 1);
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      return res.status(400).json({ success: false, message: 'Quantity must be a positive whole number' });
+    }
+
+    await resetExpiredDailyStocks();
 
     const menuItem = await MenuItem.findById(menuItemId);
     if (!menuItem) {
       return res.status(404).json({ success: false, message: 'Menu item not found' });
     }
+    if (!menuItem.isAvailable) {
+      return res.status(400).json({ success: false, message: `${menuItem.name} is currently unavailable` });
+    }
 
+    reservedStock = await reserveDailyStock([{ menuItem: menuItem._id, quantity }]);
 
     // Find or create pool
     const { pool, isNew } = await findOrCreatePool(menuItemId, menuItem.price);
@@ -70,6 +87,7 @@ exports.joinOrCreatePool = async (req, res) => {
       estimatedReadyAt: new Date(Date.now() + etaResult.eta * 60 * 1000),
       statusHistory: [{ status: 'pending', timestamp: new Date() }],
     });
+    orderPersisted = true;
 
     // Update pool member's order reference
     const memberIndex = updatedPool.members.findIndex(
@@ -99,6 +117,9 @@ exports.joinOrCreatePool = async (req, res) => {
       });
       handlers.notifyNewOrder(order);
     }
+    if (reservedStock.length && req.app.get('io')) {
+      req.app.get('io').emit('menu:stockChanged', { updated: true });
+    }
 
     res.status(201).json({
       success: true,
@@ -109,8 +130,13 @@ exports.joinOrCreatePool = async (req, res) => {
       },
     });
   } catch (error) {
+    if (reservedStock.length && !orderPersisted) {
+      await releaseDailyStock(reservedStock).catch((releaseError) => {
+        console.error('Daily stock release error:', releaseError.message);
+      });
+    }
     console.error('Join pool error:', error);
-    res.status(500).json({ success: false, message: error.message });
+    res.status(error.statusCode || error.status || 500).json({ success: false, message: error.message });
   }
 };
 

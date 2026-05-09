@@ -1,6 +1,6 @@
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
-import { orderAPI, paymentAPI } from '../api';
+import { menuAPI, orderAPI, paymentAPI } from '../api';
 import { HiOutlineTrash, HiPlus, HiMinus, HiArrowLeft } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useState } from 'react';
@@ -8,6 +8,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 
 const MotionItem = motion.div;
+
+function hasNumericStock(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string' && !value.trim()) return false;
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed >= 0;
+}
 
 function loadRazorpayScript() {
   return new Promise((resolve) => {
@@ -37,6 +44,24 @@ export default function CartPage() {
     if (items.length === 0) return;
     setLoading(true);
     try {
+      const { data: freshMenu } = await menuAPI.getAll({ available: 'true' });
+      const freshById = new Map((freshMenu.data || []).map((item) => [item._id, item]));
+      for (const { menuItem, quantity } of items) {
+        const freshItem = freshById.get(menuItem._id);
+        if (!freshItem) {
+          toast.error(`${menuItem.name} is no longer available`);
+          return;
+        }
+
+        const stockLeft = hasNumericStock(freshItem.dailyStock?.quantity)
+          ? Number(freshItem.dailyStock.quantity)
+          : 0;
+        if (quantity > stockLeft) {
+          toast.error(Number(stockLeft) === 0 ? `${freshItem.name} is sold out for today` : `Only ${stockLeft} ${freshItem.name} left today`);
+          return;
+        }
+      }
+
       const orderItems = items.map((i) => ({
         menuItem: i.menuItem._id,
         quantity: i.quantity,
@@ -103,10 +128,11 @@ export default function CartPage() {
               localStorage.removeItem('unifeast_pending_order');
               toast.success(`Payment successful. Order placed! ETA: ${data.eta?.eta || data.data?.estimatedTime || '?'} min`, { icon: '🎉', duration: 5000 });
               navigate('/orders');
-            } catch (createErr) {
+            } catch {
               const pendingPayload = {
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpayPaymentId: response.razorpay_payment_id,
+                userId: user?._id || user?.id || '',
                 items: orderItems,
                 totalAmount,
                 specialInstructions: instructions,

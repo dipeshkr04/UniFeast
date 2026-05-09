@@ -49,12 +49,16 @@ export const authAPI = {
 export const menuAPI = {
   getAll: (params) => api.get('/menu', { params }),
   getOne: (id) => api.get(`/menu/${id}`),
+  analyzeNutrition: (data) => api.post('/menu/analyze-nutrition', data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  }),
   create: (data) => api.post('/menu', data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
   update: (id, data) => api.put(`/menu/${id}`, data, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),
+  updateStock: (id, stock) => api.patch(`/menu/${id}/stock`, { stock }),
   delete: (id) => api.delete(`/menu/${id}`),
   toggle: (id) => api.patch(`/menu/${id}/toggle`),
 };

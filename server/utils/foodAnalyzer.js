@@ -2,28 +2,55 @@ const axios = require('axios');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-const GEMINI_API_VERSION = process.env.GEMINI_API_VERSION || 'v1beta';
-const GEMINI_BASE_URL = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}`;
-const CONFIGURED_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
-const FALLBACK_GEMINI_MODELS = [
-  CONFIGURED_GEMINI_MODEL,
-  'gemini-flash-latest',
-  'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-flash',
-];
+const LOW_CONFIDENCE_THRESHOLD = Number(getEnv('OLLAMA_NUTRITION_CONFIDENCE_THRESHOLD') || 0.65);
+const MAX_IMAGE_BYTES = Number(getEnv('OLLAMA_MAX_IMAGE_BYTES') || 8 * 1024 * 1024);
+const OLLAMA_TIMEOUT_MS = Number(getEnv('OLLAMA_TIMEOUT_MS') || 60000);
 
-const LOW_CONFIDENCE_THRESHOLD = Number(process.env.GEMINI_NUTRITION_CONFIDENCE_THRESHOLD || 0.65);
-const MAX_IMAGE_BYTES = Number(process.env.GEMINI_MAX_IMAGE_BYTES || 8 * 1024 * 1024);
-let cachedGeminiModel = null;
-
-function requireGeminiKey() {
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured');
+function getEnv(...names) {
+  for (const name of names) {
+    const value = process.env[name];
+    if (value !== undefined && String(value).trim()) {
+      return String(value).trim();
+    }
   }
-  return apiKey;
+  return '';
+}
+
+function requireOllamaConfig() {
+  const model = getEnv('OLLAMA_MODEL', 'ollama_model');
+  if (!model) {
+    throw new Error('OLLAMA_MODEL is not configured');
+  }
+
+  return {
+    apiKey: getEnv('OLLAMA_API_KEY', 'ollama_api_key'),
+    baseUrl: normalizeBaseUrl(getEnv('OLLAMA_BASE_URL', 'ollama_base_url') || 'http://localhost:11434'),
+    model,
+  };
+}
+
+function normalizeBaseUrl(baseUrl) {
+  return String(baseUrl || '').trim().replace(/\/+$/, '');
+}
+
+function buildOllamaGenerateUrl(baseUrl) {
+  const normalized = normalizeBaseUrl(baseUrl);
+  if (normalized.endsWith('/api/generate')) return normalized;
+  if (normalized.endsWith('/api')) return `${normalized}/generate`;
+  return `${normalized}/api/generate`;
+}
+
+function buildOllamaHeaders(apiKey) {
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+    headers['X-API-Key'] = apiKey;
+  }
+
+  return headers;
 }
 
 function clampConfidence(value) {
@@ -51,67 +78,6 @@ function normalizeNutrition(nutrition = {}) {
   };
 }
 
-function normalizeModelName(modelName) {
-  return String(modelName || '').trim().replace(/^models\//, '');
-}
-
-function buildGenerateContentUrl(modelName) {
-  return `${GEMINI_BASE_URL}/models/${normalizeModelName(modelName)}:generateContent`;
-}
-
-function uniqueModels(models) {
-  const seen = new Set();
-  return models
-    .filter(Boolean)
-    .map(normalizeModelName)
-    .filter((model) => {
-      if (!model || seen.has(model)) return false;
-      seen.add(model);
-      return true;
-    });
-}
-
-function isModelAvailabilityError(error) {
-  const status = error.response?.status;
-  const message = String(error.response?.data?.error?.message || error.message || '').toLowerCase();
-  return status === 404 ||
-    message.includes('is not found') ||
-    message.includes('not supported for generatecontent') ||
-    message.includes('models/') && message.includes('not found');
-}
-
-function supportsGenerateContent(model) {
-  return Array.isArray(model.supportedGenerationMethods) &&
-    model.supportedGenerationMethods.includes('generateContent');
-}
-
-async function discoverAvailableGeminiModel(apiKey, alreadyTried = new Set()) {
-  const response = await axios.get(`${GEMINI_BASE_URL}/models?key=${encodeURIComponent(apiKey)}`, {
-    timeout: 15000,
-  });
-
-  const models = (response.data?.models || [])
-    .filter(supportsGenerateContent)
-    .map((model) => ({
-      ...model,
-      shortName: normalizeModelName(model.name),
-    }));
-
-  const preferred = uniqueModels(FALLBACK_GEMINI_MODELS);
-  for (const candidate of preferred) {
-    const found = models.find((model) => model.shortName === candidate && !alreadyTried.has(candidate));
-    if (found) return found.shortName;
-  }
-
-  const flashModel = models.find((model) =>
-    model.shortName.toLowerCase().includes('flash') && !alreadyTried.has(model.shortName)
-  );
-  if (flashModel) return flashModel.shortName;
-
-  const anyModel = models.find((model) => !alreadyTried.has(model.shortName));
-  return anyModel?.shortName || null;
-}
-
 function inferMimeType(imageUrl, contentType) {
   if (contentType && contentType.startsWith('image/')) return contentType.split(';')[0];
   const lower = String(imageUrl || '').toLowerCase();
@@ -121,7 +87,7 @@ function inferMimeType(imageUrl, contentType) {
   return 'image/jpeg';
 }
 
-async function downloadImageAsInlineData(imageUrl) {
+async function downloadImageAsBase64(imageUrl) {
   const response = await axios.get(imageUrl, {
     responseType: 'arraybuffer',
     timeout: 15000,
@@ -135,19 +101,31 @@ async function downloadImageAsInlineData(imageUrl) {
   }
 
   return {
-    inline_data: {
-      mime_type: inferMimeType(imageUrl, response.headers['content-type']),
-      data: buffer.toString('base64'),
-    },
+    data: buffer.toString('base64'),
+    mimeType: inferMimeType(imageUrl, response.headers['content-type']),
   };
 }
 
 function extractText(responseData) {
-  const parts = responseData?.candidates?.[0]?.content?.parts || [];
-  return parts.map((part) => part.text || '').join('\n').trim();
+  if (typeof responseData?.response === 'string') {
+    return responseData.response.trim();
+  }
+
+  if (typeof responseData?.message?.content === 'string') {
+    return responseData.message.content.trim();
+  }
+
+  if (Array.isArray(responseData?.message?.content)) {
+    return responseData.message.content
+      .map((part) => part.text || '')
+      .join('\n')
+      .trim();
+  }
+
+  return '';
 }
 
-function parseGeminiJson(text) {
+function parseOllamaJson(text) {
   const cleaned = String(text || '')
     .replace(/^```(?:json)?/i, '')
     .replace(/```$/i, '')
@@ -157,7 +135,7 @@ function parseGeminiJson(text) {
     return JSON.parse(cleaned);
   } catch {
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Gemini response did not contain JSON');
+    if (!jsonMatch) throw new Error('Ollama response did not contain JSON');
     return JSON.parse(jsonMatch[0]);
   }
 }
@@ -169,8 +147,30 @@ function parseNutritionNumber(value) {
   return match ? Number(match[0]) : 0;
 }
 
-function normalizeGeminiResult(raw, modelName) {
+function normalizeQuantity(value) {
+  const parsed = parseNutritionNumber(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 1;
+  return Math.max(1, Math.min(20, Math.round(parsed * 10) / 10));
+}
+
+function normalizeOllamaResult(raw, modelName) {
   const confidence = clampConfidence(raw.confidence);
+  const detectedItems = Array.isArray(raw.detectedItems || raw.detected_items)
+    ? (raw.detectedItems || raw.detected_items).map((item) => ({
+      name: String(item.name || 'Food item').trim(),
+      quantity: normalizeQuantity(item.quantity),
+      unit: item.unit || 'serving',
+      confidence: clampConfidence(item.confidence ?? confidence),
+    }))
+    : [];
+  const quantity = normalizeQuantity(
+    raw.quantity ??
+    raw.detectedQuantity ??
+    raw.detected_quantity ??
+    raw.servingQuantity ??
+    raw.serving_quantity ??
+    detectedItems[0]?.quantity
+  );
   const nutrition = normalizeNutrition(raw.nutrition || {
     calories: parseNutritionNumber(raw.calories),
     protein: parseNutritionNumber(raw.protein),
@@ -187,28 +187,26 @@ function normalizeGeminiResult(raw, modelName) {
     foodName,
     confidence,
     nutrition,
+    quantity,
+    quantityUnit: raw.quantityUnit || raw.quantity_unit || detectedItems[0]?.unit || 'serving',
     servingSize: raw.servingSize || raw.serving_size || 'visible serving',
-    detectedItems: Array.isArray(raw.detectedItems || raw.detected_items)
-      ? (raw.detectedItems || raw.detected_items).map((item) => ({
-        name: String(item.name || 'Food item').trim(),
-        quantity: Number(item.quantity || 1),
-        unit: item.unit || 'serving',
-        confidence: clampConfidence(item.confidence ?? confidence),
-      }))
-      : [],
+    detectedItems,
     notes: Array.isArray(raw.notes) ? raw.notes.map((note) => String(note)) : [],
-    source: 'gemini_flash',
+    source: 'ollama',
     model: modelName,
     isLowConfidenceWarning: confidence < LOW_CONFIDENCE_THRESHOLD,
   };
 }
 
 function buildNutritionPrompt() {
-  return `Analyze this image and identify the food. Provide its approximate nutritional content for the full visible serving.
+  return `Analyze this image and identify the food. Detect the visible quantity and provide approximate nutritional content for ONE item or ONE serving unit.
+The app multiplies the nutrition values by "quantity", so if there are 2 samosas, return "quantity": 2 and nutrition for 1 samosa only. For a single plate/bowl/drink, return "quantity": 1.
 Prioritize Indian college canteen foods such as paratha, chai, dosa, idli, poha, samosa, thali, rice, dal, paneer, noodles, sandwiches, snacks, and beverages.
 Please respond ONLY with a valid JSON object strictly following this structure. No markdown, no backticks, just the raw JSON object:
 {
   "name": "Name of the food",
+  "quantity": 1,
+  "quantityUnit": "piece/plate/bowl/cup/serving",
   "calories": "value with unit (e.g., 250 kcal)",
   "protein": "value with unit (e.g., 10g)",
   "fiber": "value with unit (e.g., 5g)",
@@ -220,69 +218,40 @@ Please respond ONLY with a valid JSON object strictly following this structure. 
 }
 
 async function analyzeFoodImage(imageUrl) {
-  const apiKey = requireGeminiKey();
-  const imagePart = await downloadImageAsInlineData(imageUrl);
+  const { apiKey, baseUrl, model } = requireOllamaConfig();
+  const image = await downloadImageAsBase64(imageUrl);
 
   const payload = {
-    contents: [
-      {
-        parts: [
-          { text: buildNutritionPrompt() },
-          imagePart,
-        ],
-      },
-    ],
-    generationConfig: {
-      response_mime_type: 'application/json',
+    model,
+    prompt: buildNutritionPrompt(),
+    images: [image.data],
+    stream: false,
+    format: 'json',
+    options: {
       temperature: 0.1,
-      topP: 0.8,
-      topK: 32,
-      maxOutputTokens: 700,
+      top_p: 0.8,
+      top_k: 32,
+      num_predict: 700,
     },
   };
 
-  const triedModels = new Set();
-  let lastModelError = null;
-  let candidates = uniqueModels([cachedGeminiModel, ...FALLBACK_GEMINI_MODELS]);
+  const response = await axios.post(buildOllamaGenerateUrl(baseUrl), payload, {
+    timeout: OLLAMA_TIMEOUT_MS,
+    headers: buildOllamaHeaders(apiKey),
+  });
 
-  for (let attempt = 0; attempt < 2; attempt += 1) {
-    for (const modelName of candidates) {
-      if (triedModels.has(modelName)) continue;
-      triedModels.add(modelName);
-
-      try {
-        const response = await axios.post(`${buildGenerateContentUrl(modelName)}?key=${encodeURIComponent(apiKey)}`, payload, {
-          timeout: 30000,
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        });
-
-        cachedGeminiModel = modelName;
-        const text = extractText(response.data);
-        const raw = parseGeminiJson(text);
-        return normalizeGeminiResult(raw, modelName);
-      } catch (error) {
-        if (!isModelAvailabilityError(error)) throw error;
-        lastModelError = error;
-      }
-    }
-
-    const discoveredModel = await discoverAvailableGeminiModel(apiKey, triedModels);
-    if (!discoveredModel) break;
-    candidates = [discoveredModel];
-  }
-
-  throw lastModelError || new Error('No Gemini model that supports generateContent is available for this API key');
+  const text = extractText(response.data);
+  const raw = parseOllamaJson(text);
+  return normalizeOllamaResult(raw, model);
 }
 
 async function analyzeFoodComplete(imageUrl) {
   try {
     return await analyzeFoodImage(imageUrl);
   } catch (error) {
-    const detail = error.response?.data?.error?.message || error.message;
-    console.error('Gemini nutrition analysis error:', detail);
-    throw new Error(detail || 'Gemini nutrition analysis failed');
+    const detail = error.response?.data?.error || error.response?.data?.message || error.message;
+    console.error('Ollama nutrition analysis error:', detail);
+    throw new Error(detail || 'Ollama nutrition analysis failed');
   }
 }
 

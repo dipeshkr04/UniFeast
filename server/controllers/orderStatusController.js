@@ -126,10 +126,15 @@ exports.updateOrderStatus = async (req, res) => {
       $inc: { __v: 1 },
     };
 
-    if (requestedStatus === 'completed') {
+    if (requestedStatus === 'ready' || requestedStatus === 'completed') {
       currentOrder.items.forEach((item, index) => {
         updateDoc.$set[`items.${index}.assignedReadyQty`] = getOrderItemQuantity(item);
       });
+    }
+    if (['completed', 'cancelled'].includes(requestedStatus)) {
+      updateDoc.$set.qrTokenHash = null;
+      updateDoc.$set.qrTokenLookup = null;
+      updateDoc.$set.qrIssuedAt = null;
     }
 
     const updatedOrder = await Order.findOneAndUpdate(

@@ -31,6 +31,12 @@ const menuItemSchema = new mongoose.Schema({
     required: [true, 'Please provide preparation time in minutes'],
     min: [1, 'Prep time must be at least 1 minute'],
   },
+  maxOrder: {
+    type: Number,
+    default: 15,
+    min: [1, 'Maximum order quantity must be at least 1'],
+    max: [999, 'Maximum order quantity is too high'],
+  },
   isAvailable: {
     type: Boolean,
     default: true,

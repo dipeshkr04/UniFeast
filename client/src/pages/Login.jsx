@@ -4,7 +4,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { MdRestaurantMenu } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import { GoogleLogin } from '@react-oauth/google';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
+import { useTheme } from '../contexts/ThemeContext';
 
 const INSTITUTE_EMAIL_DOMAIN = '@iiitn.ac.in';
 
@@ -18,6 +19,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
 
   const { login, googleLogin } = useAuth();
+  const { isLight } = useTheme();
   const navigate = useNavigate();
 
   const handleAuthSubmit = async (e) => {
@@ -46,62 +48,62 @@ export default function Login() {
   };
 
   return (
-    <div className="auth-shell bg-[#050505] selection:bg-primary-500/30">
+    <div className="auth-shell selection:bg-primary-500/30">
       
       {/* Left Branding Panel (Full Bleed) */}
-      <motion.div 
+      <Motion.div 
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
-        className="hidden"
+        className="auth-brand-panel"
       >
         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-white/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-black/40 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-primary-950/10 rounded-full blur-[140px]" />
         
-        <div className="relative z-10 flex-1 flex flex-col justify-center items-center text-center">
-          <motion.div 
+        <div className="auth-brand-content relative z-10 flex-1 flex flex-col justify-center items-center text-center">
+          <Motion.div 
              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.8 }}
-             className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/10 backdrop-blur-md shadow-2xl border border-white/20 mb-10"
+             className="auth-brand-icon inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/10 backdrop-blur-md shadow-2xl border border-white/20 mb-10"
           >
             <MdRestaurantMenu className="w-10 h-10 text-white drop-shadow-md" />
-          </motion.div>
-          <motion.h1 
+          </Motion.div>
+          <Motion.h1 
              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8 }}
-             className="text-5xl lg:text-6xl font-black tracking-tight mb-8 leading-tight"
+             className="auth-brand-title text-5xl lg:text-6xl font-black tracking-tight mb-8 leading-tight"
           >
             Uni<span className="text-white/80">Feast</span>
-          </motion.h1>
-          <motion.p 
+          </Motion.h1>
+          <Motion.p 
              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.8 }}
-             className="text-white/80 text-xl leading-relaxed max-w-md mx-auto mb-10 font-medium"
+             className="auth-brand-copy text-white/80 text-xl leading-relaxed max-w-md mx-auto mb-10 font-medium"
           >
             The most advanced ecosystem to order, track, and pool your campus meals effortlessly.
-          </motion.p>
+          </Motion.p>
           
-          <motion.div 
+          <Motion.div 
              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 1 }}
-             className="mt-auto border-t border-white/20 pt-8 w-full max-w-md"
+             className="auth-brand-campus mt-auto border-t border-white/20 pt-8 w-full max-w-md"
           >
             <p className="text-sm font-bold tracking-[0.3em] uppercase text-white/90">IIIT Nagpur Campus</p>
-          </motion.div>
+          </Motion.div>
         </div>
-      </motion.div>
+      </Motion.div>
 
       {/* Right Form Panel (Full Bleed) */}
-      <motion.div 
+      <Motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="w-full flex items-center justify-center relative"
+        className="auth-form-panel w-full flex items-center justify-center relative"
       >
         {/* Premium Animated Mesh Background inside Form Panel */}
         <div className="hidden">
-          <motion.div 
+          <Motion.div 
             animate={{ x: [0, 50, -50, 0], y: [0, -50, 50, 0], scale: [1, 1.2, 0.8, 1] }}
             transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
             className="absolute top-10 left-[-20%] w-[600px] h-[600px] rounded-full bg-primary-600/5 blur-[150px]"
           />
-          <motion.div 
+          <Motion.div 
             animate={{ x: [0, -40, 40, 0], y: [0, 60, -60, 0], scale: [1, 1.3, 0.7, 1] }}
             transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
             className="absolute bottom-10 right-[-20%] w-[700px] h-[700px] rounded-full bg-blue-500/5 blur-[150px]"
@@ -139,7 +141,7 @@ export default function Login() {
                 }
               }}
               onError={() => toast.error('Google Login connection failed')}
-              theme="filled_black"
+              theme={isLight ? 'outline' : 'filled_black'}
               shape="pill"
               size="large"
               text="continue_with"
@@ -219,7 +221,7 @@ export default function Login() {
           </div>
           
         </div>
-      </motion.div>
+      </Motion.div>
     </div>
   );
 }

@@ -4,10 +4,10 @@ import { STATUS_COLORS } from './kitchenColors';
 
 const TABS = ['ACTIVE', 'PENDING', 'QUEUED', 'PREPARING', 'READY', 'COMPLETED'];
 
-const KitchenStatusNav = ({ summary, activeFilter, onFilterChange, isConnected, onOpenSidebar }) => {
+const KitchenStatusNav = ({ summary, activeFilter, onFilterChange, onOpenSidebar }) => {
   return (
     <div className="kitchen-status-nav">
-      <div className="nav-header-info mobile-only">
+      <div className="nav-header-info">
         <button 
           className="kitchen-sidebar-toggle desktop-hide" 
           onClick={onOpenSidebar}
@@ -15,10 +15,6 @@ const KitchenStatusNav = ({ summary, activeFilter, onFilterChange, isConnected, 
         >
           <HiOutlineMenuAlt2 className="kitchen-sidebar-toggle-icon" />
         </button>
-        <span className="live-indicator">
-          <span className={`dot green ${isConnected ? 'pulse' : ''}`}></span>
-          Live
-        </span>
       </div>
       <div className="nav-tabs">
         {TABS.map(tab => {

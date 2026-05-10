@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { orderAPI } from './api';
 import { SocketProvider } from './contexts/SocketContext';
 import { CartProvider } from './contexts/CartContext';
@@ -14,6 +15,7 @@ import CartPage from './pages/CartPage';
 import OrdersPage from './pages/OrdersPage';
 import PoolsPage from './pages/PoolsPage';
 import NutritionPage from './pages/NutritionPage';
+import LiveQueuePage from './pages/LiveQueuePage';
 import KitchenDashboard from './pages/KitchenDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import MenuManage from './pages/MenuManage';
@@ -143,7 +145,7 @@ function AppRoutes() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+      <div className="app-loading-screen min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-surface-400 font-bold uppercase tracking-widest text-xs">Loading...</p>
@@ -185,6 +187,7 @@ function AppRoutes() {
         {/* Student Routes */}
         <Route path="cart" element={<ProtectedRoute roles={['student']}><CartPage /></ProtectedRoute>} />
         <Route path="orders" element={<ProtectedRoute roles={['student']}><OrdersPage /></ProtectedRoute>} />
+        <Route path="live-queue" element={<ProtectedRoute roles={['student']}><LiveQueuePage /></ProtectedRoute>} />
         <Route path="pools" element={<ProtectedRoute roles={['student']}><PoolsPage /></ProtectedRoute>} />
         <Route path="nutrition" element={<ProtectedRoute roles={['student']}><NutritionPage /></ProtectedRoute>} />
 
@@ -207,33 +210,35 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <SocketProvider>
-          <CartProvider>
-            <PendingOrderBanner />
-            <AppRoutes />
-            <Toaster
-              position="bottom-center"
-              containerStyle={{ zIndex: 3000 }}
-              toastOptions={{
-                className: 'unifeast-toast',
-                style: {
-                  background: 'rgba(24,24,27,0.85)',
-                  backdropFilter: 'blur(16px)',
-                  color: '#fff',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '10px',
-                  fontSize: '14px',
-                  fontWeight: '600',
-                  boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
-                },
-                success: { iconTheme: { primary: '#10b981', secondary: '#18181b' } },
-                error: { iconTheme: { primary: '#ff4714', secondary: '#18181b' } },
-              }}
-            />
-          </CartProvider>
-        </SocketProvider>
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <CartProvider>
+              <PendingOrderBanner />
+              <AppRoutes />
+              <Toaster
+                position="bottom-center"
+                containerStyle={{ zIndex: 3000 }}
+                toastOptions={{
+                  className: 'unifeast-toast',
+                  style: {
+                    background: 'rgba(24,24,27,0.85)',
+                    backdropFilter: 'blur(16px)',
+                    color: '#fff',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '10px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    boxShadow: '0 8px 30px rgba(0,0,0,0.5)',
+                  },
+                  success: { iconTheme: { primary: '#10b981', secondary: '#18181b' } },
+                  error: { iconTheme: { primary: '#ff4714', secondary: '#18181b' } },
+                }}
+              />
+            </CartProvider>
+          </SocketProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

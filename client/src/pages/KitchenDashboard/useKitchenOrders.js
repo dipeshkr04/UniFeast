@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo, useContext, useCallback } from 'react';
+import { useState, useEffect, useMemo, useContext, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { KitchenLocalContext } from './KitchenSocketProvider';
 
@@ -14,6 +14,24 @@ export const useKitchenOrders = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
   const [hasConnected, setHasConnected] = useState(false);
+  const pendingOrderRef = useRef(new Set());
+  const pendingItemRef = useRef(new Set());
+  const [busyOrderIds, setBusyOrderIds] = useState(() => new Set());
+  const [busyItemIds, setBusyItemIds] = useState(() => new Set());
+
+  const setBusyOrder = useCallback((key, busy) => {
+    if (!key) return;
+    if (busy) pendingOrderRef.current.add(key);
+    else pendingOrderRef.current.delete(key);
+    setBusyOrderIds(new Set(pendingOrderRef.current));
+  }, []);
+
+  const setBusyItem = useCallback((key, busy) => {
+    if (!key) return;
+    if (busy) pendingItemRef.current.add(key);
+    else pendingItemRef.current.delete(key);
+    setBusyItemIds(new Set(pendingItemRef.current));
+  }, []);
 
   const markEveryItemReady = useCallback((order) => ({
     ...order,
@@ -206,9 +224,11 @@ export const useKitchenOrders = () => {
 
   const updateOrderStatus = async (orderId, newStatus) => {
     const nextStatus = (newStatus || '').toLowerCase();
+    if (pendingOrderRef.current.has(orderId)) return false;
     const previousMap = new Map(orders);
     const current = previousMap.get(orderId);
-    if (!current) return;
+    if (!current) return false;
+    setBusyOrder(orderId, true);
 
     const optimisticOrder = nextStatus === 'completed'
       ? markEveryItemReady({ ...current, status: nextStatus })
@@ -232,7 +252,7 @@ export const useKitchenOrders = () => {
           toast.error('Order was updated elsewhere - refreshing');
           await fetchLiveOrders();
           await refreshSummary();
-          return;
+          return false;
         }
         throw new Error('Update failed');
       }
@@ -245,24 +265,31 @@ export const useKitchenOrders = () => {
         setOrders((prev) => new Map(prev).set(nextOrder._id, nextOrder));
       }
       await refreshSummary();
+      return true;
     } catch (err) {
       console.error(err);
       setOrders(previousMap);
       toast.error('Failed to update status. Please retry.');
+      return false;
+    } finally {
+      setBusyOrder(orderId, false);
     }
   };
 
   const markItemReady = async (orderId, itemId) => {
+    const itemKey = `${orderId}:${itemId}`;
+    if (pendingItemRef.current.has(itemKey) || pendingOrderRef.current.has(orderId)) return null;
     const previousMap = new Map(orders);
     const current = previousMap.get(orderId);
-    if (!current) return;
+    if (!current) return null;
+    setBusyItem(itemKey, true);
 
     setOrders((prev) => {
       const next = new Map(prev);
       next.set(orderId, {
         ...current,
         items: (current.items || []).map((item) =>
-          item._id === itemId ? { ...item, assignedReadyQty: item.quantity } : item
+          String(item._id) === String(itemId) ? { ...item, assignedReadyQty: item.quantity } : item
         ),
       });
       return next;
@@ -287,9 +314,13 @@ export const useKitchenOrders = () => {
       }
       await refreshSummary();
       toast.success(data.message || 'Item marked ready');
+      return data.order || true;
     } catch (err) {
       setOrders(previousMap);
       toast.error(err.message || 'Failed to mark item ready');
+      return null;
+    } finally {
+      setBusyItem(itemKey, false);
     }
   };
 
@@ -394,6 +425,8 @@ export const useKitchenOrders = () => {
     isOverloaded,
     updateOrderStatus,
     markItemReady,
+    busyOrderIds,
+    busyItemIds,
     refreshSummary,
     fetchLiveOrders,
   };

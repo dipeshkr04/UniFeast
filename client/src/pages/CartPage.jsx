@@ -1,19 +1,20 @@
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { useCart } from '../contexts/CartContext';
-import { menuAPI, orderAPI, paymentAPI } from '../api';
+import { orderAPI, paymentAPI } from '../api';
 import { HiOutlineTrash, HiPlus, HiMinus, HiArrowLeft } from 'react-icons/hi';
 import toast from 'react-hot-toast';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 
 const MotionItem = motion.div;
 
-function hasNumericStock(value) {
-  if (value === undefined || value === null) return false;
-  if (typeof value === 'string' && !value.trim()) return false;
-  const parsed = Number(value);
-  return Number.isInteger(parsed) && parsed >= 0;
+function formatHoldTime(expiresAt) {
+  const remainingMs = Math.max(0, Number(expiresAt || 0) - Date.now());
+  const seconds = Math.ceil(remainingMs / 1000);
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
 function loadRazorpayScript() {
@@ -36,28 +37,24 @@ export default function CartPage() {
   const { items, updateQuantity, removeItem, clearCart, totalAmount, totalItems } = useCart();
   const [loading, setLoading] = useState(false);
   const [instructions, setInstructions] = useState('');
+  const [, setTimerTick] = useState(0);
+  const [pendingCartIds, setPendingCartIds] = useState(() => new Set());
   const { user } = useAuth();
   const navigate = useNavigate();
   const { canteenLive } = useOutletContext() || {};
+
+  useEffect(() => {
+    const interval = setInterval(() => setTimerTick((tick) => tick + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handlePlaceOrder = async () => {
     if (items.length === 0) return;
     setLoading(true);
     try {
-      const { data: freshMenu } = await menuAPI.getAll({ available: 'true' });
-      const freshById = new Map((freshMenu.data || []).map((item) => [item._id, item]));
       for (const { menuItem, quantity } of items) {
-        const freshItem = freshById.get(menuItem._id);
-        if (!freshItem) {
-          toast.error(`${menuItem.name} is no longer available`);
-          return;
-        }
-
-        const stockLeft = hasNumericStock(freshItem.dailyStock?.quantity)
-          ? Number(freshItem.dailyStock.quantity)
-          : 0;
-        if (quantity > stockLeft) {
-          toast.error(Number(stockLeft) === 0 ? `${freshItem.name} is sold out for today` : `Only ${stockLeft} ${freshItem.name} left today`);
+        if (!menuItem?._id || quantity <= 0) {
+          toast.error('Your cart has an invalid item. Please refresh and try again.');
           return;
         }
       }
@@ -124,7 +121,7 @@ export default function CartPage() {
                 razorpayPaymentId: response.razorpay_payment_id,
               };
               const { data } = await submitOrder(createPayload);
-              clearCart();
+              await clearCart({ releaseHolds: false });
               localStorage.removeItem('unifeast_pending_order');
               toast.success(`Payment successful. Order placed! ETA: ${data.eta?.eta || data.data?.estimatedTime || '?'} min`, { icon: '🎉', duration: 5000 });
               navigate('/orders');
@@ -206,7 +203,40 @@ export default function CartPage() {
           {/* Cart items */}
           <div className="cart-items-list">
             <AnimatePresence mode="popLayout">
-              {items.map(({ menuItem, quantity }) => (
+              {items.map(({ menuItem, quantity, holdExpiresAt }) => {
+                const isCartPending = pendingCartIds.has(menuItem._id);
+                const updateCartItem = async (nextQuantity) => {
+                  if (isCartPending) return;
+                  setPendingCartIds((prev) => new Set(prev).add(menuItem._id));
+                  try {
+                    await updateQuantity(menuItem._id, nextQuantity);
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || 'Unable to update cart');
+                  } finally {
+                    setPendingCartIds((prev) => {
+                      const next = new Set(prev);
+                      next.delete(menuItem._id);
+                      return next;
+                    });
+                  }
+                };
+                const removeCartItem = async () => {
+                  if (isCartPending) return;
+                  setPendingCartIds((prev) => new Set(prev).add(menuItem._id));
+                  try {
+                    await removeItem(menuItem._id);
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || 'Unable to remove item');
+                  } finally {
+                    setPendingCartIds((prev) => {
+                      const next = new Set(prev);
+                      next.delete(menuItem._id);
+                      return next;
+                    });
+                  }
+                };
+
+                return (
                 <MotionItem
                   key={menuItem._id}
                   layout
@@ -229,21 +259,24 @@ export default function CartPage() {
                   <div className="cart-item-copy">
                     <h3 className="cart-item-title">{menuItem.name}</h3>
                     <p className="text-[13px] font-medium text-primary-400">₹{menuItem.price} <span className="text-surface-500 font-normal">each</span></p>
+                    <p className="cart-hold-timer">Hold expires in {formatHoldTime(holdExpiresAt)}</p>
                   </div>
 
                   <div className="cart-item-actions">
                     {/* Quantity Controls */}
                     <div className="cart-qty-control">
                       <button
-                        onClick={() => updateQuantity(menuItem._id, quantity - 1)}
+                        onClick={() => updateCartItem(quantity - 1)}
                         className="cart-qty-btn"
+                        disabled={isCartPending || loading}
                       >
                         <HiMinus className="w-3.5 h-3.5" />
                       </button>
                       <span className="cart-qty-value">{quantity}</span>
                       <button
-                        onClick={() => updateQuantity(menuItem._id, quantity + 1)}
+                        onClick={() => updateCartItem(quantity + 1)}
                         className="cart-qty-btn"
+                        disabled={isCartPending || loading}
                       >
                         <HiPlus className="w-3.5 h-3.5" />
                       </button>
@@ -253,8 +286,9 @@ export default function CartPage() {
                     <div className="cart-item-total">
                       <p className="text-base font-bold text-white">₹{(menuItem.price * quantity).toFixed(0)}</p>
                       <button
-                        onClick={() => removeItem(menuItem._id)}
+                        onClick={removeCartItem}
                         className="cart-remove-btn cart-remove-desktop"
+                        disabled={isCartPending || loading}
                       >
                         <HiOutlineTrash className="w-3 h-3" /> Remove
                       </button>
@@ -263,13 +297,15 @@ export default function CartPage() {
 
                   {/* Mobile remove button */}
                   <button
-                    onClick={() => removeItem(menuItem._id)}
+                    onClick={removeCartItem}
                     className="cart-remove-btn cart-remove-mobile"
+                    disabled={isCartPending || loading}
                   >
                     <HiOutlineTrash className="w-4 h-4" />
                   </button>
                 </MotionItem>
-              ))}
+              );
+              })}
             </AnimatePresence>
           </div>
 

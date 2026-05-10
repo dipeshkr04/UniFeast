@@ -70,7 +70,10 @@ export const orderAPI = {
   getMy: (params) => api.get('/orders/my', { params }),
   getAll: (params) => api.get('/orders', { params }),
   getOne: (id) => api.get(`/orders/${id}`),
+  getQr: (id) => api.get(`/orders/${id}/qr`),
+  scanQr: (qrPayload) => api.post('/orders/kitchen/qr/scan', { qrPayload }),
   updateStatus: (id, status) => api.patch(`/orders/${id}/status`, { newStatus: status }),
+  getLiveQueue: () => api.get('/orders/live-queue'),
   getStats: () => api.get('/orders/stats/summary'),
   getKitchenStock: () => api.get('/orders/kitchen/stock'),
   addProducedStock: (menuItemId, quantity) => api.post('/orders/kitchen/produce', { menuItemId, quantity }),
@@ -81,6 +84,12 @@ export const orderAPI = {
 export const paymentAPI = {
   createOrder: (data) => api.post('/payments/create-order', data),
   verifyPayment: (data) => api.post('/payments/verify', data),
+};
+
+export const cartAPI = {
+  holdItem: (menuItemId, quantity, holdMs) => api.post('/cart/hold', { menuItemId, quantity, holdMs }),
+  releaseItem: (menuItemId) => api.delete(`/cart/hold/${menuItemId}`),
+  clearHolds: () => api.delete('/cart/holds'),
 };
 
 // ─── Pool API ───────────────────────────────
@@ -128,6 +137,8 @@ export const adminAPI = {
   getStats: (params) => api.get('/admin/stats', { params }),
   getCanteenStatus: () => api.get('/admin/canteen-status'),
   toggleCanteenStatus: (isLive) => api.patch('/admin/canteen-status', { isLive }),
+  getCartHoldWindow: () => api.get('/admin/cart-hold-window'),
+  updateCartHoldWindow: (data) => api.patch('/admin/cart-hold-window', data),
 };
 
 export default api;

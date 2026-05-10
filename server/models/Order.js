@@ -8,6 +8,14 @@ const orderItemSchema = new mongoose.Schema({
   },
   name: String,
   price: Number,
+  imageUrl: {
+    type: String,
+    default: '',
+  },
+  category: {
+    type: String,
+    default: '',
+  },
   quantity: {
     type: Number,
     required: true,
@@ -40,6 +48,20 @@ const orderSchema = new mongoose.Schema({
   },
   razorpayPaymentId: {
     type: String,
+    default: null,
+  },
+  qrTokenHash: {
+    type: String,
+    default: null,
+    select: false,
+  },
+  qrTokenLookup: {
+    type: String,
+    default: null,
+    select: false,
+  },
+  qrIssuedAt: {
+    type: Date,
     default: null,
   },
   status: {
@@ -90,6 +112,8 @@ const orderSchema = new mongoose.Schema({
 
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ qrTokenHash: 1 }, { sparse: true });
+orderSchema.index({ qrTokenLookup: 1 }, { sparse: true });
 orderSchema.index({ user: 1, razorpayPaymentId: 1 });
 orderSchema.index(
   { razorpayPaymentId: 1 },

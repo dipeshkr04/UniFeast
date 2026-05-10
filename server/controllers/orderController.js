@@ -4,14 +4,50 @@ const NutritionLog = require('../models/NutritionLog');
 const Settings = require('../models/Settings');
 const KitchenStock = require('../models/KitchenStock');
 const Payment = require('../models/paymentModel');
+const crypto = require('crypto');
+const bcrypt = require('bcryptjs');
 const { calculateETA, recalculateAllETAs } = require('../utils/queueEngine');
 const { recalculateQueueETAs, getKitchenSummary } = require('../services/queueService');
 const lockManager = require('../config/lockManager');
 const {
   resetExpiredDailyStocks,
-  reserveDailyStock,
   releaseDailyStock,
 } = require('../utils/dailyStock');
+const {
+  validateOrderStockWithCartReservations,
+  consumeCartReservations,
+} = require('../utils/cartReservations');
+
+const ACTIVE_QR_STATUSES = ['pending', 'queued', 'preparing', 'ready'];
+const QR_PAYLOAD_PREFIX = 'UF_ORDER_QR:';
+const QR_SECRET_HASH_ROUNDS = 10;
+
+function createQrToken() {
+  return {
+    lookup: crypto.randomBytes(16).toString('base64url'),
+    secret: crypto.randomBytes(32).toString('base64url'),
+  };
+}
+
+function normalizeQrPayload(payload) {
+  const value = String(payload || '').trim();
+  if (!value) return '';
+  return value.startsWith(QR_PAYLOAD_PREFIX) ? value.slice(QR_PAYLOAD_PREFIX.length).trim() : value;
+}
+
+function parseQrToken(payload) {
+  const token = normalizeQrPayload(payload);
+  if (!token) return null;
+
+  const separatorIndex = token.indexOf('.');
+  if (separatorIndex <= 0) return null;
+
+  const lookup = token.slice(0, separatorIndex).trim();
+  const secret = token.slice(separatorIndex + 1).trim();
+  if (!lookup || !secret) return null;
+
+  return { lookup, secret };
+}
 
 function getItemRequestedQty(orderItem) {
   return Number(orderItem?.quantity || 0);
@@ -260,6 +296,10 @@ exports.createOrder = async (req, res) => {
       if (!Number.isInteger(quantity) || quantity <= 0) {
         return res.status(400).json({ success: false, message: 'Order item quantity must be a positive whole number' });
       }
+      const maxOrder = Number(menuItem.maxOrder || 15);
+      if (quantity > maxOrder) {
+        return res.status(400).json({ success: false, message: `Maximum ${maxOrder} ${menuItem.name} can be ordered at once` });
+      }
 
       totalAmount += menuItem.price * quantity;
       // Queue-aware service load: quantity contributes to ETA.
@@ -269,6 +309,8 @@ exports.createOrder = async (req, res) => {
         menuItem: menuItem._id,
         name: menuItem.name,
         price: menuItem.price,
+        imageUrl: menuItem.imageUrl || '',
+        category: menuItem.category || '',
         quantity,
         assignedReadyQty: 0,
       });
@@ -278,7 +320,8 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Paid amount does not match the order total' });
     }
 
-    reservedStock = await reserveDailyStock(orderItems);
+    const stockReservation = await validateOrderStockWithCartReservations(req.user.id, orderItems, req.app.get('io'));
+    reservedStock = stockReservation.directReserved;
 
     // Calculate the order's own workload; recalculateAllETAs adds existing queue backlog.
     const etaResult = await calculateETA(Math.max(1, orderServiceTime));
@@ -294,6 +337,7 @@ exports.createOrder = async (req, res) => {
       statusHistory: [{ status: 'pending', timestamp: new Date() }],
     });
     orderPersisted = true;
+    await consumeCartReservations(stockReservation.heldReservations, req.app.get('io'));
 
     order.status = 'queued';
     order.statusHistory.push({ status: 'queued', timestamp: new Date() });
@@ -418,6 +462,54 @@ exports.getAllOrders = async (req, res) => {
   }
 };
 
+// @desc    Get compact live queue delay by item for students
+// @route   GET /api/orders/live-queue
+exports.getLiveQueue = async (req, res) => {
+  try {
+    const activeOrders = await Order.find({
+      status: { $in: ['queued', 'preparing'] },
+    })
+      .populate('items.menuItem', 'name prepTime imageUrl')
+      .select('items status estimatedReadyAt estimatedTime createdAt')
+      .sort({ createdAt: 1 });
+
+    const queue = new Map();
+
+    activeOrders.forEach((order) => {
+      (order.items || []).forEach((item) => {
+        const quantity = Math.max(0, Number(item.quantity || 0) - Number(item.assignedReadyQty || 0));
+        if (quantity <= 0) return;
+
+        const menuItem = item.menuItem || {};
+        const itemId = menuItem._id?.toString() || item.menuItem?.toString() || item._id?.toString();
+        const prepTime = Math.max(1, Number(menuItem.prepTime || 10));
+        const delayMinutes = prepTime * quantity;
+        const current = queue.get(itemId) || {
+          menuItemId: itemId,
+          name: menuItem.name || item.name || 'Item',
+          imageUrl: menuItem.imageUrl || item.imageUrl || '',
+          quantity: 0,
+          orders: 0,
+          delayMinutes: 0,
+        };
+
+        current.quantity += quantity;
+        current.orders += 1;
+        current.delayMinutes += delayMinutes;
+        queue.set(itemId, current);
+      });
+    });
+
+    const data = Array.from(queue.values())
+      .filter((item) => item.delayMinutes > 0)
+      .sort((a, b) => b.delayMinutes - a.delayMinutes || a.name.localeCompare(b.name));
+
+    res.json({ success: true, count: data.length, data });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Update order status
 // @route   PATCH /api/orders/:id/status
 exports.updateOrderStatus = async (req, res) => {
@@ -454,6 +546,11 @@ exports.updateOrderStatus = async (req, res) => {
       // Auto-log nutrition on completion
       await autoLogNutrition(order);
     }
+    if (['completed', 'cancelled'].includes(status)) {
+      order.qrTokenHash = null;
+      order.qrTokenLookup = null;
+      order.qrIssuedAt = null;
+    }
 
     await order.save();
 
@@ -479,6 +576,113 @@ exports.updateOrderStatus = async (req, res) => {
     res.json({ success: true, data: populatedOrder });
   } catch (error) {
     console.error('Update order status error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Rotate and fetch QR token for one active student order
+// @route   GET /api/orders/:id/qr
+exports.getOrderQr = async (req, res) => {
+  try {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const order = await Order.findOne({
+      _id: req.params.id,
+      user: req.user.id,
+      status: { $in: ACTIVE_QR_STATUSES },
+      createdAt: { $gte: startOfDay },
+    });
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'QR is available only for active orders',
+      });
+    }
+
+    const token = createQrToken();
+    const issuedAt = new Date();
+    order.qrTokenLookup = token.lookup;
+    order.qrTokenHash = await bcrypt.hash(token.secret, QR_SECRET_HASH_ROUNDS);
+    order.qrIssuedAt = issuedAt;
+    await order.save();
+
+    res.json({
+      success: true,
+      data: {
+        orderId: order._id,
+        qrPayload: `${QR_PAYLOAD_PREFIX}${token.lookup}.${token.secret}`,
+        issuedAt,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Scan student QR and return active live orders for that student
+// @route   POST /api/orders/kitchen/qr/scan
+exports.scanOrderQr = async (req, res) => {
+  try {
+    const token = parseQrToken(req.body.qrPayload || req.body.token);
+    if (!token) {
+      return res.status(400).json({ success: false, message: 'QR token is required' });
+    }
+
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    let scannedOrder = null;
+    if (token.lookup && token.secret) {
+      const candidateOrder = await Order.findOne({
+        qrTokenLookup: token.lookup,
+        status: { $in: ACTIVE_QR_STATUSES },
+        createdAt: { $gte: startOfDay },
+      })
+        .select('+qrTokenHash +qrTokenLookup')
+        .populate('user', 'name email phone _id btId');
+
+      if (candidateOrder && await bcrypt.compare(token.secret, candidateOrder.qrTokenHash || '')) {
+        scannedOrder = candidateOrder;
+      }
+    }
+
+    if (!scannedOrder) {
+      return res.status(404).json({
+        success: false,
+        message: 'QR expired or no active order found',
+      });
+    }
+
+    const activeOrders = await Order.find({
+      user: scannedOrder.user._id || scannedOrder.user,
+      status: { $in: ACTIVE_QR_STATUSES },
+      createdAt: { $gte: startOfDay },
+    })
+      .populate('user', 'name email phone _id btId')
+      .populate('items.menuItem', 'name imageUrl')
+      .sort({ createdAt: 1 });
+
+    const targetOrderId = scannedOrder._id.toString();
+    activeOrders.sort((a, b) => (
+      a._id.toString() === targetOrderId ? -1 :
+      b._id.toString() === targetOrderId ? 1 :
+      new Date(a.createdAt) - new Date(b.createdAt)
+    ));
+
+    res.json({
+      success: true,
+      data: {
+        targetOrderId,
+        user: {
+          _id: scannedOrder.user._id,
+          name: scannedOrder.user.name,
+          btId: scannedOrder.user.btId,
+        },
+        orders: activeOrders,
+      },
+    });
+  } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
 };

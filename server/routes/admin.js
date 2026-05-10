@@ -7,6 +7,8 @@ const {
   getDashboardStats,
   getCanteenStatus,
   toggleCanteenStatus,
+  getCartHoldWindow,
+  updateCartHoldWindow,
 } = require('../controllers/adminController');
 const { protect } = require('../middleware/auth');
 const { authorize } = require('../middleware/role');
@@ -14,6 +16,8 @@ const { authorize } = require('../middleware/role');
 // Canteen status - GET is accessible by any logged-in user, PATCH is kitchen/admin
 router.get('/canteen-status', protect, getCanteenStatus);
 router.patch('/canteen-status', protect, authorize('admin', 'kitchen'), toggleCanteenStatus);
+router.get('/cart-hold-window', protect, authorize('admin', 'kitchen'), getCartHoldWindow);
+router.patch('/cart-hold-window', protect, authorize('admin', 'kitchen'), updateCartHoldWindow);
 
 // Stats are visible to both kitchen and admin roles
 router.get('/stats', protect, authorize('admin', 'kitchen'), getDashboardStats);

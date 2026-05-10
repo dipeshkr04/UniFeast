@@ -2,8 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { orderAPI } from '../api';
 import { useSocket } from '../contexts/SocketContext';
 import { HiOutlineCalendar, HiOutlineClock, HiOutlineRefresh, HiX } from 'react-icons/hi';
+import { MdQrCode2 } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import QRCode from 'qrcode';
+
+const Motion = motion;
 
 const statusConfig = {
   pending: { label: 'Pending', color: 'badge-warning', border: 'border-l-warning', emoji: '⏳' },
@@ -20,6 +24,8 @@ export default function OrdersPage() {
   const [filter, setFilter] = useState('');
   const [dateFilter, setDateFilter] = useState('');
   const [reconnecting, setReconnecting] = useState(false);
+  const [qrModal, setQrModal] = useState(null);
+  const [qrLoading, setQrLoading] = useState(false);
   const { socket } = useSocket() || {};
   const lastStatusToastRef = useRef({ key: '', time: 0 });
   const dateInputRef = useRef(null);
@@ -30,7 +36,7 @@ export default function OrdersPage() {
       if (filter) params.status = filter;
       const { data } = await orderAPI.getMy(params);
       setOrders(data.data || []);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
@@ -46,6 +52,11 @@ export default function OrdersPage() {
 
     const handleOrderUpdate = (data) => {
       const nextStatus = (data.status || data.newStatus || '').toLowerCase();
+      if (['completed', 'cancelled'].includes(nextStatus)) {
+        setQrModal((current) => (
+          current?.order?._id === (data.order?._id || data.orderId) ? null : current
+        ));
+      }
       setOrders((prev) => prev.map((o) => {
         if (data.order?._id === o._id) {
           return { ...o, ...data.order };
@@ -169,6 +180,53 @@ export default function OrdersPage() {
     }
   };
 
+  const canShowQr = (order) => !['completed', 'cancelled'].includes(String(order.status || '').toLowerCase());
+
+  const getQrModalAnchor = (trigger) => {
+    if (!trigger || typeof window === 'undefined') return null;
+
+    const rect = trigger.getBoundingClientRect();
+    const gutter = 14;
+    const modalWidth = Math.min(380, window.innerWidth - gutter * 2);
+    const modalHeight = Math.min(460, window.innerHeight - gutter * 2);
+    const maxLeft = Math.max(gutter, window.innerWidth - modalWidth - gutter);
+    const preferredLeft = rect.right - modalWidth;
+    const left = Math.min(Math.max(gutter, preferredLeft), maxLeft);
+    const lowerTop = rect.bottom + 10;
+    const upperTop = rect.top - modalHeight - 10;
+    const preferredTop = lowerTop + modalHeight <= window.innerHeight - gutter ? lowerTop : upperTop;
+    const maxTop = Math.max(gutter, window.innerHeight - modalHeight - gutter);
+    const top = Math.min(Math.max(gutter, preferredTop), maxTop);
+
+    return { top, left };
+  };
+
+  const openQrModal = async (order, event) => {
+    const anchor = getQrModalAnchor(event?.currentTarget);
+    setQrLoading(true);
+    try {
+      const { data } = await orderAPI.getQr(order._id);
+      const qrImage = await QRCode.toDataURL(data.data.qrPayload, {
+        width: 280,
+        margin: 2,
+        color: {
+          dark: '#050505',
+          light: '#ffffff',
+        },
+      });
+      setQrModal({
+        order,
+        qrImage,
+        issuedAt: data.data.issuedAt,
+        anchor,
+      });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Unable to generate QR for this order');
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
   return (
     <div className="student-orders-page animate-fadeIn">
       <div className="student-orders-header">
@@ -259,33 +317,59 @@ export default function OrdersPage() {
                       const cfg = statusConfig[order.status] || statusConfig.pending;
                       const timeLeft = getTimeLeft(order.estimatedReadyAt);
                       const isActive = ['pending', 'queued', 'preparing'].includes(order.status);
+                      const placedTime = new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                       return (
-                        <motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} key={order._id}
+                        <Motion.div layout initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} key={order._id}
                           className={`student-order-card glass-card-static border-l-4 ${cfg.border}`} id={`order-${order._id}`}>
                           <div className="student-order-top">
-                            <div className="student-order-identity">
+                            <div className="student-order-status-row">
                               <div className="student-order-badges">
                                 <span className={`badge ${cfg.color}`}>{cfg.emoji} {cfg.label}</span>
                                 {order.isPooled && <span className="badge badge-info">🤝 Pooled</span>}
                               </div>
-                              <p className="student-order-meta">#{order._id.slice(-6).toUpperCase()} <span>{new Date(order.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span> <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span></p>
-                            </div>
-                            <div className="student-order-total">
-                              <p>₹{order.totalAmount}</p>
-                              {isActive && timeLeft && (
-                                <div className="student-order-eta">
-                                  <HiOutlineClock className="w-4 h-4 animate-pulse" />
-                                  <span>{timeLeft}</span>
+                              <div className="student-order-total-tools">
+                                {canShowQr(order) && (
+                                  <button
+                                    type="button"
+                                    onClick={(event) => openQrModal(order, event)}
+                                    className="student-order-qr-btn"
+                                    aria-label={`Show pickup QR for order ${order._id.slice(-6).toUpperCase()}`}
+                                    title="Show pickup QR"
+                                    disabled={qrLoading}
+                                  >
+                                    <MdQrCode2 />
+                                  </button>
+                                )}
+                                <div className="student-order-total">
+                                  <p>₹{order.totalAmount}</p>
                                 </div>
-                              )}
+                              </div>
+                            </div>
+                            <div className="student-order-meta-row">
+                              <p className="student-order-meta">
+                                <strong>#{order._id.slice(-6).toUpperCase()}</strong>
+                                <span>{placedTime}</span>
+                              </p>
+                              <div className="student-order-pickup-tools">
+                                {isActive && timeLeft && (
+                                  <div className="student-order-eta">
+                                    <HiOutlineClock className="w-4 h-4 animate-pulse" />
+                                    <span>{timeLeft}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                           </div>
 
                           <div className="student-order-items">
                             {order.items.map((item, i) => {
-                              const readyQty = Math.min(Number(item.assignedReadyQty || 0), Number(item.quantity || 0));
-                              const isItemReady = readyQty > 0 && readyQty >= Number(item.quantity || 0);
+                              const itemQty = Number(item.quantity || 0);
+                              const orderStatus = String(order.status || '').toLowerCase();
+                              const readyQty = ['ready', 'completed'].includes(orderStatus)
+                                ? itemQty
+                                : Math.min(Number(item.assignedReadyQty || 0), itemQty);
+                              const isItemReady = readyQty > 0 && readyQty >= itemQty;
 
                               return (
                                 <div key={i} className="student-order-item-row">
@@ -318,7 +402,7 @@ export default function OrdersPage() {
                               </div>
                             </div>
                           )}
-                        </motion.div>
+                        </Motion.div>
                       );
                     })}
                   </AnimatePresence>
@@ -328,6 +412,43 @@ export default function OrdersPage() {
           })()}
         </div>
       )}
+
+      <AnimatePresence>
+        {qrModal && (
+          <Motion.div
+            className="order-qr-modal-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setQrModal(null)}
+          >
+            <Motion.div
+              className="order-qr-modal glass-card-static"
+              style={qrModal.anchor ? { top: qrModal.anchor.top, left: qrModal.anchor.left } : undefined}
+              initial={{ scale: 0.94, y: 18 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.94, y: 18 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button className="order-qr-close" onClick={() => setQrModal(null)} aria-label="Close QR">
+                <HiX />
+              </button>
+              <div className="order-qr-heading">
+                <span className="badge badge-primary">Pickup QR</span>
+                <h3>Order #{qrModal.order._id.slice(-6).toUpperCase()}</h3>
+                <p>Show this at the counter. It expires automatically once pickup is confirmed.</p>
+              </div>
+              <div className="order-qr-frame">
+                <img src={qrModal.qrImage} alt="Order pickup QR code" />
+              </div>
+              <div className="order-qr-meta">
+                <span>{new Date(qrModal.order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                <span>₹{qrModal.order.totalAmount}</span>
+              </div>
+            </Motion.div>
+          </Motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

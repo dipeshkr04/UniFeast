@@ -505,7 +505,7 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                         <XAxis dataKey="_id" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
+                        <Tooltip cursor={false} contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
                         <Line type="monotone" dataKey="sales" stroke="#ff4714" strokeWidth={2} dot={false} />
                         <Line type="monotone" dataKey="itemsSold" stroke="#3b82f6" strokeWidth={2} dot={false} />
                       </LineChart>
@@ -534,7 +534,7 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                   {(chartStats.items?.topItems || []).length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
-                        <Tooltip contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
+                        <Tooltip cursor={false} contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
                         <Pie
                           data={chartStats.items.topItems}
                           dataKey="quantity"
@@ -586,8 +586,8 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
                         <XAxis dataKey="cohort" tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
-                        <Bar dataKey="totalSpent" fill="#10b981" radius={[8, 8, 0, 0]} />
+                        <Tooltip cursor={false} contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
+                        <Bar dataKey="totalSpent" fill="#10b981" radius={[8, 8, 0, 0]} activeBar={false} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -617,8 +617,8 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
                         <XAxis type="number" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
                         <YAxis dataKey="btId" type="category" width={90} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
-                        <Bar dataKey="totalSpent" fill="#3b82f6" radius={[0, 8, 8, 0]} barSize={20} />
+                        <Tooltip cursor={false} contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
+                        <Bar dataKey="totalSpent" fill="#3b82f6" radius={[0, 8, 8, 0]} barSize={20} activeBar={false} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (
@@ -648,8 +648,8 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
                         <XAxis type="number" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
                         <YAxis dataKey="btId" type="category" width={90} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
-                        <Bar dataKey="totalSpent" fill="#f59e0b" radius={[0, 8, 8, 0]} barSize={20} />
+                        <Tooltip cursor={false} contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
+                        <Bar dataKey="totalSpent" fill="#f59e0b" radius={[0, 8, 8, 0]} barSize={20} activeBar={false} />
                       </BarChart>
                     </ResponsiveContainer>
                   ) : (

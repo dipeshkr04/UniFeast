@@ -12,7 +12,7 @@ import { MdQrCodeScanner } from 'react-icons/md';
 import jsQR from 'jsqr';
 import './KitchenDashboard.css';
 
-const QRScannerModal = ({ open, onClose, onStatusUpdate, onItemReady }) => {
+const QRScannerModal = ({ open, onClose, onStatusUpdate, onItemReady, busyOrderIds, busyItemIds }) => {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const scanLockRef = useRef(false);
@@ -244,6 +244,8 @@ const QRScannerModal = ({ open, onClose, onStatusUpdate, onItemReady }) => {
                     order={order}
                     onStatusUpdate={updateScannedStatus}
                     onItemReady={updateScannedItemReady}
+                    busyOrderIds={busyOrderIds}
+                    busyItemIds={busyItemIds}
                   />
                 ))}
               </div>
@@ -287,7 +289,9 @@ const KitchenDashboardContent = () => {
     isOverloaded,
     reconnecting,
     updateOrderStatus,
-    markItemReady
+    markItemReady,
+    busyOrderIds,
+    busyItemIds
   } = useKitchenOrders();
 
   return (
@@ -312,7 +316,6 @@ const KitchenDashboardContent = () => {
           summary={summary}
           activeFilter={activeFilter}
           onFilterChange={setActiveFilter}
-          canteenLive={canteenLive}
           onOpenSidebar={() => setSidebarOpen(true)}
         />
         
@@ -380,6 +383,8 @@ const KitchenDashboardContent = () => {
             dishFilterKey={dishFilter}
             onStatusUpdate={updateOrderStatus}
             onItemReady={markItemReady}
+            busyOrderIds={busyOrderIds}
+            busyItemIds={busyItemIds}
           />
         </div>
       </div>
@@ -391,6 +396,8 @@ const KitchenDashboardContent = () => {
         onClose={() => setScannerOpen(false)}
         onStatusUpdate={updateOrderStatus}
         onItemReady={markItemReady}
+        busyOrderIds={busyOrderIds}
+        busyItemIds={busyItemIds}
       />
     </div>
   );

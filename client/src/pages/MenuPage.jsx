@@ -34,9 +34,20 @@ export default function MenuPage() {
   const [category, setCategory] = useState('');
   const [search, setSearch] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [pendingCartIds, setPendingCartIds] = useState(() => new Set());
   const { addItem, items: cartItems } = useCart();
   const { user } = useAuth();
   const { socket } = useSocket() || {};
+
+  const getStockLeft = useCallback((item) => {
+    const stock = item?.dailyStock?.quantity;
+    return hasNumericStock(stock) ? Number(stock) : 0;
+  }, []);
+
+  const getMaxOrder = (item) => {
+    const parsed = Number(item?.maxOrder || 15);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : 15;
+  };
 
   const fetchMenu = useCallback(async () => {
     try {
@@ -44,13 +55,18 @@ export default function MenuPage() {
       if (category) params.category = category;
       if (search) params.search = search;
       const { data } = await menuAPI.getAll(params);
-      setItems(data.data);
+      setItems([...(data.data || [])].sort((a, b) => {
+        const aInStock = getStockLeft(a) > 0;
+        const bInStock = getStockLeft(b) > 0;
+        if (aInStock !== bInStock) return aInStock ? -1 : 1;
+        return String(a.name || '').localeCompare(String(b.name || ''));
+      }));
     } catch {
       toast.error('Failed to load menu');
     } finally {
       setLoading(false);
     }
-  }, [category, search]);
+  }, [category, search, getStockLeft]);
 
   useEffect(() => {
     fetchMenu();
@@ -62,23 +78,48 @@ export default function MenuPage() {
     return () => socket.off('menu:stockChanged', fetchMenu);
   }, [socket, fetchMenu]);
 
-  const getStockLeft = (item) => {
-    const stock = item?.dailyStock?.quantity;
-    return hasNumericStock(stock) ? Number(stock) : 0;
-  };
-
   const handleAddToCart = async (item) => {
     const stockLeft = getStockLeft(item);
+    const currentQty = getCartQty(item._id);
+    const maxOrder = getMaxOrder(item);
+    if (pendingCartIds.has(item._id)) return;
+    if (currentQty >= maxOrder) {
+      toast.error(`Maximum ${maxOrder} ${item.name} can be ordered at once`);
+      return;
+    }
     if (stockLeft <= 0) {
-      toast.error(stockLeft === 0 ? `${item.name} is sold out for today` : `Only ${stockLeft} left today`);
+      toast.error(stockLeft === 0 ? `${item.name} is currently unavailable` : `Only ${stockLeft} left today`);
       return;
     }
 
+    setPendingCartIds((prev) => new Set(prev).add(item._id));
     try {
       await addItem(item);
       toast.success(`${item.name} added to cart`, { icon: '🛒' });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Unable to reserve this item');
+    } finally {
+      setPendingCartIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item._id);
+        return next;
+      });
+    }
+  };
+
+  const handleReduceCart = async (item) => {
+    if (pendingCartIds.has(item._id)) return;
+    setPendingCartIds((prev) => new Set(prev).add(item._id));
+    try {
+      await addItem(item, -1);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Unable to update cart');
+    } finally {
+      setPendingCartIds((prev) => {
+        const next = new Set(prev);
+        next.delete(item._id);
+        return next;
+      });
     }
   };
 
@@ -163,7 +204,10 @@ export default function MenuPage() {
             {items.map(item => {
               const qty = getCartQty(item._id);
               const stockLeft = getStockLeft(item);
+              const maxOrder = getMaxOrder(item);
               const isSoldOut = stockLeft === 0;
+              const isAtMaxOrder = qty >= maxOrder;
+              const isCartPending = pendingCartIds.has(item._id);
               return (
                 <motion.div 
                   layout
@@ -196,7 +240,7 @@ export default function MenuPage() {
                     </div>
 
                     <div className={`student-menu-stock-badge ${isSoldOut ? 'is-empty' : ''}`}>
-                      {stockLeft} Left
+                      {isSoldOut ? 'Currently unavailable' : `${stockLeft} Left`}
                     </div>
 
                   </div>
@@ -232,8 +276,9 @@ export default function MenuPage() {
                       {qty > 0 ? (
                         <div className="student-menu-qty-control">
                           <button
-                            onClick={() => addItem(item, -1).catch((err) => toast.error(err.response?.data?.message || 'Unable to update cart'))}
+                            onClick={() => handleReduceCart(item)}
                             className="student-menu-qty-btn text-white"
+                            disabled={isCartPending}
                           >
                             <HiMinus className="w-4 h-4" />
                           </button>
@@ -241,7 +286,8 @@ export default function MenuPage() {
                           <button
                             onClick={() => handleAddToCart(item)}
                             className="student-menu-qty-btn is-plus text-white"
-                            disabled={isSoldOut}
+                            disabled={isSoldOut || isAtMaxOrder || isCartPending}
+                            title={isAtMaxOrder ? `Maximum ${maxOrder} per order` : 'Add one more'}
                           >
                             <HiPlus className="w-4 h-4" />
                           </button>
@@ -249,11 +295,11 @@ export default function MenuPage() {
                       ) : (
                         <button
                           onClick={() => handleAddToCart(item)}
-                          className="student-menu-add-btn btn-primary"
-                          disabled={isSoldOut}
+                          className={`student-menu-add-btn btn-primary ${isSoldOut ? 'is-unavailable' : ''}`}
+                          disabled={isSoldOut || isCartPending}
                         >
                           <HiPlus className="w-4 h-4" />
-                          <span className="font-bold tracking-wide">{isSoldOut ? 'Sold Out' : 'Add'}</span>
+                          <span className="font-bold tracking-wide">{isCartPending ? 'Adding...' : 'Add'}</span>
                         </button>
                       )}
                     </div>
@@ -382,7 +428,7 @@ export default function MenuPage() {
                     setSelectedItem(null);
                   }} 
                   className="btn-primary flex-1 flex justify-center items-center gap-2 font-bold py-3 text-[14px] shadow-[0_0_15px_rgba(255,71,20,0.3)] hover:shadow-[0_0_25px_rgba(255,71,20,0.5)] transition-shadow min-h-[44px]"
-                  disabled={getStockLeft(selectedItem) === 0}
+                  disabled={getStockLeft(selectedItem) === 0 || pendingCartIds.has(selectedItem._id)}
                 >
                   <HiPlus className="w-4 h-4" /> Add to Cart — ₹{selectedItem.price}
                 </button>

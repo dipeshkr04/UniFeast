@@ -11,6 +11,12 @@ function parseBoolean(value, fallback = true) {
   return String(value).toLowerCase() === 'true';
 }
 
+function parseMaxOrder(value, fallback = 15) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, 999);
+}
+
 function buildMenuPayload(body, imageUrl) {
   return {
     name: body.name,
@@ -19,6 +25,7 @@ function buildMenuPayload(body, imageUrl) {
     category: body.category,
     imageUrl: imageUrl || '',
     prepTime: body.prepTime,
+    maxOrder: parseMaxOrder(body.maxOrder, 15),
     isAvailable: parseBoolean(body.isAvailable, true),
     tags: [],
   };
@@ -149,6 +156,7 @@ exports.updateMenuItem = async (req, res) => {
       price: req.body.price ?? existingItem.price,
       category: req.body.category ?? existingItem.category,
       prepTime: req.body.prepTime ?? existingItem.prepTime,
+      maxOrder: req.body.maxOrder ?? existingItem.maxOrder ?? 15,
       isAvailable: req.body.isAvailable ?? existingItem.isAvailable,
     }, imageUrl);
 

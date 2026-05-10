@@ -38,6 +38,7 @@ export default function CartPage() {
   const [loading, setLoading] = useState(false);
   const [instructions, setInstructions] = useState('');
   const [, setTimerTick] = useState(0);
+  const [pendingCartIds, setPendingCartIds] = useState(() => new Set());
   const { user } = useAuth();
   const navigate = useNavigate();
   const { canteenLive } = useOutletContext() || {};
@@ -120,7 +121,7 @@ export default function CartPage() {
                 razorpayPaymentId: response.razorpay_payment_id,
               };
               const { data } = await submitOrder(createPayload);
-              clearCart({ releaseHolds: false });
+              await clearCart({ releaseHolds: false });
               localStorage.removeItem('unifeast_pending_order');
               toast.success(`Payment successful. Order placed! ETA: ${data.eta?.eta || data.data?.estimatedTime || '?'} min`, { icon: '🎉', duration: 5000 });
               navigate('/orders');
@@ -202,7 +203,40 @@ export default function CartPage() {
           {/* Cart items */}
           <div className="cart-items-list">
             <AnimatePresence mode="popLayout">
-              {items.map(({ menuItem, quantity, holdExpiresAt }) => (
+              {items.map(({ menuItem, quantity, holdExpiresAt }) => {
+                const isCartPending = pendingCartIds.has(menuItem._id);
+                const updateCartItem = async (nextQuantity) => {
+                  if (isCartPending) return;
+                  setPendingCartIds((prev) => new Set(prev).add(menuItem._id));
+                  try {
+                    await updateQuantity(menuItem._id, nextQuantity);
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || 'Unable to update cart');
+                  } finally {
+                    setPendingCartIds((prev) => {
+                      const next = new Set(prev);
+                      next.delete(menuItem._id);
+                      return next;
+                    });
+                  }
+                };
+                const removeCartItem = async () => {
+                  if (isCartPending) return;
+                  setPendingCartIds((prev) => new Set(prev).add(menuItem._id));
+                  try {
+                    await removeItem(menuItem._id);
+                  } catch (err) {
+                    toast.error(err.response?.data?.message || 'Unable to remove item');
+                  } finally {
+                    setPendingCartIds((prev) => {
+                      const next = new Set(prev);
+                      next.delete(menuItem._id);
+                      return next;
+                    });
+                  }
+                };
+
+                return (
                 <MotionItem
                   key={menuItem._id}
                   layout
@@ -232,15 +266,17 @@ export default function CartPage() {
                     {/* Quantity Controls */}
                     <div className="cart-qty-control">
                       <button
-                        onClick={() => updateQuantity(menuItem._id, quantity - 1).catch((err) => toast.error(err.response?.data?.message || 'Unable to update cart'))}
+                        onClick={() => updateCartItem(quantity - 1)}
                         className="cart-qty-btn"
+                        disabled={isCartPending || loading}
                       >
                         <HiMinus className="w-3.5 h-3.5" />
                       </button>
                       <span className="cart-qty-value">{quantity}</span>
                       <button
-                        onClick={() => updateQuantity(menuItem._id, quantity + 1).catch((err) => toast.error(err.response?.data?.message || 'Unable to update cart'))}
+                        onClick={() => updateCartItem(quantity + 1)}
                         className="cart-qty-btn"
+                        disabled={isCartPending || loading}
                       >
                         <HiPlus className="w-3.5 h-3.5" />
                       </button>
@@ -250,8 +286,9 @@ export default function CartPage() {
                     <div className="cart-item-total">
                       <p className="text-base font-bold text-white">₹{(menuItem.price * quantity).toFixed(0)}</p>
                       <button
-                        onClick={() => removeItem(menuItem._id)}
+                        onClick={removeCartItem}
                         className="cart-remove-btn cart-remove-desktop"
+                        disabled={isCartPending || loading}
                       >
                         <HiOutlineTrash className="w-3 h-3" /> Remove
                       </button>
@@ -260,13 +297,15 @@ export default function CartPage() {
 
                   {/* Mobile remove button */}
                   <button
-                    onClick={() => removeItem(menuItem._id)}
+                    onClick={removeCartItem}
                     className="cart-remove-btn cart-remove-mobile"
+                    disabled={isCartPending || loading}
                   >
                     <HiOutlineTrash className="w-4 h-4" />
                   </button>
                 </MotionItem>
-              ))}
+              );
+              })}
             </AnimatePresence>
           </div>
 

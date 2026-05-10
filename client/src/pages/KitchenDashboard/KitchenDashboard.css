@@ -6,8 +6,8 @@
   min-height: calc(100vh - 88px);
   overflow: hidden;
   font-family: inherit;
-  background: var(--color-surface-950, #050505);
-  color: var(--color-surface-50, #fafafa);
+  background: var(--app-bg, var(--color-surface-950, #050505));
+  color: var(--app-text, var(--color-surface-50, #fafafa));
   padding: 12px;
   gap: 12px;
   border-radius: 12px;
@@ -38,9 +38,9 @@
   width: 280px;
   flex-shrink: 0;
   overflow-y: auto;
-  border: 1px solid var(--color-surface-800, #27272a);
+  border: 1px solid var(--app-border, var(--color-surface-800, #27272a));
   border-radius: 12px;
-  background: var(--color-surface-900, #18181b);
+  background: var(--app-panel-solid, var(--color-surface-900, #18181b));
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -54,17 +54,17 @@
   overflow: hidden;
   min-width: 0;
   max-width: 100%;
-  border: 1px solid var(--color-surface-800, #27272a);
+  border: 1px solid var(--app-border, var(--color-surface-800, #27272a));
   border-radius: 12px;
-  background: var(--color-surface-950, #050505);
+  background: var(--app-bg, var(--color-surface-950, #050505));
 }
 
 .kitchen-status-nav {
   position: sticky;
   top: 0;
   z-index: 50;
-  background: var(--color-surface-900, #18181b);
-  border-bottom: 1px solid var(--color-surface-800, #27272a);
+  background: var(--app-panel-solid, var(--color-surface-900, #18181b));
+  border-bottom: 1px solid var(--app-border, var(--color-surface-800, #27272a));
   display: flex;
   overflow-x: auto;
   scrollbar-width: none;
@@ -285,12 +285,13 @@
   position: fixed;
   inset: 0;
   z-index: 2600;
-  padding: 16px;
+  padding: 72px 16px 16px;
   background: rgba(0, 0, 0, 0.68);
   backdrop-filter: blur(16px);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  overflow-y: auto;
 }
 
 .qr-scanner-modal {
@@ -830,13 +831,8 @@
   height: 32px;
   border-radius: 8px;
   object-fit: cover;
-}
-
-.item-thumb-fallback {
-  display: grid;
-  place-items: center;
-  background: rgba(0,0,0,0.08);
-  font-size: 18px;
+  display: block;
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .item-main {
@@ -920,14 +916,12 @@
   border: 0;
   height: 1px;
   background: rgba(255,255,255,0.1);
-  margin: 2px 0;
+  margin: 4px 0 0;
 }
 
 .card-footer {
   margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: block;
   font-size: 12px;
   color: var(--color-surface-500, #71717a);
 }
@@ -943,7 +937,7 @@
   cursor: pointer;
   transition: opacity 0.15s ease;
   min-height: 40px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 .card-action-btn:hover {
@@ -952,6 +946,11 @@
 
 .card-action-btn:active {
   opacity: 0.7;
+}
+
+.card-action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
 }
 
 .empty-state {
@@ -1248,5 +1247,46 @@
   .kitchen-sidebar-backdrop.visible {
     display: none;
   }
+}
+
+:root[data-theme="light"] .qr-scanner-modal,
+:root[data-theme="light"] .dish-filter-panel,
+:root[data-theme="light"] .order-card,
+:root[data-theme="light"] .kitchen-analytics-card,
+:root[data-theme="light"] .kitchen-sidebar,
+:root[data-theme="light"] .kitchen-main,
+:root[data-theme="light"] .kitchen-status-nav {
+  background: var(--app-panel) !important;
+  border-color: var(--app-border) !important;
+  color: var(--color-surface-50) !important;
+}
+
+:root[data-theme="light"] .item-row,
+:root[data-theme="light"] .qr-manual-entry input,
+:root[data-theme="light"] .qr-scan-empty,
+:root[data-theme="light"] .kpi-card,
+:root[data-theme="light"] .order-meta-pill {
+  background: var(--app-input) !important;
+  border-color: var(--app-border) !important;
+  color: var(--color-surface-100) !important;
+}
+
+:root[data-theme="light"] .order-card-header h3,
+:root[data-theme="light"] .order-id,
+:root[data-theme="light"] .item-title,
+:root[data-theme="light"] .qr-scanner-header h2,
+:root[data-theme="light"] .qr-scan-match strong {
+  color: var(--color-surface-50) !important;
+}
+
+:root[data-theme="light"] .qr-scanner-header p,
+:root[data-theme="light"] .item-ready-meta,
+:root[data-theme="light"] .qr-scan-match small {
+  color: var(--color-surface-400) !important;
+}
+
+:root[data-theme="light"] .qr-scanner-close {
+  background: var(--app-hover) !important;
+  color: var(--color-surface-50) !important;
 }
 

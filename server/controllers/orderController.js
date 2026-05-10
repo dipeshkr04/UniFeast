@@ -296,6 +296,10 @@ exports.createOrder = async (req, res) => {
       if (!Number.isInteger(quantity) || quantity <= 0) {
         return res.status(400).json({ success: false, message: 'Order item quantity must be a positive whole number' });
       }
+      const maxOrder = Number(menuItem.maxOrder || 15);
+      if (quantity > maxOrder) {
+        return res.status(400).json({ success: false, message: `Maximum ${maxOrder} ${menuItem.name} can be ordered at once` });
+      }
 
       totalAmount += menuItem.price * quantity;
       // Queue-aware service load: quantity contributes to ETA.
@@ -305,6 +309,8 @@ exports.createOrder = async (req, res) => {
         menuItem: menuItem._id,
         name: menuItem.name,
         price: menuItem.price,
+        imageUrl: menuItem.imageUrl || '',
+        category: menuItem.category || '',
         quantity,
         assignedReadyQty: 0,
       });
@@ -451,6 +457,54 @@ exports.getAllOrders = async (req, res) => {
       .limit(parseInt(limit));
 
     res.json({ success: true, count: orders.length, data: orders });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get compact live queue delay by item for students
+// @route   GET /api/orders/live-queue
+exports.getLiveQueue = async (req, res) => {
+  try {
+    const activeOrders = await Order.find({
+      status: { $in: ['queued', 'preparing'] },
+    })
+      .populate('items.menuItem', 'name prepTime imageUrl')
+      .select('items status estimatedReadyAt estimatedTime createdAt')
+      .sort({ createdAt: 1 });
+
+    const queue = new Map();
+
+    activeOrders.forEach((order) => {
+      (order.items || []).forEach((item) => {
+        const quantity = Math.max(0, Number(item.quantity || 0) - Number(item.assignedReadyQty || 0));
+        if (quantity <= 0) return;
+
+        const menuItem = item.menuItem || {};
+        const itemId = menuItem._id?.toString() || item.menuItem?.toString() || item._id?.toString();
+        const prepTime = Math.max(1, Number(menuItem.prepTime || 10));
+        const delayMinutes = prepTime * quantity;
+        const current = queue.get(itemId) || {
+          menuItemId: itemId,
+          name: menuItem.name || item.name || 'Item',
+          imageUrl: menuItem.imageUrl || item.imageUrl || '',
+          quantity: 0,
+          orders: 0,
+          delayMinutes: 0,
+        };
+
+        current.quantity += quantity;
+        current.orders += 1;
+        current.delayMinutes += delayMinutes;
+        queue.set(itemId, current);
+      });
+    });
+
+    const data = Array.from(queue.values())
+      .filter((item) => item.delayMinutes > 0)
+      .sort((a, b) => b.delayMinutes - a.delayMinutes || a.name.localeCompare(b.name));
+
+    res.json({ success: true, count: data.length, data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

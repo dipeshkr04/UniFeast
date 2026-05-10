@@ -499,3 +499,36 @@ exports.toggleCanteenStatus = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Get cart hold release window
+// @route   GET /api/admin/cart-hold-window
+exports.getCartHoldWindow = async (req, res) => {
+  try {
+    const holdMs = await Settings.getCartHoldMs();
+    res.json({ success: true, data: { holdMs } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Update cart hold release window
+// @route   PATCH /api/admin/cart-hold-window
+exports.updateCartHoldWindow = async (req, res) => {
+  try {
+    const minutes = Number(req.body.minutes || 0);
+    const seconds = Number(req.body.seconds || 0);
+    const holdMs = req.body.holdMs !== undefined
+      ? Number(req.body.holdMs)
+      : ((minutes * 60) + seconds) * 1000;
+
+    const setting = await Settings.setCartHoldMs(holdMs, req.user.id);
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('cart-hold-window', { holdMs: setting.value });
+    }
+
+    res.json({ success: true, data: { holdMs: setting.value } });
+  } catch (error) {
+    res.status(error.statusCode || 500).json({ success: false, message: error.message });
+  }
+};

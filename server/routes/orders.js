@@ -4,6 +4,7 @@ const {
   createOrder,
   getMyOrders,
   getAllOrders,
+  getLiveQueue,
   getOrder,
   getOrderStats,
   addProducedStock,
@@ -22,6 +23,7 @@ const { authorize } = require('../middleware/role');
 
 router.post('/', protect, createOrder);
 router.get('/my', protect, getMyOrders);
+router.get('/live-queue', protect, getLiveQueue);
 router.get('/stats/summary', protect, authorize('admin', 'kitchen'), getOrderStats);
 router.get('/kitchen/stock', protect, authorize('admin', 'kitchen'), getKitchenStock);
 router.post('/kitchen/produce', protect, authorize('admin', 'kitchen'), addProducedStock);

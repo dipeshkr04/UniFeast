@@ -15,7 +15,6 @@ exports.holdCartItem = async (req, res) => {
       userId: req.user.id,
       menuItemId,
       quantity,
-      holdMs: req.body.holdMs,
       io: req.app.get('io'),
     });
 

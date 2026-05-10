@@ -73,6 +73,7 @@ export const orderAPI = {
   getQr: (id) => api.get(`/orders/${id}/qr`),
   scanQr: (qrPayload) => api.post('/orders/kitchen/qr/scan', { qrPayload }),
   updateStatus: (id, status) => api.patch(`/orders/${id}/status`, { newStatus: status }),
+  getLiveQueue: () => api.get('/orders/live-queue'),
   getStats: () => api.get('/orders/stats/summary'),
   getKitchenStock: () => api.get('/orders/kitchen/stock'),
   addProducedStock: (menuItemId, quantity) => api.post('/orders/kitchen/produce', { menuItemId, quantity }),
@@ -136,6 +137,8 @@ export const adminAPI = {
   getStats: (params) => api.get('/admin/stats', { params }),
   getCanteenStatus: () => api.get('/admin/canteen-status'),
   toggleCanteenStatus: (isLive) => api.patch('/admin/canteen-status', { isLive }),
+  getCartHoldWindow: () => api.get('/admin/cart-hold-window'),
+  updateCartHoldWindow: (data) => api.patch('/admin/cart-hold-window', data),
 };
 
 export default api;

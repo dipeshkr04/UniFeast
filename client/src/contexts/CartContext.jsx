@@ -1,9 +1,9 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { cartAPI } from '../api';
 
 const CartContext = createContext(null);
-const CART_HOLD_MS = Number(import.meta.env.VITE_CART_HOLD_MS || 120000);
+const getHoldKey = (item) => `${item.menuItem?._id || ''}:${item.holdExpiresAt || ''}`;
 
 export const useCart = () => {
   const ctx = useContext(CartContext);
@@ -12,6 +12,7 @@ export const useCart = () => {
 };
 
 export function CartProvider({ children }) {
+  const suppressExpiryToastRef = useRef(new Set());
   const [items, setItems] = useState(() => {
     try {
       const saved = localStorage.getItem('unifeast_cart');
@@ -38,10 +39,18 @@ export function CartProvider({ children }) {
       });
 
       if (expiredItems.length) {
+        const visibleExpired = expiredItems.filter((item) => !suppressExpiryToastRef.current.has(getHoldKey(item)));
         expiredItems.forEach((item) => {
+          const holdKey = getHoldKey(item);
+          if (suppressExpiryToastRef.current.has(holdKey)) {
+            suppressExpiryToastRef.current.delete(holdKey);
+            return;
+          }
           cartAPI.releaseItem(item.menuItem._id).catch(() => {});
         });
-        toast.error('Cart hold expired. Released reserved stock.');
+        if (visibleExpired.length) {
+          toast.error('Cart hold expired. Released reserved stock.');
+        }
       }
     }, 1000);
 
@@ -69,9 +78,9 @@ export function CartProvider({ children }) {
       return null;
     }
 
-    const { data } = await cartAPI.holdItem(menuItem._id, quantity, CART_HOLD_MS);
+    const { data } = await cartAPI.holdItem(menuItem._id, quantity);
     const reservation = data.data?.reservation;
-    const holdMs = Number(data.data?.holdMs || CART_HOLD_MS);
+    const holdMs = Number(data.data?.holdMs || 120000);
     const holdExpiresAt = reservation?.expiresAt
       ? new Date(reservation.expiresAt).getTime()
       : Date.now() + holdMs;
@@ -105,6 +114,9 @@ export function CartProvider({ children }) {
 
   const clearCart = async ({ releaseHolds = true } = {}) => {
     const currentItems = items;
+    if (!releaseHolds) {
+      currentItems.forEach((item) => suppressExpiryToastRef.current.add(getHoldKey(item)));
+    }
     setItems([]);
     if (releaseHolds && currentItems.length) {
       await cartAPI.clearHolds().catch(() => {});

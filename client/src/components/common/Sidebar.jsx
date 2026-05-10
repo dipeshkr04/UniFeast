@@ -1,15 +1,17 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   HiOutlineHome, HiOutlineClipboardList, HiOutlineUserGroup,
-  HiOutlineChartBar, HiOutlineX
+  HiOutlineChartBar, HiOutlineLogout, HiOutlineX
 } from 'react-icons/hi';
 import { MdRestaurantMenu, MdOutlineKitchen } from 'react-icons/md';
 import { IoNutritionOutline } from 'react-icons/io5';
 import { AnimatePresence } from 'framer-motion';
+import CartHoldWindowControl from './CartHoldWindowControl';
 
 const studentLinks = [
   { to: '/', icon: HiOutlineHome, label: 'Menu' },
+  { to: '/live-queue', icon: HiOutlineChartBar, label: 'Live Queue' },
   { to: '/orders', icon: HiOutlineClipboardList, label: 'My Orders' },
   { to: '/pools', icon: HiOutlineUserGroup, label: 'Pool Board' },
   { to: '/nutrition', icon: IoNutritionOutline, label: 'Nutrition' },
@@ -24,14 +26,21 @@ const kitchenLinks = [
 const adminLinks = [
   { to: '/', icon: HiOutlineHome, label: 'Dashboard' },
   { to: '/users', icon: HiOutlineUserGroup, label: 'Users' },
-  { to: '/stats', icon: HiOutlineChartBar, label: 'Analytics' },
 ];
 
 export default function Sidebar({ open, onClose }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const links = user?.role === 'admin' ? adminLinks :
     user?.role === 'kitchen' ? kitchenLinks : studentLinks;
   const roleLabel = user?.role ? user.role.toUpperCase() : '';
+  const canEditCartHold = user?.role === 'admin' || user?.role === 'kitchen';
+
+  const handleLogout = () => {
+    logout();
+    onClose?.();
+    navigate('/login');
+  };
 
   return (
     <>
@@ -74,27 +83,37 @@ export default function Sidebar({ open, onClose }) {
           <nav className="mobile-sidebar-nav" aria-label="Primary navigation">
             <p className="mobile-sidebar-section-label">Navigation</p>
             {links.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                onClick={onClose}
-                end={link.to === '/'}
-                className={({ isActive }) =>
-                  `mobile-sidebar-link ${isActive ? 'is-active' : ''}`
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <span className="mobile-sidebar-link-indicator" aria-hidden="true" />
-                    <link.icon className={`mobile-sidebar-link-icon ${isActive ? 'text-primary-400' : ''}`} />
-                    <span className="mobile-sidebar-link-label">{link.label}</span>
-                  </>
-                )}
-              </NavLink>
+              <div key={link.to}>
+                <NavLink
+                  to={link.to}
+                  onClick={onClose}
+                  end={link.to === '/'}
+                  className={({ isActive }) =>
+                    `mobile-sidebar-link ${isActive ? 'is-active' : ''}`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span className="mobile-sidebar-link-indicator" aria-hidden="true" />
+                      <link.icon className={`mobile-sidebar-link-icon ${isActive ? 'text-primary-400' : ''}`} />
+                      <span className="mobile-sidebar-link-label">{link.label}</span>
+                    </>
+                  )}
+                </NavLink>
+              </div>
             ))}
           </nav>
 
           <footer className="mobile-sidebar-footer">
+            {canEditCartHold && <CartHoldWindowControl variant="sidebar" />}
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="mobile-sidebar-logout"
+            >
+              <HiOutlineLogout className="w-5 h-5" />
+              <span>Log out</span>
+            </button>
             <div className="mobile-sidebar-user">
               <div className="mobile-sidebar-avatar gradient-primary">
                 {user?.name?.charAt(0)?.toUpperCase()}

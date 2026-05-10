@@ -753,26 +753,28 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                         <p className="admin-user-email text-surface-500">{u.email}</p>
                       </div>
                     </div>
-                    <div className="admin-role-cell">
-                      <span className="admin-cell-label text-surface-500">Role</span>
-                      <select
-                        value={u.role}
-                        onChange={(e) => handleRoleChange(u._id, e.target.value)}
-                        className="input-field admin-role-select"
-                      >
-                        <option value="student">STUDENT</option>
-                        <option value="kitchen">KITCHEN</option>
-                        <option value="admin">ADMIN</option>
-                      </select>
-                    </div>
-                    <div className="admin-actions-cell">
-                      <span className="admin-cell-label text-surface-500">Action</span>
-                      <button 
-                        onClick={() => handleDeleteUser(u._id, u.name)} 
-                        className="admin-revoke-btn"
-                      >
-                        REVOKE
-                      </button>
+                    <div className="admin-user-controls">
+                      <div className="admin-role-cell">
+                        <span className="admin-cell-label text-surface-500">Role</span>
+                        <select
+                          value={u.role}
+                          onChange={(e) => handleRoleChange(u._id, e.target.value)}
+                          className="input-field admin-role-select"
+                        >
+                          <option value="student">STUDENT</option>
+                          <option value="kitchen">KITCHEN</option>
+                          <option value="admin">ADMIN</option>
+                        </select>
+                      </div>
+                      <div className="admin-actions-cell">
+                        <span className="admin-cell-label text-surface-500">Action</span>
+                        <button 
+                          onClick={() => handleDeleteUser(u._id, u.name)} 
+                          className="admin-revoke-btn"
+                        >
+                          REVOKE
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}

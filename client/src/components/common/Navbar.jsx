@@ -1,15 +1,18 @@
 import { useState } from 'react';
-import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useCart } from '../../contexts/CartContext';
 import { adminAPI } from '../../api';
-import { HiOutlineShoppingCart, HiOutlineLogout, HiOutlineMenu } from 'react-icons/hi';
+import { HiOutlineShoppingCart, HiOutlineMenu } from 'react-icons/hi';
 import { MdRestaurantMenu } from 'react-icons/md';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import toast from 'react-hot-toast';
+import CartHoldWindowControl from './CartHoldWindowControl';
+import ThemeToggle from './ThemeToggle';
 
 const studentLinks = [
   { to: '/', label: 'Menu' },
+  { to: '/live-queue', label: 'Live Queue' },
   { to: '/orders', label: 'My Orders' },
   { to: '/pools', label: 'Pool Board' },
   { to: '/nutrition', label: 'Nutrition' },
@@ -24,13 +27,11 @@ const kitchenLinks = [
 const adminLinks = [
   { to: '/', label: 'Dashboard' },
   { to: '/users', label: 'Users' },
-  { to: '/stats', label: 'Analytics' },
 ];
 
 export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { totalItems } = useCart();
-  const navigate = useNavigate();
   const [toggling, setToggling] = useState(false);
 
   const canToggle = user?.role === 'kitchen' || user?.role === 'admin';
@@ -48,16 +49,11 @@ export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive })
       toast.success(newStatus ? 'Canteen is now LIVE!' : 'Canteen is now CLOSED', {
         icon: newStatus ? '🟢' : '🔴',
       });
-    } catch (err) {
+    } catch {
       toast.error('Failed to update canteen status');
     } finally {
       setToggling(false);
     }
-  };
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
   };
 
   const readonlyCanteenStatus = (
@@ -117,23 +113,26 @@ export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive })
                 <Link to="/cart" className="nav-icon-btn student-cart-link group hover:bg-white/5">
                   <HiOutlineShoppingCart className="w-6 h-6 text-surface-300 group-hover:text-primary-400 transition-colors" />
                   {totalItems > 0 && (
-                    <motion.span
+                    <Motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       className="cart-count gradient-primary text-white"
                     >
                       {totalItems}
-                    </motion.span>
+                    </Motion.span>
                   )}
                 </Link>
+                <ThemeToggle variant="nav" />
               </>
             )}
 
             <div className="app-user-block">
+              {canToggle && <CartHoldWindowControl variant="desktop" />}
               <div className="app-user-meta">
                 <p className="app-user-name text-white">{user?.name}</p>
                 <p className="app-user-role text-surface-400">{roleLabel}</p>
               </div>
+              {user?.role !== 'student' && <ThemeToggle variant="nav" />}
               <div className="app-avatar gradient-dark border border-white/10 text-primary-400">
                 {user?.name?.charAt(0)?.toUpperCase()}
               </div>
@@ -156,14 +155,6 @@ export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive })
                   </span>
                 </button>
               )}
-              <button
-                onClick={handleLogout}
-                className="nav-icon-btn hover:bg-red-500/10 text-surface-400 hover:text-red-400"
-                title="Logout"
-                aria-label="Logout"
-              >
-                <HiOutlineLogout className="w-5 h-5" />
-              </button>
             </div>
 
             <button

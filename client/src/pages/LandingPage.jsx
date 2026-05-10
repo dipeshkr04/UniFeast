@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { MdRestaurantMenu, MdOutlineFlashOn, MdOutlineGroups, MdOutlineSpeed, MdChevronRight } from 'react-icons/md';
+import ThemeToggle from '../components/common/ThemeToggle';
 
 const features = [
   {
@@ -36,6 +37,7 @@ export default function LandingPage() {
           </Link>
 
           <div className="public-nav-actions">
+            <ThemeToggle variant="public" />
             <Link to="/login" className="public-nav-link text-surface-300 hover:text-white">Sign In</Link>
             <Link to="/register" className="btn-primary public-nav-cta">Get Started</Link>
           </div>
@@ -44,7 +46,7 @@ export default function LandingPage() {
 
       <main className="public-main">
         <section className="public-hero">
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, ease: 'easeOut' }}
@@ -72,9 +74,9 @@ export default function LandingPage() {
                 <MdChevronRight className="w-5 h-5 text-surface-400" />
               </Link>
             </div>
-          </motion.div>
+          </Motion.div>
 
-          <motion.div
+          <Motion.div
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.12, ease: 'easeOut' }}
@@ -84,7 +86,7 @@ export default function LandingPage() {
               <div className="public-preview-frame" />
               <div className="public-preview-inner-frame" />
 
-              <motion.div
+              <Motion.div
                 animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
                 className="public-pool-badge"
@@ -96,7 +98,7 @@ export default function LandingPage() {
                 <p className="public-pool-copy text-white">
                   4/5 Joined <span className="text-surface-500" aria-hidden="true">&bull;</span> <span className="text-success">Save 20%</span>
                 </p>
-              </motion.div>
+              </Motion.div>
 
               <div className="public-order-mini-card">
                 <div className="public-order-mini-main">
@@ -114,7 +116,7 @@ export default function LandingPage() {
 
                 <div className="public-order-mini-progress">
                   <div className="public-progress-track bg-surface-800/80 border border-white/10">
-                    <motion.div
+                    <Motion.div
                       initial={{ width: '0%' }}
                       animate={{ width: '75%' }}
                       transition={{ duration: 1.4, delay: 0.55, ease: 'easeOut' }}
@@ -128,7 +130,7 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </Motion.div>
         </section>
 
         <section className="public-feature-section">
@@ -141,7 +143,7 @@ export default function LandingPage() {
             {features.map((feature, index) => {
               const Icon = feature.icon;
               return (
-                <motion.article
+                <Motion.article
                   key={feature.title}
                   initial={{ opacity: 0, y: 24 }}
                   whileInView={{ opacity: 1, y: 0 }}
@@ -154,7 +156,7 @@ export default function LandingPage() {
                   </div>
                   <h3 className="text-white">{feature.title}</h3>
                   <p className="text-surface-400">{feature.desc}</p>
-                </motion.article>
+                </Motion.article>
               );
             })}
           </div>

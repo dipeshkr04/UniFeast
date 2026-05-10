@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { MdRestaurantMenu, MdArrowBack } from 'react-icons/md';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion as Motion, AnimatePresence } from 'framer-motion';
 
 const INSTITUTE_EMAIL_DOMAIN = '@iiitn.ac.in';
 
@@ -68,62 +68,62 @@ export default function Register() {
   };
 
   return (
-    <div className="auth-shell bg-[#050505] selection:bg-primary-500/30">
+    <div className="auth-shell selection:bg-primary-500/30">
       
       {/* Left Branding Panel */}
-      <motion.div 
+      <Motion.div 
         initial={{ opacity: 0, x: -50 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.8, ease: [0.2, 0.8, 0.2, 1] }}
-        className="hidden"
+        className="auth-brand-panel"
       >
         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-white/10 rounded-full blur-[100px]" />
         <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-black/40 rounded-full blur-[120px]" />
         
-        <div className="relative z-10 flex-1 flex flex-col justify-center items-center text-center">
-          <motion.div 
+        <div className="auth-brand-content relative z-10 flex-1 flex flex-col justify-center items-center text-center">
+          <Motion.div 
              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.8 }}
-             className="inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/10 backdrop-blur-md shadow-2xl border border-white/20 mb-10"
+             className="auth-brand-icon inline-flex items-center justify-center w-20 h-20 rounded-3xl bg-white/10 backdrop-blur-md shadow-2xl border border-white/20 mb-10"
           >
             <MdRestaurantMenu className="w-10 h-10 text-white drop-shadow-md" />
-          </motion.div>
-          <motion.h1 
+          </Motion.div>
+          <Motion.h1 
              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8 }}
-             className="text-5xl lg:text-6xl font-black tracking-tight mb-8 leading-tight"
+             className="auth-brand-title text-5xl lg:text-6xl font-black tracking-tight mb-8 leading-tight"
           >
             Join Uni<span className="text-white/80">Feast</span>
-          </motion.h1>
-          <motion.p 
+          </Motion.h1>
+          <Motion.p 
              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.8 }}
-             className="text-white/80 text-xl leading-relaxed max-w-md mx-auto mb-10 font-medium"
+             className="auth-brand-copy text-white/80 text-xl leading-relaxed max-w-md mx-auto mb-10 font-medium"
           >
             Create an account to unlock hyper-connected dining across the IIIT Nagpur campus.
-          </motion.p>
+          </Motion.p>
           
-          <motion.div 
+          <Motion.div 
              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6, duration: 1 }}
-             className="mt-auto border-t border-white/20 pt-8 w-full max-w-md"
+             className="auth-brand-campus mt-auto border-t border-white/20 pt-8 w-full max-w-md"
           >
             <p className="text-sm font-bold tracking-[0.3em] uppercase text-white/90">Registration Portal</p>
-          </motion.div>
+          </Motion.div>
         </div>
-      </motion.div>
+      </Motion.div>
 
       {/* Right Form Panel */}
-      <motion.div 
+      <Motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8 }}
-        className="w-full flex items-center justify-center relative"
+        className="auth-form-panel w-full flex items-center justify-center relative"
       >
         {/* Premium Animated Mesh Background */}
         <div className="hidden">
-          <motion.div 
+          <Motion.div 
             animate={{ x: [0, 50, -50, 0], y: [0, -50, 50, 0], scale: [1, 1.2, 0.8, 1] }}
             transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
             className="absolute top-10 left-[-20%] w-[600px] h-[600px] rounded-full bg-primary-600/5 blur-[150px]"
           />
-          <motion.div 
+          <Motion.div 
             animate={{ x: [0, -40, 40, 0], y: [0, 60, -60, 0], scale: [1, 1.3, 0.7, 1] }}
             transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
             className="absolute bottom-10 right-[-20%] w-[700px] h-[700px] rounded-full bg-blue-500/5 blur-[150px]"
@@ -162,7 +162,7 @@ export default function Register() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-[18px] w-full">
             <AnimatePresence mode="wait">
               {step === 1 && (
-                  <motion.div 
+                  <Motion.div 
                     key="step1"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -195,11 +195,11 @@ export default function Register() {
                           <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center tracking-widest" placeholder="••••••••" required />
                         </div>
                       </div>
-                  </motion.div>
+                  </Motion.div>
               )}
 
               {step === 2 && (
-                  <motion.div 
+                  <Motion.div 
                     key="step2"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -218,7 +218,7 @@ export default function Register() {
                         required
                       />
                     </div>
-                  </motion.div>
+                  </Motion.div>
               )}
             </AnimatePresence>
 
@@ -239,7 +239,7 @@ export default function Register() {
           )}
           </div>
         </div>
-      </motion.div>
+      </Motion.div>
     </div>
   );
 }

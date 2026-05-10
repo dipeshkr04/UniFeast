@@ -10,7 +10,7 @@ const emptyMessages = {
   COMPLETED: "No completed orders today."
 };
 
-const OrderGrid = ({ orders, activeFilter, dishFilterLabel, dishFilterKey, onStatusUpdate, onItemReady }) => {
+const OrderGrid = ({ orders, activeFilter, dishFilterLabel, dishFilterKey, onStatusUpdate, onItemReady, busyOrderIds, busyItemIds }) => {
   if (!orders || orders.length === 0) {
     return (
       <div className="empty-state">
@@ -29,6 +29,8 @@ const OrderGrid = ({ orders, activeFilter, dishFilterLabel, dishFilterKey, onSta
           dishFilterKey={dishFilterKey}
           onStatusUpdate={onStatusUpdate}
           onItemReady={onItemReady}
+          busyOrderIds={busyOrderIds}
+          busyItemIds={busyItemIds}
         />
       ))}
     </div>

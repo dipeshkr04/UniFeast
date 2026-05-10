@@ -1,5 +1,6 @@
 const CartReservation = require('../models/CartReservation');
 const MenuItem = require('../models/MenuItem');
+const Settings = require('../models/Settings');
 const {
   getStockDayKey,
   hasNumericStock,
@@ -9,9 +10,14 @@ const {
 
 const DEFAULT_CART_HOLD_MS = 2 * 60 * 1000;
 
-function getCartHoldMs(overrideMs) {
+function getEnvCartHoldMs(overrideMs) {
   const parsed = Number(overrideMs || process.env.CART_HOLD_MS || process.env.VITE_CART_HOLD_MS);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_CART_HOLD_MS;
+}
+
+async function getCartHoldMs(overrideMs) {
+  if (overrideMs) return getEnvCartHoldMs(overrideMs);
+  return Settings.getCartHoldMs();
 }
 
 function normalizeHoldQuantity(value) {
@@ -73,7 +79,7 @@ async function setCartReservation({ userId, menuItemId, quantity, holdMs: reques
     if (existing) {
       await releaseReservations([existing], io);
     }
-    return { reservation: null, menuItem: null, holdMs: getCartHoldMs(requestedHoldMs) };
+    return { reservation: null, menuItem: null, holdMs: await getCartHoldMs(requestedHoldMs) };
   }
 
   const currentHeld = existing && existing.dayKey === dayKey && existing.expiresAt > new Date()
@@ -86,7 +92,7 @@ async function setCartReservation({ userId, menuItemId, quantity, holdMs: reques
   }
 
   if (delta > 0) {
-    const current = await MenuItem.findById(menuItemId).select('name dailyStock isAvailable');
+    const current = await MenuItem.findById(menuItemId).select('name dailyStock isAvailable maxOrder');
     if (!current) {
       const error = new Error('Menu item not found');
       error.statusCode = 404;
@@ -94,6 +100,12 @@ async function setCartReservation({ userId, menuItemId, quantity, holdMs: reques
     }
     if (!current.isAvailable) {
       const error = new Error(`${current.name} is currently unavailable`);
+      error.statusCode = 400;
+      throw error;
+    }
+    const maxOrder = Number(current.maxOrder || 15);
+    if (nextQuantity > maxOrder) {
+      const error = new Error(`Maximum ${maxOrder} ${current.name} can be ordered at once`);
       error.statusCode = 400;
       throw error;
     }
@@ -130,7 +142,7 @@ async function setCartReservation({ userId, menuItemId, quantity, holdMs: reques
     );
   }
 
-  const holdMs = getCartHoldMs(requestedHoldMs);
+  const holdMs = await getCartHoldMs(requestedHoldMs);
   const expiresAt = new Date(Date.now() + holdMs);
   const reservation = await CartReservation.findOneAndUpdate(
     { user: userId, menuItem: menuItemId },

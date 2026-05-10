@@ -364,8 +364,12 @@ export default function OrdersPage() {
 
                           <div className="student-order-items">
                             {order.items.map((item, i) => {
-                              const readyQty = Math.min(Number(item.assignedReadyQty || 0), Number(item.quantity || 0));
-                              const isItemReady = readyQty > 0 && readyQty >= Number(item.quantity || 0);
+                              const itemQty = Number(item.quantity || 0);
+                              const orderStatus = String(order.status || '').toLowerCase();
+                              const readyQty = ['ready', 'completed'].includes(orderStatus)
+                                ? itemQty
+                                : Math.min(Number(item.assignedReadyQty || 0), itemQty);
+                              const isItemReady = readyQty > 0 && readyQty >= itemQty;
 
                               return (
                                 <div key={i} className="student-order-item-row">

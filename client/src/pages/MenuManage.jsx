@@ -9,6 +9,7 @@ const emptyForm = {
   price: '',
   category: 'snacks',
   prepTime: '',
+  maxOrder: '15',
   isAvailable: true,
   nutrition: { calories: '', protein: '', carbs: '', fat: '', fiber: '' },
 };
@@ -47,6 +48,8 @@ export default function MenuManage() {
   const [nutritionFetched, setNutritionFetched] = useState(false);
   const [stockDrafts, setStockDrafts] = useState({});
   const [menuSearch, setMenuSearch] = useState('');
+  const [savingItem, setSavingItem] = useState(false);
+  const [pendingAction, setPendingAction] = useState('');
 
   const availableCount = items.filter(item => item.isAvailable).length;
   const unavailableCount = items.length - availableCount;
@@ -177,6 +180,8 @@ export default function MenuManage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (savingItem) return;
+    setSavingItem(true);
     try {
       if (!nutritionFetched) {
         await fetchNutrition({ showErrors: false });
@@ -187,6 +192,7 @@ export default function MenuManage() {
       fd.append('price', form.price);
       fd.append('category', form.category);
       fd.append('prepTime', form.prepTime);
+      fd.append('maxOrder', form.maxOrder || '15');
       fd.append('isAvailable', form.isAvailable);
       if (imageFile) fd.append('image', imageFile);
 
@@ -201,6 +207,8 @@ export default function MenuManage() {
       fetchMenu();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Save failed');
+    } finally {
+      setSavingItem(false);
     }
   };
 
@@ -211,6 +219,7 @@ export default function MenuManage() {
       price: item.price,
       category: item.category,
       prepTime: item.prepTime,
+      maxOrder: item.maxOrder || 15,
       isAvailable: item.isAvailable,
       nutrition: { ...emptyForm.nutrition, ...item.nutrition },
     });
@@ -221,22 +230,30 @@ export default function MenuManage() {
   };
 
   const handleDelete = async (id, name) => {
+    if (pendingAction) return;
     if (!confirm(`Delete "${name}"?`)) return;
+    setPendingAction(`delete:${id}`);
     try {
       await menuAPI.delete(id);
       toast.success('Deleted');
       fetchMenu();
     } catch {
       toast.error('Delete failed');
+    } finally {
+      setPendingAction('');
     }
   };
 
   const handleToggle = async (id) => {
+    if (pendingAction) return;
+    setPendingAction(`toggle:${id}`);
     try {
       await menuAPI.toggle(id);
       fetchMenu();
     } catch {
       toast.error('Toggle failed');
+    } finally {
+      setPendingAction('');
     }
   };
 
@@ -260,7 +277,12 @@ export default function MenuManage() {
           </h1>
           <p className="text-surface-400 mt-2 text-[14px]">Create, edit, and control live availability for kitchen items.</p>
         </div>
-        <button onClick={() => { resetForm(); setShowForm(true); }} className="btn-primary menu-add-btn text-[14px]" id="add-menu-item">
+        <button
+          onClick={() => { resetForm(); setShowForm(true); }}
+          className="btn-primary menu-add-btn text-[14px]"
+          id="add-menu-item"
+          disabled={savingItem || Boolean(pendingAction)}
+        >
           <HiPlus className="w-4 h-4" /> Add Item
         </button>
       </div>
@@ -281,17 +303,18 @@ export default function MenuManage() {
       </div>
 
       {showForm && (
-        <div className="menu-form-card glass-card-static animate-slideUp">
-          <div className="menu-form-header">
-            <div>
-              <h3 className="font-semibold text-lg">{editId ? 'Edit Menu Item' : 'Add Menu Item'}</h3>
-              <p className="text-[14px] text-surface-400 mt-1">Keep names short and use realistic prep times for better kitchen flow.</p>
+        <div className="menu-form-popover-backdrop" onClick={resetForm}>
+          <div className="menu-form-card glass-card-static animate-slideUp" onClick={(event) => event.stopPropagation()}>
+            <div className="menu-form-header">
+              <div>
+                <h3 className="font-semibold text-lg">{editId ? 'Edit Menu Item' : 'Add Menu Item'}</h3>
+                <p className="text-[14px] text-surface-400 mt-1">Keep names short and use realistic prep times for better kitchen flow.</p>
+              </div>
             </div>
-          </div>
 
-          <form onSubmit={handleSubmit} className="menu-manage-form">
+            <form onSubmit={handleSubmit} className="menu-manage-form">
             <div className="menu-form-grid menu-form-grid-two">
-              <div className="menu-field">
+              <div className="menu-field menu-name-field">
                 <label className="text-surface-300">Item name</label>
                 <input
                   value={form.name}
@@ -301,21 +324,22 @@ export default function MenuManage() {
                   placeholder="Paneer sandwich"
                   required
                   id="form-name"
+                  disabled={savingItem}
                 />
               </div>
-              <div className="menu-field">
+              <div className="menu-field menu-image-field">
                 <label className="text-surface-300">Image</label>
                 <div className="menu-image-input-row">
-                  <input type="file" accept="image/*" onChange={e => handleImageChange(e.target.files[0])} className="input-field" />
+                  <input type="file" accept="image/*" onChange={e => handleImageChange(e.target.files[0])} className="input-field" disabled={savingItem || analyzingNutrition} />
                   {imagePreview && <img src={imagePreview} alt={form.name || 'Menu item preview'} className="menu-image-preview" />}
                 </div>
               </div>
             </div>
 
-            <div className="menu-form-grid menu-form-grid-three">
-              <div className="menu-field">
+            <div className="menu-form-grid menu-form-config-grid">
+              <div className="menu-field menu-config-category">
                 <label className="text-surface-300">Category</label>
-                <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="input-field" id="form-category">
+                <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="input-field" id="form-category" disabled={savingItem}>
                   <option value="snacks">Snacks</option>
                   <option value="meals">Meals</option>
                   <option value="beverages">Beverages</option>
@@ -324,14 +348,18 @@ export default function MenuManage() {
               </div>
               <div className="menu-field">
                 <label className="text-surface-300">Price</label>
-                <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input-field" placeholder="Rs." required id="form-price" />
+                <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input-field" placeholder="Rs." required id="form-price" disabled={savingItem} />
               </div>
               <div className="menu-field">
                 <label className="text-surface-300">Prep time</label>
-                <input type="number" value={form.prepTime} onChange={e => setForm({ ...form, prepTime: e.target.value })} className="input-field" placeholder="Minutes" required id="form-prep" />
+                <input type="number" value={form.prepTime} onChange={e => setForm({ ...form, prepTime: e.target.value })} className="input-field" placeholder="Minutes" required id="form-prep" disabled={savingItem} />
+              </div>
+              <div className="menu-field">
+                <label className="text-surface-300">Max order</label>
+                <input type="number" min="1" max="999" value={form.maxOrder} onChange={e => setForm({ ...form, maxOrder: e.target.value })} className="input-field" placeholder="15" id="form-max-order" disabled={savingItem} />
               </div>
               <label className="menu-availability-toggle glass-card-static text-surface-300">
-                <input type="checkbox" checked={form.isAvailable} onChange={e => setForm({ ...form, isAvailable: e.target.checked })} className="rounded" />
+                <input type="checkbox" checked={form.isAvailable} onChange={e => setForm({ ...form, isAvailable: e.target.checked })} className="rounded" disabled={savingItem} />
                 <span>Available on menu</span>
               </label>
             </div>
@@ -360,12 +388,13 @@ export default function MenuManage() {
             </div>
 
             <div className="menu-form-actions">
-              <button type="button" onClick={resetForm} className="btn-secondary text-[14px] min-h-[44px] px-5 py-2.5">Cancel</button>
-              <button type="submit" className="btn-primary text-[14px] min-h-[48px] px-5 py-2.5" id="form-submit" disabled={analyzingNutrition}>
-                {analyzingNutrition ? 'Analyzing...' : editId ? 'Update Item' : 'Create Item'}
+              <button type="button" onClick={resetForm} className="btn-secondary text-[14px] min-h-[44px] px-5 py-2.5" disabled={savingItem}>Cancel</button>
+              <button type="submit" className="btn-primary text-[14px] min-h-[48px] px-5 py-2.5" id="form-submit" disabled={analyzingNutrition || savingItem}>
+                {savingItem ? 'Saving...' : analyzingNutrition ? 'Analyzing...' : editId ? 'Update Item' : 'Create Item'}
               </button>
             </div>
-          </form>
+            </form>
+          </div>
         </div>
       )}
 
@@ -429,6 +458,7 @@ export default function MenuManage() {
                     type="button"
                     onClick={() => handleToggle(item._id)}
                     className={`badge text-xs menu-status-toggle ${item.isAvailable ? 'badge-success' : 'badge-danger'}`}
+                    disabled={Boolean(pendingAction)}
                     title={item.isAvailable ? 'Click to hide item' : 'Click to make item live'}
                   >
                     {item.isAvailable ? 'Live' : 'Hide'}
@@ -455,10 +485,10 @@ export default function MenuManage() {
                 </div>
 
                 <div className="menu-row-actions">
-                  <button onClick={() => handleEdit(item)} className="menu-icon-btn hover:bg-white/5 text-surface-400" title="Edit">
+                  <button onClick={() => handleEdit(item)} className="menu-icon-btn hover:bg-white/5 text-surface-400" title="Edit" disabled={Boolean(pendingAction)}>
                     <HiOutlinePencil className="w-4 h-4" />
                   </button>
-                  <button onClick={() => handleDelete(item._id, item.name)} className="menu-icon-btn hover:bg-red-500/10 text-red-400" title="Delete">
+                  <button onClick={() => handleDelete(item._id, item.name)} className="menu-icon-btn hover:bg-red-500/10 text-red-400" title="Delete" disabled={Boolean(pendingAction)}>
                     <HiOutlineTrash className="w-4 h-4" />
                   </button>
                 </div>

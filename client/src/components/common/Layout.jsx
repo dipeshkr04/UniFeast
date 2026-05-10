@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import Navbar from './Navbar';
 import Sidebar from './Sidebar';
 import { adminAPI } from '../../api';
@@ -34,15 +34,15 @@ export default function Layout() {
   }, [socket]);
 
   return (
-    <div className="min-h-screen overflow-x-hidden relative bg-[#050505]">
+    <div className="app-shell-root min-h-screen overflow-x-hidden relative">
       {/* Premium Animated Mesh Background Orbs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-        <motion.div 
+        <Motion.div 
           animate={{ x: [0, 50, -50, 0], y: [0, -50, 50, 0], scale: [1, 1.1, 0.9, 1] }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
           className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-primary-600/10 blur-[120px]"
         />
-        <motion.div 
+        <Motion.div 
           animate={{ x: [0, -40, 40, 0], y: [0, 40, -40, 0], scale: [1, 1.2, 0.8, 1] }}
           transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
           className="absolute bottom-[-10%] right-[-10%] w-[600px] h-[600px] rounded-full bg-accent-500/10 blur-[150px]"
@@ -56,9 +56,9 @@ export default function Layout() {
       />
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       
-      <main className="min-h-screen relative z-[1]">
-        <div className={`container ${isKitchenDashboardPage ? 'kitchen-layout-container' : 'py-6 md:py-8'}`}>
-          <motion.div
+      <main className="app-main-shell min-h-screen relative z-[1]">
+        <div className={`container ${isKitchenDashboardPage ? 'kitchen-layout-container' : 'pt-0 pb-6 md:pb-8'}`}>
+          <Motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: [0.2, 0.8, 0.2, 1] }}
@@ -70,7 +70,7 @@ export default function Layout() {
             }
           >
             <Outlet context={{ canteenLive, setCanteenLive }} />
-          </motion.div>
+          </Motion.div>
         </div>
       </main>
     </div>

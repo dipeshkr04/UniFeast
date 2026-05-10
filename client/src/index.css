@@ -6347,6 +6347,52 @@ input[type="radio"] {
       radial-gradient(circle at 30% 44%, rgba(255, 71, 20, 0.08), transparent 28%),
       linear-gradient(180deg, #f7f2ea 0%, #f2ede4 100%);
   }
+
+  :root[data-theme="light"] .auth-brand-panel {
+    background:
+      radial-gradient(circle at 50% 16%, rgba(255, 255, 255, 0.2), transparent 30%),
+      radial-gradient(circle at 16% 88%, rgba(120, 24, 7, 0.28), transparent 34%),
+      linear-gradient(150deg, #ff4b22 0%, #ef3212 48%, #b82308 100%);
+  }
+
+  :root[data-theme="light"] .auth-brand-panel,
+  :root[data-theme="light"] .auth-brand-panel .text-white,
+  :root[data-theme="light"] .auth-brand-panel .text-white\/80,
+  :root[data-theme="light"] .auth-brand-panel .text-white\/90 {
+    color: #fff7f1 !important;
+  }
+
+  :root[data-theme="light"] .auth-brand-panel svg {
+    color: #fff7f1 !important;
+  }
+
+  :root[data-theme="light"] .auth-brand-title {
+    color: #ffffff !important;
+    text-shadow: 0 12px 32px rgba(88, 18, 5, 0.2);
+  }
+
+  :root[data-theme="light"] .auth-brand-title .text-white\/80 {
+    color: rgba(255, 247, 241, 0.88) !important;
+  }
+
+  :root[data-theme="light"] .auth-brand-copy {
+    color: rgba(255, 247, 241, 0.94) !important;
+    text-shadow: 0 2px 12px rgba(88, 18, 5, 0.18);
+  }
+
+  :root[data-theme="light"] .auth-brand-campus {
+    border-color: rgba(255, 247, 241, 0.26) !important;
+  }
+
+  :root[data-theme="light"] .auth-brand-campus p {
+    color: rgba(255, 247, 241, 0.96) !important;
+  }
+
+  :root[data-theme="light"] .auth-brand-icon {
+    background: rgba(255, 247, 241, 0.14) !important;
+    border-color: rgba(255, 247, 241, 0.24) !important;
+    box-shadow: 0 22px 48px rgba(88, 18, 5, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  }
 }
 
 .animate-fadeIn {
@@ -6495,4 +6541,8 @@ input[type="radio"] {
   color: var(--color-surface-50) !important;
   border-color: var(--app-border) !important;
   box-shadow: var(--app-shadow) !important;
+}
+
+:root[data-theme="light"] .auth-brand-panel .auth-brand-campus {
+  border-color: rgba(255, 247, 241, 0.34) !important;
 }

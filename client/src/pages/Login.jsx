@@ -58,7 +58,7 @@ export default function Login() {
         className="auth-brand-panel"
       >
         <div className="absolute top-[-10%] right-[-10%] w-[500px] h-[500px] bg-white/10 rounded-full blur-[100px]" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-black/40 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[600px] h-[600px] bg-primary-950/10 rounded-full blur-[140px]" />
         
         <div className="auth-brand-content relative z-10 flex-1 flex flex-col justify-center items-center text-center">
           <Motion.div 

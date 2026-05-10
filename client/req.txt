@@ -1,1 +1,5 @@
-npm i axios react react-dom react-hot-toast react-icons react-is react-router-dom recharts socket.io-client zustand react-hook-form zod @hookform/resolvers date-fns framer-motion lucide-react
+# Frontend runtime dependencies
+npm i @hookform/resolvers @react-oauth/google axios date-fns framer-motion jsqr lucide-react qrcode react react-dom react-hook-form react-hot-toast react-icons react-is react-router-dom recharts socket.io-client zod zustand
+
+# Frontend dev dependencies
+npm i -D @eslint/js @tailwindcss/vite @types/react @types/react-dom @vitejs/plugin-react eslint eslint-plugin-react-hooks eslint-plugin-react-refresh globals tailwindcss vite

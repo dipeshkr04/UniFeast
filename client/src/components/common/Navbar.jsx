@@ -60,6 +60,19 @@ export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive })
     navigate('/login');
   };
 
+  const readonlyCanteenStatus = (
+    <div className={`canteen-toggle canteen-readonly student-canteen-status ${
+      canteenLive
+        ? 'bg-green-500/10 border-green-500/30'
+        : 'bg-red-500/10 border-red-500/30'
+    }`}>
+      <span className={`canteen-dot ${canteenLive ? 'bg-green-400 shadow-[0_0_8px_#22c55e] animate-pulse' : 'bg-red-400 shadow-[0_0_8px_#ef4444]'}`} />
+      <span className={`canteen-label ${canteenLive ? 'text-green-400' : 'text-red-400'}`}>
+        {canteenLive ? 'Live' : 'Closed'}
+      </span>
+    </div>
+  );
+
   return (
     <nav className="app-navbar">
       <div className="app-navbar-inner">
@@ -99,18 +112,21 @@ export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive })
 
           <div className="app-actions">
             {user?.role === 'student' && (
-              <Link to="/cart" className="nav-icon-btn student-cart-link group hover:bg-white/5">
-                <HiOutlineShoppingCart className="w-6 h-6 text-surface-300 group-hover:text-primary-400 transition-colors" />
-                {totalItems > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="cart-count gradient-primary text-white"
-                  >
-                    {totalItems}
-                  </motion.span>
-                )}
-              </Link>
+              <>
+                {readonlyCanteenStatus}
+                <Link to="/cart" className="nav-icon-btn student-cart-link group hover:bg-white/5">
+                  <HiOutlineShoppingCart className="w-6 h-6 text-surface-300 group-hover:text-primary-400 transition-colors" />
+                  {totalItems > 0 && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="cart-count gradient-primary text-white"
+                    >
+                      {totalItems}
+                    </motion.span>
+                  )}
+                </Link>
+              </>
             )}
 
             <div className="app-user-block">
@@ -121,7 +137,7 @@ export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive })
               <div className="app-avatar gradient-dark border border-white/10 text-primary-400">
                 {user?.name?.charAt(0)?.toUpperCase()}
               </div>
-              {canToggle ? (
+              {canToggle && (
                 <button
                   onClick={handleToggleCanteen}
                   disabled={toggling}
@@ -139,17 +155,6 @@ export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive })
                     <span className={`canteen-switch-thumb ${canteenLive ? 'is-live bg-green-400' : 'bg-surface-400'}`} />
                   </span>
                 </button>
-              ) : (
-                <div className={`canteen-toggle canteen-readonly ${
-                  canteenLive
-                    ? 'bg-green-500/10 border-green-500/30'
-                    : 'bg-red-500/10 border-red-500/30'
-                }`}>
-                  <span className={`canteen-dot ${canteenLive ? 'bg-green-400 shadow-[0_0_8px_#22c55e] animate-pulse' : 'bg-red-400 shadow-[0_0_8px_#ef4444]'}`} />
-                  <span className={`canteen-label ${canteenLive ? 'text-green-400' : 'text-red-400'}`}>
-                    {canteenLive ? 'Open' : 'Closed'}
-                  </span>
-                </div>
               )}
               <button
                 onClick={handleLogout}

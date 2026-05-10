@@ -67,16 +67,19 @@ export default function MenuPage() {
     return hasNumericStock(stock) ? Number(stock) : 0;
   };
 
-  const handleAddToCart = (item) => {
+  const handleAddToCart = async (item) => {
     const stockLeft = getStockLeft(item);
-    const currentQty = getCartQty(item._id);
-    if (currentQty >= stockLeft) {
+    if (stockLeft <= 0) {
       toast.error(stockLeft === 0 ? `${item.name} is sold out for today` : `Only ${stockLeft} left today`);
       return;
     }
 
-    addItem(item);
-    toast.success(`${item.name} added to cart`, { icon: '🛒' });
+    try {
+      await addItem(item);
+      toast.success(`${item.name} added to cart`, { icon: '🛒' });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Unable to reserve this item');
+    }
   };
 
   const getCartQty = (id) => {
@@ -229,7 +232,7 @@ export default function MenuPage() {
                       {qty > 0 ? (
                         <div className="student-menu-qty-control">
                           <button
-                            onClick={() => addItem(item, -1)}
+                            onClick={() => addItem(item, -1).catch((err) => toast.error(err.response?.data?.message || 'Unable to update cart'))}
                             className="student-menu-qty-btn text-white"
                           >
                             <HiMinus className="w-4 h-4" />
@@ -238,7 +241,7 @@ export default function MenuPage() {
                           <button
                             onClick={() => handleAddToCart(item)}
                             className="student-menu-qty-btn is-plus text-white"
-                            disabled={isSoldOut || qty >= stockLeft}
+                            disabled={isSoldOut}
                           >
                             <HiPlus className="w-4 h-4" />
                           </button>

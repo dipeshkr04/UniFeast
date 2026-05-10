@@ -42,6 +42,20 @@ const orderSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  qrTokenHash: {
+    type: String,
+    default: null,
+    select: false,
+  },
+  qrTokenLookup: {
+    type: String,
+    default: null,
+    select: false,
+  },
+  qrIssuedAt: {
+    type: Date,
+    default: null,
+  },
   status: {
     type: String,
     enum: ['pending', 'queued', 'preparing', 'ready', 'completed', 'cancelled'],
@@ -90,6 +104,8 @@ const orderSchema = new mongoose.Schema({
 
 orderSchema.index({ user: 1, createdAt: -1 });
 orderSchema.index({ status: 1 });
+orderSchema.index({ qrTokenHash: 1 }, { sparse: true });
+orderSchema.index({ qrTokenLookup: 1 }, { sparse: true });
 orderSchema.index({ user: 1, razorpayPaymentId: 1 });
 orderSchema.index(
   { razorpayPaymentId: 1 },

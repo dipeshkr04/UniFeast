@@ -70,6 +70,8 @@ export const orderAPI = {
   getMy: (params) => api.get('/orders/my', { params }),
   getAll: (params) => api.get('/orders', { params }),
   getOne: (id) => api.get(`/orders/${id}`),
+  getQr: (id) => api.get(`/orders/${id}/qr`),
+  scanQr: (qrPayload) => api.post('/orders/kitchen/qr/scan', { qrPayload }),
   updateStatus: (id, status) => api.patch(`/orders/${id}/status`, { newStatus: status }),
   getStats: () => api.get('/orders/stats/summary'),
   getKitchenStock: () => api.get('/orders/kitchen/stock'),
@@ -81,6 +83,12 @@ export const orderAPI = {
 export const paymentAPI = {
   createOrder: (data) => api.post('/payments/create-order', data),
   verifyPayment: (data) => api.post('/payments/verify', data),
+};
+
+export const cartAPI = {
+  holdItem: (menuItemId, quantity, holdMs) => api.post('/cart/hold', { menuItemId, quantity, holdMs }),
+  releaseItem: (menuItemId) => api.delete(`/cart/hold/${menuItemId}`),
+  clearHolds: () => api.delete('/cart/holds'),
 };
 
 // ─── Pool API ───────────────────────────────

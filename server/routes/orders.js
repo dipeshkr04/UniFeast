@@ -9,6 +9,8 @@ const {
   addProducedStock,
   getKitchenStock,
   markOrderItemReady,
+  getOrderQr,
+  scanOrderQr,
 } = require('../controllers/orderController');
 
 const { updateOrderStatus } = require('../controllers/orderStatusController');
@@ -23,6 +25,7 @@ router.get('/my', protect, getMyOrders);
 router.get('/stats/summary', protect, authorize('admin', 'kitchen'), getOrderStats);
 router.get('/kitchen/stock', protect, authorize('admin', 'kitchen'), getKitchenStock);
 router.post('/kitchen/produce', protect, authorize('admin', 'kitchen'), addProducedStock);
+router.post('/kitchen/qr/scan', protect, authorize('admin', 'kitchen'), scanOrderQr);
 
 router.get('/kitchen/live', protect, authorize('admin', 'kitchen'), async (req, res) => {
   try {
@@ -55,6 +58,7 @@ router.get('/kitchen/summary', protect, authorize('admin', 'kitchen'), async (re
 
 router.get('/', protect, authorize('admin', 'kitchen'), getAllOrders);
 router.patch('/:id/items/:itemId/ready', protect, authorize('admin', 'kitchen'), markOrderItemReady);
+router.get('/:id/qr', protect, getOrderQr);
 router.get('/:id', protect, getOrder);
 router.patch('/:id/status', protect, authorize('admin', 'kitchen'), updateOrderStatus);
 

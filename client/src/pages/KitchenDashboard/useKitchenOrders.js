@@ -208,7 +208,7 @@ export const useKitchenOrders = () => {
     const nextStatus = (newStatus || '').toLowerCase();
     const previousMap = new Map(orders);
     const current = previousMap.get(orderId);
-    if (!current) return;
+    if (!current) return false;
 
     const optimisticOrder = nextStatus === 'completed'
       ? markEveryItemReady({ ...current, status: nextStatus })
@@ -232,7 +232,7 @@ export const useKitchenOrders = () => {
           toast.error('Order was updated elsewhere - refreshing');
           await fetchLiveOrders();
           await refreshSummary();
-          return;
+          return false;
         }
         throw new Error('Update failed');
       }
@@ -245,17 +245,19 @@ export const useKitchenOrders = () => {
         setOrders((prev) => new Map(prev).set(nextOrder._id, nextOrder));
       }
       await refreshSummary();
+      return true;
     } catch (err) {
       console.error(err);
       setOrders(previousMap);
       toast.error('Failed to update status. Please retry.');
+      return false;
     }
   };
 
   const markItemReady = async (orderId, itemId) => {
     const previousMap = new Map(orders);
     const current = previousMap.get(orderId);
-    if (!current) return;
+    if (!current) return null;
 
     setOrders((prev) => {
       const next = new Map(prev);
@@ -287,9 +289,11 @@ export const useKitchenOrders = () => {
       }
       await refreshSummary();
       toast.success(data.message || 'Item marked ready');
+      return data.order || true;
     } catch (err) {
       setOrders(previousMap);
       toast.error(err.message || 'Failed to mark item ready');
+      return null;
     }
   };
 

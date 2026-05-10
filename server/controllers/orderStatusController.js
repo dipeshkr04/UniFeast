@@ -131,6 +131,11 @@ exports.updateOrderStatus = async (req, res) => {
         updateDoc.$set[`items.${index}.assignedReadyQty`] = getOrderItemQuantity(item);
       });
     }
+    if (['completed', 'cancelled'].includes(requestedStatus)) {
+      updateDoc.$set.qrTokenHash = null;
+      updateDoc.$set.qrTokenLookup = null;
+      updateDoc.$set.qrIssuedAt = null;
+    }
 
     const updatedOrder = await Order.findOneAndUpdate(
       { _id: id, status: currentOrder.status, __v: currentOrder.__v },

@@ -7,7 +7,6 @@ import { HiOutlineShoppingCart, HiOutlineMenu } from 'react-icons/hi';
 import { MdRestaurantMenu } from 'react-icons/md';
 import { motion as Motion } from 'framer-motion';
 import toast from 'react-hot-toast';
-import CartHoldWindowControl from './CartHoldWindowControl';
 import ThemeToggle from './ThemeToggle';
 
 const studentLinks = [
@@ -127,7 +126,6 @@ export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive })
             )}
 
             <div className="app-user-block">
-              {canToggle && <CartHoldWindowControl variant="desktop" />}
               <div className="app-user-meta">
                 <p className="app-user-name text-white">{user?.name}</p>
                 <p className="app-user-role text-surface-400">{roleLabel}</p>

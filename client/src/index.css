@@ -1992,6 +1992,29 @@ input[type="radio"] {
   min-height: 240px;
 }
 
+.analytics-chart-frame .recharts-active-bar,
+.analytics-chart-frame .recharts-tooltip-cursor {
+  display: none !important;
+}
+
+.analytics-chart-frame .recharts-wrapper,
+.analytics-chart-frame .recharts-wrapper:focus,
+.analytics-chart-frame .recharts-wrapper:focus-visible,
+.analytics-chart-frame .recharts-surface,
+.analytics-chart-frame .recharts-surface:focus,
+.analytics-chart-frame .recharts-surface:focus-visible,
+.analytics-chart-frame svg,
+.analytics-chart-frame svg:focus,
+.analytics-chart-frame svg:focus-visible,
+.analytics-chart-frame svg *:focus,
+.analytics-chart-frame svg *:focus-visible {
+  outline: none !important;
+}
+
+.analytics-chart-frame * {
+  -webkit-tap-highlight-color: transparent;
+}
+
 :root[data-theme="light"] .analytics-chart-frame .recharts-cartesian-axis-tick-value {
   fill: #6b625a !important;
   font-weight: 700;

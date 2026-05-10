@@ -1,1 +1,5 @@
-npm i bcryptjs cloudinary cors dotenv express jsonwebtoken mongoose multer multer-storage-cloudinary socket.io morgan helmet express-rate-limit cookie-parser zod axios --legacy-peer-deps
+# Backend runtime dependencies
+npm i axios bcryptjs cloudinary cookie-parser cors dotenv express express-rate-limit google-auth-library helmet jsonwebtoken mongoose morgan multer multer-storage-cloudinary nodemailer razorpay socket.io zod
+
+# Backend dev dependencies
+npm i -D nodemon

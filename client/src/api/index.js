@@ -113,8 +113,10 @@ export const nutritionAPI = {
 // ─── Leaderboard API ──────────────────────────
 
 export const leaderboardAPI = {
-  getWidget: () => api.get('/leaderboard/widget'),
-  getFull: (category, page, limit) => api.get(`/leaderboard/full?category=${category}&page=${page}&limit=${limit}`),
+  getWidget: (period = 'weekly') => api.get('/leaderboard/widget', { params: { period } }),
+  getFull: (category, page, limit, period = 'weekly') => api.get('/leaderboard/full', {
+    params: { category, page, limit, period },
+  }),
 };
 
 // ─── Admin API ──────────────────────────────

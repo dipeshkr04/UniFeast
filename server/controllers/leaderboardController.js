@@ -4,7 +4,8 @@ const { getWidgetLeaderboard, getSortedLeaderboard } = require('../utils/leaderb
 // @route   GET /api/leaderboard/widget
 exports.getWidget = async (req, res) => {
   try {
-    const data = await getWidgetLeaderboard(req.user.id);
+    const period = req.query.period || 'weekly';
+    const data = await getWidgetLeaderboard(req.user.id, period);
     res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -16,10 +17,11 @@ exports.getWidget = async (req, res) => {
 exports.getFullLeaderboard = async (req, res) => {
   try {
     const category = req.query.category || 'adherence';
+    const period = req.query.period || 'weekly';
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
 
-    const data = await getSortedLeaderboard(category, limit, page);
+    const data = await getSortedLeaderboard(category, limit, page, period);
     res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

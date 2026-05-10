@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { leaderboardAPI } from '../../api';
 import { HiOutlineX, HiOutlineStar, HiOutlineFire, HiOutlineChartBar, HiOutlineCheckCircle } from 'react-icons/hi';
-import { motion, AnimatePresence } from 'framer-motion';
 
 export default function LeaderboardModal({ onClose }) {
   const [data, setData] = useState([]);
@@ -9,6 +8,8 @@ export default function LeaderboardModal({ onClose }) {
   const [pages, setPages] = useState(1);
   const [currentPage, setCurrentPage] = useState(1);
   const [category, setCategory] = useState('adherence');
+  const [period, setPeriod] = useState('weekly');
+  const [periodDays, setPeriodDays] = useState(7);
   const [loading, setLoading] = useState(true);
 
   const categories = [
@@ -17,18 +18,23 @@ export default function LeaderboardModal({ onClose }) {
     { id: 'calories', name: 'Calorie Accuracy', icon: HiOutlineChartBar },
     { id: 'consistency', name: 'Most Consistent', icon: HiOutlineCheckCircle },
   ];
+  const periodOptions = [
+    { id: 'weekly', name: 'Weekly', description: 'Last 7 days' },
+    { id: 'monthly', name: 'Last 30 Days', description: 'Last 30 days' },
+  ];
 
   useEffect(() => {
     fetchData();
-  }, [category, currentPage]);
+  }, [category, currentPage, period]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await leaderboardAPI.getFull(category, currentPage, 20);
+      const res = await leaderboardAPI.getFull(category, currentPage, 20, period);
       setData(res.data.data.data);
       setTotal(res.data.data.total);
       setPages(res.data.data.pages);
+      setPeriodDays(res.data.data.periodDays || (period === 'monthly' ? 30 : 7));
     } catch (err) {
       console.error(err);
     } finally {
@@ -48,20 +54,22 @@ export default function LeaderboardModal({ onClose }) {
 
   const getScoreDisplay = (user) => {
     switch (category) {
-      case 'protein': return `${user.proteinScore.toFixed(1)} / ${user.daysLogged} days`;
-      case 'calories': return `${user.calorieScore.toFixed(1)} / ${user.daysLogged} days`;
+      case 'protein': return `${user.proteinScore.toFixed(1)} pts`;
+      case 'calories': return `${user.calorieScore.toFixed(1)} pts`;
       case 'consistency': return `${user.consistency}% logged`;
       default: return `${user.score.toFixed(1)} pts`;
     }
+  };
+  const getScoreLabel = (user) => {
+    if (category === 'consistency') return `${user.daysLogged}/${periodDays} days`;
+    if (category === 'adherence') return `${user.daysLogged} logged days`;
+    return `${user.daysLogged}/${periodDays} days`;
   };
   const displayTier = (tier) => tier || 'Bronze';
 
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <motion.div 
-        initial={{ scale: 0.95, y: 20 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.95, y: 20 }}
+      <div
         className="glass-card-static w-full max-w-4xl max-h-[calc(100vh-32px)] h-[85vh] flex flex-col relative border border-surface-700/50 shadow-2xl overflow-hidden rounded-2xl lg:rounded-[20px] z-[2001]"
       >
         <button 
@@ -75,20 +83,42 @@ export default function LeaderboardModal({ onClose }) {
           <h2 className="text-2xl font-black text-white mb-1"><span className="text-primary-500">Hall</span> of Fame</h2>
           <p className="text-sm text-surface-400 mb-6">Compete based on discipline and adherence to your goals, not raw consumption.</p>
 
-          <div className="flex flex-wrap gap-2">
-            {categories.map(c => {
-               const Icon = c.icon;
-               const isActive = category === c.id;
-               return (
-                 <button
-                   key={c.id}
-                   onClick={() => { setCategory(c.id); setCurrentPage(1); }}
-                   className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[14px] font-semibold transition-all duration-300 border min-h-[44px] ${isActive ? 'bg-primary-500 text-white border-primary-400 shadow-[0_0_15px_rgba(255,71,20,0.3)]' : 'bg-surface-800/50 text-surface-400 border-surface-700/50 hover:bg-surface-800 hover:text-surface-200'}`}
-                 >
-                   <Icon className="w-4 h-4" /> {c.name}
-                 </button>
-               );
-            })}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap gap-2">
+              {categories.map(c => {
+                 const Icon = c.icon;
+                 const isActive = category === c.id;
+                 return (
+                   <button
+                     key={c.id}
+                     onClick={() => { setCategory(c.id); setCurrentPage(1); }}
+                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[14px] font-semibold transition-all duration-300 border min-h-[44px] ${isActive ? 'bg-primary-500 text-white border-primary-400 shadow-[0_0_15px_rgba(255,71,20,0.3)]' : 'bg-surface-800/50 text-surface-400 border-surface-700/50 hover:bg-surface-800 hover:text-surface-200'}`}
+                   >
+                     <Icon className="w-4 h-4" /> {c.name}
+                   </button>
+                 );
+              })}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-500">
+                Period
+                <select
+                  value={period}
+                  onChange={(e) => { setPeriod(e.target.value); setCurrentPage(1); }}
+                  className="input-field min-h-[44px] rounded-xl bg-surface-950/70 border-surface-800 text-surface-100 normal-case tracking-normal font-semibold px-4 py-2"
+                >
+                  {periodOptions.map(option => (
+                    <option key={option.id} value={option.id}>
+                      {option.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-xs text-surface-500 uppercase tracking-widest">
+                {periodOptions.find(option => option.id === period)?.description} - {total} students
+              </p>
+            </div>
           </div>
         </div>
 
@@ -103,7 +133,7 @@ export default function LeaderboardModal({ onClose }) {
                 <span>Rank / Student</span>
                 <span>Score</span>
               </div>
-              {data.map((user, i) => (
+              {data.map((user) => (
                 <div key={user.userId} className="full-ranking-row glass-card border border-transparent hover:border-surface-700/50 transition-colors group">
                   <div className="full-ranking-main">
                     <div className="full-ranking-rank">
@@ -138,7 +168,7 @@ export default function LeaderboardModal({ onClose }) {
 
                   <div className="full-ranking-score">
                     <p className="text-lg font-black text-white">{getScoreDisplay(user)}</p>
-                    <p className="text-xs text-surface-500 uppercase tracking-widest mt-0.5">{category === 'adherence' ? 'Normalized Score' : category}</p>
+                    <p className="text-xs text-surface-500 uppercase tracking-widest mt-0.5">{getScoreLabel(user)}</p>
                   </div>
                 </div>
               ))}
@@ -171,7 +201,7 @@ export default function LeaderboardModal({ onClose }) {
             </button>
           </div>
         )}
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -1,11 +1,17 @@
 const User = require('../models/User');
 const NutritionLog = require('../models/NutritionLog');
 
-// Simple in-memory cache to prevent DB overload. 5 minute TTL.
-let cache = {
-  timestamp: null,
-  data: null
-};
+// Simple in-memory cache to prevent DB overload. 5 minute TTL per period.
+let cache = {};
+const CACHE_TTL_MS = 5 * 60 * 1000;
+const PERIODS = Object.freeze({
+  weekly: 7,
+  monthly: 30,
+});
+
+function normalizePeriod(period = 'weekly') {
+  return Object.prototype.hasOwnProperty.call(PERIODS, period) ? period : 'weekly';
+}
 
 /**
  * Normalizes daily macros based on goals.
@@ -53,17 +59,19 @@ function getTier(averageDailyScore) {
 /**
  * Computes all leaderboard vectors.
  */
-async function computeLeaderboard() {
+async function computeLeaderboard(period = 'weekly') {
+  const normalizedPeriod = normalizePeriod(period);
+  const periodDays = PERIODS[normalizedPeriod];
   const users = await User.find({ role: 'student' }).select('name avatarUrl dailyCalorieGoal dailyProteinGoal dailyCarbGoal dailyFatGoal dailyFiberGoal nutritionStreak lastLoggedDate');
   
-  // Date window logic (Last 7 days, including today)
+  // Date window logic (includes today)
   const today = new Date();
-  const weekAgo = new Date(today);
-  weekAgo.setDate(today.getDate() - 6);
+  const windowStart = new Date(today);
+  windowStart.setDate(today.getDate() - (periodDays - 1));
 
   const logs = await NutritionLog.find({
     date: {
-      $gte: weekAgo.toISOString().split('T')[0],
+      $gte: windowStart.toISOString().split('T')[0],
       $lte: today.toISOString().split('T')[0],
     }
   });
@@ -83,7 +91,7 @@ async function computeLeaderboard() {
     });
 
     const daysLogged = userLogs.length;
-    const consistencyC = daysLogged / 7; // Weekly window consistency
+    const consistencyC = daysLogged / periodDays;
 
     // Final Aggregate Score with consistency multiplier
     let finalScore = totalSdaily * (0.7 + 0.3 * consistencyC);
@@ -119,7 +127,9 @@ async function computeLeaderboard() {
       consistency: Number((consistencyC * 100).toFixed(0)), // Percentage
       streak: activeStreak,
       tier,
-      daysLogged
+      daysLogged,
+      period: normalizedPeriod,
+      periodDays
     };
   });
 
@@ -129,15 +139,19 @@ async function computeLeaderboard() {
 /**
  * Returns sorted leaderboard. Uses 5-minute cache.
  */
-async function getLeaderboardData() {
+async function getLeaderboardData(period = 'weekly') {
+  const normalizedPeriod = normalizePeriod(period);
   const now = Date.now();
-  if (cache.data && cache.timestamp && (now - cache.timestamp) < 5 * 60 * 1000) {
-    return cache.data;
+  const cachedPeriod = cache[normalizedPeriod];
+  if (cachedPeriod?.data && cachedPeriod.timestamp && (now - cachedPeriod.timestamp) < CACHE_TTL_MS) {
+    return cachedPeriod.data;
   }
 
-  const data = await computeLeaderboard();
-  cache.data = data;
-  cache.timestamp = now;
+  const data = await computeLeaderboard(normalizedPeriod);
+  cache[normalizedPeriod] = {
+    data,
+    timestamp: now,
+  };
   
   return data;
 }
@@ -145,8 +159,9 @@ async function getLeaderboardData() {
 /**
  * Get sorted specific category
  */
-async function getSortedLeaderboard(category = 'adherence', limit = 20, page = 1) {
-  const data = await getLeaderboardData();
+async function getSortedLeaderboard(category = 'adherence', limit = 20, page = 1, period = 'weekly') {
+  const normalizedPeriod = normalizePeriod(period);
+  const data = await getLeaderboardData(normalizedPeriod);
   
   let sortedData = [...data];
 
@@ -181,15 +196,18 @@ async function getSortedLeaderboard(category = 'adherence', limit = 20, page = 1
   return {
     data: rankedPaginatedData,
     total: totalStudents,
-    pages: Math.ceil(totalStudents / limit)
+    pages: Math.ceil(totalStudents / limit),
+    period: normalizedPeriod,
+    periodDays: PERIODS[normalizedPeriod]
   };
 }
 
 /**
  * Gets a specific user's rank context (top 5 + where user fits)
  */
-async function getWidgetLeaderboard(userId) {
-  const data = await getLeaderboardData();
+async function getWidgetLeaderboard(userId, period = 'weekly') {
+  const normalizedPeriod = normalizePeriod(period);
+  const data = await getLeaderboardData(normalizedPeriod);
   let sortedData = [...data].sort((a, b) => b.score - a.score);
   
   // Assign ranks
@@ -200,7 +218,7 @@ async function getWidgetLeaderboard(userId) {
   const userRankIndex = sortedData.findIndex(u => u.userId.toString() === userId.toString());
   const userStats = userRankIndex !== -1 ? sortedData[userRankIndex] : null;
 
-  return { top5, userStats };
+  return { top5, userStats, period: normalizedPeriod, periodDays: PERIODS[normalizedPeriod] };
 }
 
 module.exports = {

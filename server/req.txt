@@ -1,5 +1,5 @@
 # Backend runtime dependencies
-npm i axios bcryptjs cloudinary cookie-parser cors dotenv express express-rate-limit google-auth-library helmet jsonwebtoken mongoose morgan multer multer-storage-cloudinary nodemailer razorpay socket.io zod
+npm i axios@^1.15.0 bcryptjs@^2.4.3 cloudinary@^1.41.0 cookie-parser@^1.4.7 cors@^2.8.6 dotenv@^16.6.1 express@^4.22.1 express-rate-limit@^8.3.2 google-auth-library@^10.6.2 helmet@^8.1.0 jsonwebtoken@^9.0.3 mongoose@^8.23.0 morgan@^1.10.1 multer@^1.4.5-lts.1 multer-storage-cloudinary@^4.0.0 nodemailer@^8.0.4 razorpay@^2.9.6 socket.io@^4.8.3 zod@^4.3.6
 
 # Backend dev dependencies
-npm i -D nodemon
+npm i -D nodemon@^3.1.4

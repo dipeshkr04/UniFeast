@@ -13,12 +13,14 @@ import Register from './pages/Register';
 import MenuPage from './pages/MenuPage';
 import CartPage from './pages/CartPage';
 import OrdersPage from './pages/OrdersPage';
-import PoolsPage from './pages/PoolsPage';
 import NutritionPage from './pages/NutritionPage';
 import LiveQueuePage from './pages/LiveQueuePage';
+import OutsideFoodPage from './pages/OutsideFoodPage';
+import OutsideFoodPoolPage from './pages/OutsideFoodPoolPage';
 import KitchenDashboard from './pages/KitchenDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import MenuManage from './pages/MenuManage';
+import AdminOutsideFoodPage from './pages/AdminOutsideFoodPage';
 
 const PENDING_ORDER_KEY = 'unifeast_pending_order';
 
@@ -188,8 +190,9 @@ function AppRoutes() {
         <Route path="cart" element={<ProtectedRoute roles={['student']}><CartPage /></ProtectedRoute>} />
         <Route path="orders" element={<ProtectedRoute roles={['student']}><OrdersPage /></ProtectedRoute>} />
         <Route path="live-queue" element={<ProtectedRoute roles={['student']}><LiveQueuePage /></ProtectedRoute>} />
-        <Route path="pools" element={<ProtectedRoute roles={['student']}><PoolsPage /></ProtectedRoute>} />
         <Route path="nutrition" element={<ProtectedRoute roles={['student']}><NutritionPage /></ProtectedRoute>} />
+        <Route path="outside-food" element={<ProtectedRoute roles={['student']}><OutsideFoodPage /></ProtectedRoute>} />
+        <Route path="outside-food/pool/:poolId" element={<ProtectedRoute roles={['student']}><OutsideFoodPoolPage /></ProtectedRoute>} />
 
         {/* Kitchen Routes */}
         <Route path="kitchen" element={<ProtectedRoute roles={['kitchen']}><KitchenDashboard /></ProtectedRoute>} />
@@ -199,6 +202,7 @@ function AppRoutes() {
         {/* Admin Routes */}
         <Route path="stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="analytics" /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="users" /></ProtectedRoute>} />
+        <Route path="admin/outside-food" element={<ProtectedRoute roles={['admin']}><AdminOutsideFoodPage /></ProtectedRoute>} />
       </Route>
 
       {/* Catch all */}

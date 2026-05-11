@@ -102,6 +102,32 @@ export const poolAPI = {
   close: (id) => api.patch(`/pools/${id}/close`),
 };
 
+// ─── Outside Food Pooling API ──────────────
+
+export const outsideFoodAPI = {
+  restaurants: {
+    getAll: (params) => api.get('/outside-food/restaurants', { params }),
+    create: (data) => api.post('/outside-food/restaurants', data),
+    update: (id, data) => api.patch(`/outside-food/restaurants/${id}`, data),
+  },
+  pools: {
+    getAll: (params) => api.get('/outside-food/pools', { params }),
+    create: (data) => api.post('/outside-food/pools', data),
+    getOne: (id) => api.get(`/outside-food/pools/${id}`),
+    join: (id, data) => api.post(`/outside-food/pools/${id}/join`, data),
+    updateStatus: (id, data) => api.patch(`/outside-food/pools/${id}/status`, data),
+    archive: (id) => api.patch(`/outside-food/pools/${id}/archive`),
+    volunteerCoordinator: (id) => api.post(`/outside-food/pools/${id}/coordinators`),
+  },
+  chat: {
+    getMessages: (poolId) => api.get(`/outside-food/chat/${poolId}`),
+    send: (poolId, data) => api.post(`/outside-food/chat/${poolId}`, data),
+  },
+  socket: {
+    info: () => api.get('/outside-food/socket'),
+  },
+};
+
 // ─── Nutrition API ──────────────────────────
 
 export const nutritionAPI = {

@@ -10,6 +10,7 @@ const setupSocketHandlers = require('./utils/socketHandler');
 const { startPoolCleanup } = require('./utils/poolEngine');
 const { startDailyStockReset } = require('./utils/dailyStock');
 const { startCartReservationCleanup } = require('./utils/cartReservations');
+const { startOutsideFoodPoolSweep } = require('./jobs/outsideFoodPoolSweep');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -21,6 +22,7 @@ const adminRoutes = require('./routes/admin');
 const leaderboardRoutes = require('./routes/leaderboard');
 const paymentRoutes = require('./routes/payment');
 const cartRoutes = require('./routes/cart');
+const outsideFoodRoutes = require('./routes/outsideFood');
 const app = express();
 const server = http.createServer(app);
 
@@ -59,6 +61,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/payments',paymentRoutes);
 app.use('/api/cart', cartRoutes);
+app.use('/api/outside-food', outsideFoodRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -85,6 +88,7 @@ const startServer = async () => {
     startPoolCleanup(io);
     startDailyStockReset(io);
     startCartReservationCleanup(io);
+    startOutsideFoodPoolSweep(io);
     
     server.listen(PORT, () => {
       console.log(`

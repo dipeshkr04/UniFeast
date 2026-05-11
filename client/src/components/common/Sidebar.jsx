@@ -5,6 +5,7 @@ import {
   HiOutlineChartBar, HiOutlineLogout, HiOutlineX
 } from 'react-icons/hi';
 import { MdRestaurantMenu, MdOutlineKitchen } from 'react-icons/md';
+import { MdOutlineDeliveryDining } from 'react-icons/md';
 import { IoNutritionOutline } from 'react-icons/io5';
 import { AnimatePresence } from 'framer-motion';
 import CartHoldWindowControl from './CartHoldWindowControl';
@@ -13,7 +14,7 @@ const studentLinks = [
   { to: '/', icon: HiOutlineHome, label: 'Menu' },
   { to: '/live-queue', icon: HiOutlineChartBar, label: 'Live Queue' },
   { to: '/orders', icon: HiOutlineClipboardList, label: 'My Orders' },
-  { to: '/pools', icon: HiOutlineUserGroup, label: 'Pool Board' },
+  { to: '/outside-food', icon: MdOutlineDeliveryDining, label: 'Outside Food' },
   { to: '/nutrition', icon: IoNutritionOutline, label: 'Nutrition' },
 ];
 
@@ -26,6 +27,7 @@ const kitchenLinks = [
 const adminLinks = [
   { to: '/', icon: HiOutlineHome, label: 'Dashboard' },
   { to: '/users', icon: HiOutlineUserGroup, label: 'Users' },
+  { to: '/admin/outside-food', icon: MdOutlineDeliveryDining, label: 'Outside Food' },
 ];
 
 export default function Sidebar({ open, onClose }) {

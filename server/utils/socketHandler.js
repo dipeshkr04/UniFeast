@@ -7,6 +7,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { getQueueStats } = require('./queueEngine');
 const { getKitchenSummary } = require('../services/queueService');
+const setupOutsideFoodSocketHandlers = require('./outsideFoodSocketHandler');
 
 function setupSocketHandlers(io) {
   io.use(async (socket, next) => {
@@ -40,6 +41,7 @@ function setupSocketHandlers(io) {
     socket.join(`student:${userId}`);
     if (role === 'kitchen' || role === 'admin') socket.join('kitchen');
     if (role === 'admin') socket.join('admin');
+    setupOutsideFoodSocketHandlers(io, socket);
 
     // Compatibility event: room membership is derived from the verified token, not client payload.
     socket.on('join-room', () => {

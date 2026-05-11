@@ -43,6 +43,733 @@
   --font-sans: 'Inter', 'Outfit', 'Segoe UI', system-ui, -apple-system, sans-serif;
 }
 
+/* Outside Food Pooling */
+.outside-food-page,
+.outside-food-room-page,
+.outside-food-admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  color: var(--app-text);
+}
+
+.outside-food-hero,
+.outside-food-room-hero,
+.outside-food-admin-header {
+  display: flex;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
+}
+
+.outside-food-hero span,
+.outside-food-room-title span,
+.outside-food-admin-header span,
+.outside-food-admin-pool-head span {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 8px;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 71, 20, 0.28);
+  border-radius: 999px;
+  color: var(--color-primary-400);
+  background: rgba(255, 71, 20, 0.1);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.outside-food-hero h1,
+.outside-food-admin-header h1,
+.outside-food-room-title h1 {
+  margin: 0;
+  font-size: clamp(24px, 5vw, 38px);
+  font-weight: 800;
+}
+
+.outside-food-hero p,
+.outside-food-admin-header p,
+.outside-food-room-title p {
+  max-width: 680px;
+  margin-top: 8px;
+  color: var(--app-muted);
+}
+
+.outside-food-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.outside-food-pool-card,
+.outside-food-admin-panel,
+.outside-food-admin-section,
+.outside-food-room-panel,
+.outside-food-chat-panel,
+.outside-food-room-join-panel,
+.outside-food-admin-pool,
+.outside-food-admin-restaurant {
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  background: var(--app-panel);
+  box-shadow: var(--app-shadow);
+}
+
+.outside-food-pool-card {
+  overflow: hidden;
+}
+
+.outside-food-pool-card.is-unlocked {
+  border-color: rgba(16, 185, 129, 0.42);
+}
+
+.outside-food-card-media {
+  position: relative;
+  height: 172px;
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 71, 20, 0.18), rgba(16, 185, 129, 0.14));
+}
+
+.outside-food-card-media img,
+.outside-food-room-image img,
+.outside-food-admin-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.outside-food-card-fallback,
+.outside-food-room-image,
+.outside-food-admin-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-400);
+  background: linear-gradient(135deg, rgba(255, 71, 20, 0.16), rgba(59, 130, 246, 0.16));
+}
+
+.outside-food-card-fallback {
+  width: 100%;
+  height: 100%;
+  font-size: 54px;
+}
+
+.outside-food-status-pill {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: #fff;
+  background: rgba(24, 24, 27, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(12px);
+}
+
+.outside-food-status-pill.live {
+  background: rgba(16, 185, 129, 0.88);
+}
+
+.outside-food-status-pill.danger {
+  background: rgba(239, 68, 68, 0.9);
+  animation: outside-food-pulse 1.2s ease-in-out infinite;
+}
+
+.outside-food-status-pill.scheduled {
+  background: rgba(59, 130, 246, 0.88);
+}
+
+@keyframes outside-food-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.outside-food-card-body {
+  padding: 16px;
+}
+
+.outside-food-card-title-row,
+.outside-food-progress-copy,
+.outside-food-admin-section-head,
+.outside-food-admin-pool-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.outside-food-card-title-row h2,
+.outside-food-room-panel h2,
+.outside-food-chat-header h2,
+.outside-food-admin-panel h2,
+.outside-food-admin-section h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.outside-food-card-title-row p,
+.outside-food-card-stats,
+.outside-food-activity-line,
+.outside-food-progress-copy span,
+.outside-food-admin-pool-meta,
+.outside-food-admin-restaurant p {
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.outside-food-amount {
+  min-width: 92px;
+  text-align: right;
+}
+
+.outside-food-amount strong {
+  display: block;
+  color: var(--color-success);
+}
+
+.outside-food-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.outside-food-tags span {
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--app-hover);
+  color: var(--app-muted);
+  font-size: 11px;
+}
+
+.outside-food-progress-track {
+  width: 100%;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.outside-food-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-primary-500), var(--color-success));
+  transition: width 0.55s ease;
+}
+
+.outside-food-progress-copy {
+  align-items: center;
+  margin-top: 8px;
+}
+
+.outside-food-progress-copy strong {
+  color: var(--app-text);
+  font-size: 13px;
+}
+
+.outside-food-card-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.outside-food-card-stats span,
+.outside-food-room-facts span,
+.outside-food-admin-pool-meta span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.outside-food-activity-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 14px 0;
+}
+
+.outside-food-primary-btn,
+.outside-food-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 800;
+  transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+}
+
+.outside-food-primary-btn {
+  width: 100%;
+  color: #fff;
+  background: var(--color-primary-500);
+}
+
+.outside-food-secondary-btn {
+  width: fit-content;
+  color: var(--app-text);
+  border: 1px solid var(--app-border);
+  background: var(--app-hover);
+}
+
+.outside-food-primary-btn:hover,
+.outside-food-secondary-btn:hover {
+  transform: translateY(-1px);
+}
+
+.outside-food-primary-btn:disabled,
+.outside-food-secondary-btn:disabled {
+  opacity: 0.58;
+  transform: none;
+}
+
+.outside-food-empty,
+.outside-food-room-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  padding: 28px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--app-panel);
+  text-align: center;
+}
+
+.outside-food-empty svg {
+  width: 64px;
+  height: 64px;
+  color: var(--color-primary-400);
+}
+
+.outside-food-skeleton {
+  height: 360px;
+  border-radius: 14px;
+  background: linear-gradient(90deg, var(--app-panel), var(--app-hover), var(--app-panel));
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.2s ease-in-out infinite;
+}
+
+.outside-food-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(10px);
+}
+
+.outside-food-join-modal {
+  width: min(460px, 100%);
+  padding: 18px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--app-panel-solid);
+  box-shadow: var(--app-shadow);
+}
+
+.outside-food-modal-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.outside-food-modal-header button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  color: var(--app-text);
+  background: var(--app-hover);
+}
+
+.outside-food-field {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.outside-food-field span {
+  color: var(--app-muted);
+}
+
+.outside-food-modal-summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 14px 0;
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.outside-food-modal-summary strong {
+  color: var(--color-success);
+}
+
+.outside-food-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: var(--app-muted);
+  font-weight: 800;
+}
+
+.outside-food-room-hero {
+  align-items: center;
+}
+
+.outside-food-room-image {
+  width: 180px;
+  height: 150px;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 14px;
+  font-size: 56px;
+}
+
+.outside-food-room-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.outside-food-room-progress {
+  margin-top: 16px;
+}
+
+.outside-food-room-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin-top: 14px;
+  color: var(--app-muted);
+}
+
+.outside-food-room-join-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 150px minmax(180px, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  padding: 16px;
+}
+
+.outside-food-room-layout {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.outside-food-room-side {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.outside-food-room-panel {
+  padding: 16px;
+}
+
+.outside-food-unlocked-details {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.outside-food-unlocked-details p {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.outside-food-unlocked-details a {
+  display: inline-flex;
+  justify-content: center;
+  min-height: 40px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: var(--app-text);
+  background: var(--app-hover);
+  text-decoration: none;
+}
+
+.outside-food-locked-copy {
+  margin-top: 12px;
+  color: var(--app-muted);
+}
+
+.outside-food-participant-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.outside-food-participant {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.outside-food-participant > span {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  color: var(--app-text);
+  background: var(--app-hover);
+  border: 1px solid var(--app-border);
+  font-weight: 800;
+}
+
+.outside-food-participant > span.is-online {
+  border-color: rgba(16, 185, 129, 0.5);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.12);
+}
+
+.outside-food-participant strong,
+.outside-food-participant small {
+  display: block;
+}
+
+.outside-food-participant small {
+  color: var(--app-muted);
+}
+
+.outside-food-chat-panel {
+  display: flex;
+  min-height: 560px;
+  overflow: hidden;
+  flex-direction: column;
+}
+
+.outside-food-chat-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.outside-food-chat-header p {
+  color: var(--app-muted);
+}
+
+.outside-food-message-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+}
+
+.outside-food-message {
+  max-width: min(620px, 92%);
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--app-hover);
+}
+
+.outside-food-message.system,
+.outside-food-message.status_update {
+  align-self: center;
+  max-width: 94%;
+  text-align: center;
+  border: 1px solid rgba(255, 71, 20, 0.2);
+  background: rgba(255, 71, 20, 0.1);
+}
+
+.outside-food-message strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--color-primary-400);
+  font-size: 12px;
+}
+
+.outside-food-message p {
+  color: var(--app-text);
+}
+
+.outside-food-message span {
+  display: block;
+  margin-top: 4px;
+  color: var(--app-muted);
+  font-size: 10px;
+}
+
+.outside-food-chat-empty {
+  margin: auto;
+  color: var(--app-muted);
+}
+
+.outside-food-message-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  padding: 14px;
+  border-top: 1px solid var(--app-border);
+}
+
+.outside-food-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.outside-food-admin-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.outside-food-admin-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.outside-food-admin-check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--app-muted);
+}
+
+.outside-food-admin-section {
+  padding: 16px;
+}
+
+.outside-food-admin-section-head {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.outside-food-admin-list,
+.outside-food-admin-pool-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.outside-food-admin-pool-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.outside-food-admin-restaurant {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+}
+
+.outside-food-admin-thumb {
+  width: 56px;
+  height: 56px;
+  overflow: hidden;
+  border-radius: 12px;
+}
+
+.outside-food-admin-pool {
+  padding: 14px;
+}
+
+.outside-food-admin-pool-head {
+  align-items: start;
+  margin-bottom: 12px;
+}
+
+.outside-food-admin-pool-head h3 {
+  margin: 0;
+  font-weight: 800;
+}
+
+.outside-food-admin-pool-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.outside-food-admin-participants,
+.outside-food-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.outside-food-admin-participants button,
+.outside-food-admin-participants span {
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: var(--app-muted);
+  background: var(--app-hover);
+}
+
+@media (max-width: 900px) {
+  .outside-food-hero,
+  .outside-food-room-hero,
+  .outside-food-admin-header {
+    flex-direction: column;
+  }
+
+  .outside-food-room-layout,
+  .outside-food-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .outside-food-room-join-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .outside-food-room-image {
+    width: 100%;
+    height: 180px;
+  }
+}
+
+@media (max-width: 640px) {
+  .outside-food-card-stats,
+  .outside-food-admin-two,
+  .outside-food-message-form,
+  .outside-food-admin-restaurant {
+    grid-template-columns: 1fr;
+  }
+
+  .outside-food-activity-line,
+  .outside-food-card-title-row,
+  .outside-food-progress-copy,
+  .outside-food-admin-pool-meta {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 :root {
   color-scheme: dark;
   --app-bg: var(--color-surface-950);

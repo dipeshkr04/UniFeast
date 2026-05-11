@@ -49,8 +49,28 @@
 .outside-food-admin-page {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
   color: var(--app-text);
+}
+
+.outside-food-page {
+  padding-bottom: max(36px, env(safe-area-inset-bottom));
+}
+
+.outside-food-room-page {
+  gap: 12px;
+  max-width: 760px;
+  min-height: auto;
+  margin: 0 auto;
+  padding-bottom: 0;
+}
+
+.pool-room-container {
+  padding-bottom: 0;
+}
+
+.pool-room-layout-frame {
+  min-height: 0;
 }
 
 .outside-food-hero,
@@ -65,6 +85,21 @@
   border-radius: 16px;
   background: var(--app-panel);
   box-shadow: var(--app-shadow);
+}
+
+.outside-food-page .outside-food-hero {
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--app-panel-strong);
+  box-shadow: var(--app-shadow);
+  text-align: left;
+}
+
+.outside-food-page .outside-food-hero > div:first-child {
+  width: 100%;
+  min-width: 0;
+  text-align: left;
 }
 
 .outside-food-hero span,
@@ -92,11 +127,61 @@
   font-weight: 800;
 }
 
+.outside-food-page .outside-food-hero h1 {
+  font-size: clamp(22px, 3.4vw, 30px);
+  line-height: 1.05;
+  text-align: left;
+}
+
 .outside-food-hero p,
 .outside-food-admin-header p,
 .outside-food-room-title p {
   max-width: 680px;
   margin-top: 8px;
+  color: var(--app-muted);
+}
+
+.outside-food-page .outside-food-hero p {
+  max-width: 390px;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.35;
+  text-align: left;
+}
+
+.outside-food-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-bottom: 4px;
+  padding: 0 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 13px;
+  background: var(--app-panel-strong);
+  color: var(--app-muted);
+  box-shadow: var(--app-shadow);
+}
+
+.outside-food-search svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.outside-food-search input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--app-text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.outside-food-search input::placeholder {
   color: var(--app-muted);
 }
 
@@ -122,6 +207,11 @@
 
 .outside-food-pool-card {
   overflow: hidden;
+}
+
+.outside-food-page .outside-food-pool-card {
+  background: var(--app-panel-strong);
+  box-shadow: var(--app-shadow);
 }
 
 .outside-food-pool-card.is-unlocked {
@@ -174,6 +264,13 @@
   backdrop-filter: blur(12px);
 }
 
+.outside-food-status-pill.static {
+  position: static;
+  height: fit-content;
+  white-space: nowrap;
+  animation: none;
+}
+
 .outside-food-status-pill.live {
   background: rgba(16, 185, 129, 0.88);
 }
@@ -199,6 +296,121 @@
 
 .outside-food-card-body {
   padding: 16px;
+}
+
+.pool-card-flat .outside-food-card-body {
+  padding: 12px;
+}
+
+.pool-card-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+}
+
+.pool-card-head h2 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 17px;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.pool-card-broadcaster {
+  margin-top: 3px;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.pool-card-progress {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.pool-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.pool-value-row strong {
+  color: var(--app-text);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.pool-value-row span {
+  white-space: nowrap;
+}
+
+.pool-stat-stack {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 11px;
+}
+
+.pool-stat-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.pool-stat-stack.is-locked .pool-stat-row:first-child {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pool-stat-stack.is-locked .pool-stat-row:last-child {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.pool-stat-row span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 6px 5px;
+  border-radius: 9px;
+  background: var(--app-hover);
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.15;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.pool-stat-row svg {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  color: var(--app-muted);
+  opacity: 0.95;
+}
+
+.outside-food-category-chip {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 8px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  color: var(--color-primary-400);
+  background: rgba(255, 71, 20, 0.1);
+  border: 1px solid rgba(255, 71, 20, 0.22);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.pool-category-chip {
+  margin-bottom: 9px;
 }
 
 .outside-food-card-title-row,
@@ -263,6 +475,10 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.pool-progress-track {
+  height: 7px;
+}
+
 .outside-food-progress-fill {
   height: 100%;
   border-radius: inherit;
@@ -314,6 +530,7 @@
   border-radius: 10px;
   font-weight: 800;
   transition: transform 0.18s ease, opacity 0.18s ease, background 0.18s ease;
+  text-decoration: none;
 }
 
 .outside-food-primary-btn {
@@ -322,11 +539,41 @@
   background: var(--color-primary-500);
 }
 
+.pool-joined-btn {
+  background: var(--color-success);
+  box-shadow: none;
+}
+
 .outside-food-secondary-btn {
   width: fit-content;
   color: var(--app-text);
   border: 1px solid var(--app-border);
   background: var(--app-hover);
+}
+
+.outside-food-full-btn {
+  width: 100%;
+}
+
+.outside-food-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.outside-food-create-btn {
+  width: fit-content;
+  min-width: 104px;
+}
+
+.outside-food-header-actions .outside-food-primary-btn,
+.outside-food-header-actions .outside-food-secondary-btn {
+  min-height: 36px;
+  padding: 7px 11px;
+  border-radius: 9px;
+  font-size: 13px;
 }
 
 .outside-food-primary-btn:hover,
@@ -416,6 +663,32 @@
   color: var(--app-muted);
 }
 
+.outside-food-field input,
+.outside-food-field textarea,
+.outside-food-field select,
+.outside-food-message-form input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-input);
+  color: var(--app-text);
+  padding: 10px 12px;
+  outline: none;
+}
+
+.outside-food-field textarea {
+  resize: vertical;
+}
+
+.outside-food-field input:focus,
+.outside-food-field textarea:focus,
+.outside-food-field select:focus,
+.outside-food-message-form input:focus {
+  border-color: rgba(255, 71, 20, 0.42);
+  box-shadow: 0 0 0 3px rgba(255, 71, 20, 0.12);
+}
+
 .outside-food-modal-summary {
   display: flex;
   justify-content: space-between;
@@ -438,8 +711,133 @@
   font-weight: 800;
 }
 
+.pool-room-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pool-room-toolbar-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pool-room-inbox-btn,
+.pool-room-exit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.pool-room-inbox-btn {
+  position: relative;
+  width: 38px;
+  padding: 0;
+  border: 1px solid rgba(255, 71, 20, 0.28);
+  color: var(--color-primary-400);
+  background: rgba(255, 71, 20, 0.09);
+}
+
+.pool-room-inbox-btn span {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--color-danger);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.pool-room-exit-btn {
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: var(--color-danger);
+  background: rgba(239, 68, 68, 0.09);
+}
+
 .outside-food-room-hero {
   align-items: center;
+}
+
+.pool-room-hero-card {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 9px;
+  padding: 14px;
+}
+
+.pool-room-line,
+.pool-room-title-line,
+.pool-room-broadcaster-line,
+.pool-room-stats-line,
+.pool-room-progress-line {
+  display: flex;
+  min-width: 0;
+}
+
+.pool-room-title-line {
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pool-room-broadcaster-line,
+.pool-room-stats-line {
+  align-items: center;
+}
+
+.pool-room-title-line .outside-food-room-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+}
+
+.pool-room-title-line .outside-food-room-title span {
+  margin-bottom: 0;
+}
+
+.pool-room-title-line .outside-food-room-title h1 {
+  overflow: hidden;
+  font-size: clamp(20px, 3vw, 28px);
+  line-height: 1.05;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pool-room-progress-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.pool-room-broadcaster {
+  margin: 0;
+  overflow: hidden;
+  color: var(--app-muted);
+  font-size: 13px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pool-room-broadcaster strong {
+  color: var(--app-text);
 }
 
 .outside-food-room-image {
@@ -451,6 +849,11 @@
   font-size: 56px;
 }
 
+.pool-room-icon svg {
+  width: 72px;
+  height: 72px;
+}
+
 .outside-food-room-main {
   flex: 1;
   min-width: 0;
@@ -458,6 +861,30 @@
 
 .outside-food-room-progress {
   margin-top: 16px;
+}
+
+.pool-room-progress-line .outside-food-progress-track {
+  height: 8px;
+}
+
+.pool-room-progress-block {
+  max-width: 720px;
+}
+
+.pool-room-money-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0;
+  margin-top: 0;
+  color: var(--app-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.pool-room-money-row strong {
+  color: var(--app-text);
+  font-size: 13px;
 }
 
 .outside-food-room-facts {
@@ -468,12 +895,89 @@
   color: var(--app-muted);
 }
 
+.pool-room-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+  margin-top: 0;
+  width: 100%;
+}
+
+.pool-room-fact-grid span {
+  gap: 4px;
+  justify-content: center;
+  min-width: 0;
+  min-height: 30px;
+  padding: 6px 5px;
+  border: 1px solid var(--app-border);
+  border-radius: 9px;
+  background: var(--app-hover);
+  font-size: 10px;
+  font-weight: 700;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.pool-room-fact-grid svg {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  color: var(--app-muted);
+  opacity: 0.95;
+}
+
+.pool-room-status-panel {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 8px;
+  min-height: 150px;
+  padding: 16px;
+  border: 1px solid var(--app-border);
+  border-radius: 14px;
+  color: var(--app-text);
+  background:
+    radial-gradient(circle at top, rgba(255, 71, 20, 0.16), transparent 55%),
+    var(--app-hover);
+  text-align: center;
+}
+
+.pool-room-status-panel svg {
+  width: 44px;
+  height: 44px;
+  color: var(--color-primary-400);
+}
+
+.pool-room-status-panel strong,
+.pool-room-status-panel span,
+.pool-room-status-panel small {
+  display: block;
+}
+
+.pool-room-status-panel strong {
+  font-size: 26px;
+  line-height: 1;
+}
+
+.pool-room-status-panel span,
+.pool-room-status-panel small {
+  color: var(--app-muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
 .outside-food-room-join-panel {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) 150px minmax(180px, 1fr) auto;
   align-items: end;
   gap: 12px;
   padding: 16px;
+}
+
+.pool-room-join-card {
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 1.2fr) minmax(180px, 0.8fr) auto;
 }
 
 .outside-food-room-layout {
@@ -490,6 +994,33 @@
 
 .outside-food-room-panel {
   padding: 16px;
+}
+
+.pool-control-stack {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.pool-control-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pool-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pool-panel-head span {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  color: var(--color-success);
+  background: rgba(16, 185, 129, 0.1);
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .outside-food-unlocked-details {
@@ -532,6 +1063,69 @@
   gap: 10px;
 }
 
+.pool-member-row,
+.pool-request-row {
+  min-width: 0;
+}
+
+.pool-request-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: center;
+}
+
+.pool-member-row > div,
+.pool-request-row > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.pool-request-row > div:not(.pool-inline-actions) {
+  display: grid;
+  gap: 1px;
+}
+
+.pool-inline-actions {
+  display: flex;
+  justify-self: end;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.pool-inline-actions button,
+.pool-icon-danger {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--app-text);
+  background: var(--app-hover);
+  border: 1px solid var(--app-border);
+}
+
+.pool-inline-actions button {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+
+.pool-inline-actions button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.pool-inline-actions button:first-child {
+  color: var(--color-success);
+}
+
+.pool-inline-actions button:last-child,
+.pool-icon-danger,
+.pool-danger-btn {
+  color: var(--color-danger);
+}
+
 .outside-food-participant > span {
   display: grid;
   place-items: center;
@@ -565,6 +1159,16 @@
   flex-direction: column;
 }
 
+.pool-request-row > span {
+  width: 32px;
+  height: 32px;
+}
+
+.pool-room-chat-main {
+  min-height: 0;
+  height: clamp(390px, calc(100dvh - 258px), 640px);
+}
+
 .outside-food-chat-header {
   display: flex;
   justify-content: space-between;
@@ -579,6 +1183,7 @@
 
 .outside-food-message-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -596,10 +1201,18 @@
 .outside-food-message.system,
 .outside-food-message.status_update {
   align-self: center;
+  min-width: min(280px, 86%);
   max-width: 94%;
+  padding: 14px 16px;
   text-align: center;
-  border: 1px solid rgba(255, 71, 20, 0.2);
-  background: rgba(255, 71, 20, 0.1);
+  border: 1px solid rgba(255, 71, 20, 0.32);
+  background: linear-gradient(135deg, rgba(255, 71, 20, 0.22), rgba(255, 71, 20, 0.08));
+}
+
+.outside-food-message.system p,
+.outside-food-message.status_update p {
+  color: #fff;
+  font-weight: 850;
 }
 
 .outside-food-message strong {
@@ -631,6 +1244,59 @@
   gap: 10px;
   padding: 14px;
   border-top: 1px solid var(--app-border);
+}
+
+.pool-room-chat-main .outside-food-message-form {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  position: sticky;
+  bottom: 0;
+  background: var(--app-panel);
+}
+
+.pool-composer-icon-btn,
+.pool-composer-send-btn {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+.pool-composer-icon-btn {
+  position: relative;
+  color: var(--app-text);
+  background: var(--app-hover);
+  border: 1px solid var(--app-border);
+}
+
+.pool-composer-icon-btn svg,
+.pool-composer-send-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+.pool-composer-send-btn svg {
+  transform: rotate(90deg);
+}
+
+.pool-composer-icon-btn span {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--color-danger);
+  font-size: 10px;
+  font-weight: 900;
 }
 
 .outside-food-admin-grid {
@@ -668,6 +1334,33 @@
   margin-bottom: 14px;
 }
 
+.restaurant-section-copy {
+  margin-top: 3px;
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.restaurant-count-pill {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: var(--app-hover);
+  color: var(--app-muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.restaurant-count-pill strong {
+  color: var(--app-text);
+  font-size: 15px;
+}
+
 .outside-food-admin-list,
 .outside-food-admin-pool-grid {
   display: grid;
@@ -686,6 +1379,69 @@
   padding: 12px;
 }
 
+.restaurant-admin-list {
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
+.restaurant-admin-list .outside-food-admin-restaurant {
+  grid-template-columns: 54px minmax(0, 1fr);
+  min-height: 112px;
+}
+
+.restaurant-admin-list .outside-food-admin-restaurant strong {
+  display: block;
+  margin-bottom: 2px;
+  color: var(--app-text);
+  font-size: 15px;
+}
+
+.restaurant-admin-list .outside-food-admin-restaurant p {
+  line-height: 1.35;
+}
+
+.restaurant-card-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.restaurant-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 9px;
+  border: 1px solid var(--app-border);
+  border-radius: 10px;
+  background: var(--app-hover);
+  color: var(--app-text);
+  font-size: 13px;
+  font-weight: 800;
+  transition: transform 0.18s ease, opacity 0.18s ease, border-color 0.18s ease;
+}
+
+.restaurant-action-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.restaurant-action-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 71, 20, 0.28);
+}
+
+.restaurant-action-btn:disabled {
+  opacity: 0.55;
+  transform: none;
+}
+
+.restaurant-action-btn.danger {
+  color: var(--color-danger);
+}
+
 .outside-food-admin-thumb {
   width: 56px;
   height: 56px;
@@ -693,8 +1449,453 @@
   border-radius: 12px;
 }
 
+.restaurant-form-modal {
+  width: min(760px, calc(100vw - 28px));
+  max-height: min(86vh, 760px);
+  overflow-y: auto;
+  padding: 18px;
+}
+
+.restaurant-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 12px;
+}
+
+.restaurant-form-grid .outside-food-field {
+  margin-bottom: 0;
+}
+
+.restaurant-form-wide {
+  grid-column: 1 / -1;
+}
+
+.restaurant-form-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--app-border);
+}
+
+.pool-tools-fab {
+  position: fixed;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(18px, env(safe-area-inset-bottom));
+  z-index: 1200;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: 1px solid rgba(255, 71, 20, 0.36);
+  border-radius: 999px;
+  color: #fff;
+  background: var(--color-primary-500);
+  box-shadow: 0 18px 36px rgba(255, 71, 20, 0.32);
+  font-weight: 900;
+}
+
+.pool-tools-fab svg {
+  width: 20px;
+  height: 20px;
+}
+
+.pool-tools-fab > span {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  color: var(--color-primary-500);
+  background: #fff;
+  font-size: 11px;
+}
+
+.pool-tools-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(84px, 12vh, 130px) 18px 18px;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(12px);
+}
+
+.pool-tools-modal {
+  display: grid;
+  gap: 8px;
+  width: min(390px, calc(100vw - 40px));
+  max-height: min(560px, calc(100dvh - 120px));
+  overflow-y: auto;
+  padding: 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--app-panel-solid);
+  box-shadow: var(--app-shadow);
+}
+
+.pool-tools-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--app-border);
+}
+
+.pool-tools-head span {
+  color: var(--color-primary-400);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pool-tools-head h2,
+.pool-tools-section h3 {
+  margin: 0;
+  color: var(--app-text);
+  font-weight: 900;
+}
+
+.pool-tools-head h2 {
+  font-size: 18px;
+}
+
+.pool-tools-section h3 {
+  font-size: 15px;
+}
+
+.pool-tools-head button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  color: var(--app-text);
+  background: var(--app-hover);
+}
+
+.pool-tools-section {
+  padding: 9px;
+  border: 1px solid var(--app-border);
+  border-radius: 13px;
+  background: var(--app-panel);
+}
+
+.pool-tools-section .pool-control-grid {
+  gap: 8px;
+}
+
+.pool-tools-section .outside-food-primary-btn,
+.pool-tools-section .outside-food-secondary-btn {
+  min-height: 38px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  font-size: 14px;
+}
+
+.pool-tools-section .outside-food-field {
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.pool-tools-section .outside-food-field textarea {
+  min-height: 74px;
+  padding: 9px 10px;
+}
+
+.pool-tools-section .outside-food-participant-list {
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.pool-tools-section .outside-food-participant > span {
+  width: 32px;
+  height: 32px;
+}
+
+.pool-broadcast-form {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--app-border);
+}
+
+.pool-broadcast-btn {
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
+  box-shadow: 0 14px 28px rgba(255, 71, 20, 0.22);
+}
+
+.restaurant-submit-btn {
+  width: fit-content;
+  min-width: 154px;
+}
+
 .outside-food-admin-pool {
   padding: 14px;
+}
+
+.feast-page {
+  gap: 12px;
+}
+
+.feast-hero {
+  display: block;
+  padding: 12px;
+}
+
+.feast-hero-content {
+  min-width: 0;
+}
+
+.feast-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+}
+
+.feast-hero-top span {
+  margin-bottom: 0;
+}
+
+.feast-hero h1 {
+  font-size: clamp(21px, 2.8vw, 28px);
+  line-height: 1.06;
+}
+
+.feast-hero p {
+  max-width: 560px;
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.32;
+}
+
+.feast-refresh-btn {
+  width: fit-content;
+  min-width: 96px;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+
+.feast-grid {
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 14px;
+}
+
+.feast-card {
+  display: grid;
+  grid-template-columns: 126px minmax(0, 1fr);
+  min-height: 146px;
+}
+
+.feast-card-media {
+  height: auto;
+  min-height: 100%;
+}
+
+.feast-card-media .outside-food-card-fallback {
+  font-size: 38px;
+}
+
+.feast-card-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: 12px;
+}
+
+.feast-card-title-row {
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.feast-card-title-row h2 {
+  font-size: 16px;
+  line-height: 1.15;
+}
+
+.feast-card-title-row p {
+  margin-top: 2px;
+  line-height: 1.2;
+}
+
+.feast-minimum {
+  display: inline-flex;
+  min-width: auto;
+  flex: 0 0 auto;
+  align-items: baseline;
+  gap: 4px;
+  padding: 5px 7px;
+  border-radius: 9px;
+  background: rgba(16, 185, 129, 0.1);
+  text-align: left;
+}
+
+.feast-minimum strong {
+  display: inline;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.feast-minimum span {
+  color: var(--app-muted);
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.feast-card-stats {
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.feast-card-stats span {
+  min-height: 26px;
+  padding: 5px 7px;
+  border-radius: 8px;
+  background: var(--app-hover);
+  font-size: 11px;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.feast-card-stats svg {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+}
+
+.feast-card .outside-food-primary-btn {
+  min-height: 38px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  font-size: 14px;
+}
+
+.feast-card .feast-card-btn {
+  width: fit-content;
+  min-width: 128px;
+  align-self: flex-end;
+  border: 0;
+}
+
+.feast-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: clamp(84px, 12vh, 124px) 14px 18px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(14px);
+}
+
+.feast-menu-modal {
+  width: min(720px, calc(100vw - 28px));
+  max-height: min(78vh, 760px);
+  overflow: hidden;
+  padding: 14px;
+  border: 1px solid var(--app-border);
+  border-radius: 16px;
+  background: var(--app-panel-solid);
+  box-shadow: var(--app-shadow);
+}
+
+.feast-menu-head {
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.feast-menu-head span {
+  display: inline-flex;
+  width: fit-content;
+  margin-bottom: 5px;
+  padding: 4px 8px;
+  border: 1px solid rgba(255, 71, 20, 0.28);
+  border-radius: 999px;
+  color: var(--color-primary-400);
+  background: rgba(255, 71, 20, 0.1);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.feast-menu-head h2 {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.feast-menu-head p {
+  margin-top: 3px;
+  color: var(--app-muted);
+  font-size: 12px;
+}
+
+.feast-menu-frame {
+  height: min(54vh, 520px);
+  overflow: hidden;
+  border: 1px solid var(--app-border);
+  border-radius: 13px;
+  background: var(--app-hover);
+}
+
+.feast-menu-frame iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.feast-menu-open-btn {
+  width: fit-content;
+  min-width: 156px;
+  min-height: 38px;
+  margin-top: 12px;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 14px;
+}
+
+.feast-menu-empty {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  padding: 24px;
+  border: 1px dashed var(--app-border);
+  border-radius: 13px;
+  color: var(--app-muted);
+  background: var(--app-hover);
+  text-align: center;
+}
+
+.feast-menu-empty svg {
+  width: 44px;
+  height: 44px;
+  color: var(--color-primary-400);
+}
+
+.feast-menu-empty h3 {
+  margin: 8px 0 0;
+  color: var(--app-text);
+  font-size: 18px;
 }
 
 .outside-food-admin-pool-head {
@@ -738,18 +1939,51 @@
     flex-direction: column;
   }
 
+  .outside-food-header-actions {
+    justify-content: flex-start;
+  }
+
   .outside-food-room-layout,
   .outside-food-admin-grid {
     grid-template-columns: 1fr;
+  }
+
+  .pool-room-hero-card {
+    grid-template-columns: 1fr;
+  }
+
+  .pool-room-status-panel {
+    grid-template-columns: auto 1fr auto;
+    align-content: center;
+    justify-items: start;
+    min-height: 0;
+    text-align: left;
+  }
+
+  .pool-room-status-panel svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .pool-room-fact-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .outside-food-room-join-panel {
     grid-template-columns: 1fr;
   }
 
+  .pool-room-join-card {
+    grid-template-columns: 1fr;
+  }
+
   .outside-food-room-image {
     width: 100%;
     height: 180px;
+  }
+
+  .restaurant-admin-list {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -767,6 +2001,329 @@
   .outside-food-admin-pool-meta {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .pool-room-topline,
+  .pool-panel-head {
+    align-items: flex-start;
+  }
+
+  .pool-room-toolbar {
+    gap: 8px;
+  }
+
+  .pool-room-inbox-btn,
+  .pool-room-exit-btn,
+  .outside-food-back-btn {
+    min-height: 34px;
+    padding: 7px 9px;
+    font-size: 12px;
+  }
+
+  .pool-room-inbox-btn {
+    width: 34px;
+    padding: 0;
+  }
+
+  .pool-room-hero-card {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .pool-room-title-line {
+    gap: 8px;
+  }
+
+  .pool-room-title-line .outside-food-room-title {
+    gap: 7px;
+  }
+
+  .pool-room-title-line .outside-food-room-title h1 {
+    font-size: 20px;
+  }
+
+  .pool-room-title-line .outside-food-room-title span,
+  .pool-room-title-line .outside-food-status-pill {
+    padding: 4px 7px;
+    font-size: 10px;
+  }
+
+  .pool-room-broadcaster-line,
+  .pool-room-stats-line {
+    gap: 8px;
+  }
+
+  .pool-room-broadcaster {
+    max-width: 150px;
+    overflow: hidden;
+    font-size: 12px;
+    text-overflow: ellipsis;
+  }
+
+  .pool-room-fact-grid span {
+    min-height: 28px;
+    padding: 5px 4px;
+    font-size: 9.5px;
+  }
+
+  .pool-room-money-row {
+    gap: 6px;
+    font-size: 10px;
+  }
+
+  .pool-room-money-row strong {
+    font-size: 11px;
+  }
+
+  .pool-control-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pool-room-status-panel {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .pool-room-status-panel small {
+    grid-column: 1 / -1;
+  }
+
+  .pool-tools-backdrop {
+    align-items: flex-start;
+    justify-content: center;
+    padding: 78px 14px 14px;
+  }
+
+  .pool-tools-modal {
+    width: min(360px, calc(100vw - 28px));
+    max-height: calc(100dvh - 96px);
+    padding: 10px;
+    border-radius: 14px;
+  }
+
+  .pool-room-chat-main {
+    height: clamp(390px, calc(100dvh - 248px), 560px);
+  }
+
+  .pool-tools-fab {
+    right: 14px;
+    bottom: max(76px, env(safe-area-inset-bottom));
+    min-height: 44px;
+    padding: 10px 13px;
+  }
+
+  .pool-room-chat-main .outside-food-message-form {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .pool-room-chat-main .outside-food-message-form input {
+    min-width: 0;
+  }
+
+  .pool-composer-icon-btn,
+  .pool-composer-send-btn {
+    width: 42px;
+    min-width: 42px;
+    height: 42px;
+    min-height: 42px;
+  }
+
+  .restaurant-form-modal {
+    width: min(420px, calc(100vw - 24px));
+    max-height: 82vh;
+    padding: 14px;
+  }
+
+  .restaurant-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .restaurant-form-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .restaurant-submit-btn {
+    width: 100%;
+  }
+
+  .restaurant-admin-list .outside-food-admin-restaurant {
+    grid-template-columns: 48px minmax(0, 1fr);
+  }
+
+  .restaurant-card-actions {
+    gap: 6px;
+  }
+
+  .restaurant-action-btn {
+    min-height: 36px;
+    padding: 7px 6px;
+    font-size: 12px;
+  }
+
+  .outside-food-page {
+    gap: 12px;
+  }
+
+  .outside-food-hero {
+    padding: 12px;
+  }
+
+  .outside-food-page .outside-food-hero h1 {
+    font-size: 24px;
+    line-height: 1.04;
+  }
+
+  .outside-food-page .outside-food-hero p {
+    max-width: 26rem;
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .outside-food-search {
+    min-height: 42px;
+    border-radius: 12px;
+  }
+
+  .outside-food-header-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    justify-content: stretch;
+    gap: 10px;
+  }
+
+  .outside-food-header-actions .outside-food-primary-btn,
+  .outside-food-header-actions .outside-food-secondary-btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .feast-page {
+    gap: 11px;
+  }
+
+  .feast-hero {
+    padding: 10px;
+  }
+
+  .feast-hero h1 {
+    font-size: 22px;
+  }
+
+  .feast-hero p {
+    font-size: 11.5px;
+  }
+
+  .feast-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .feast-card {
+    grid-template-columns: 104px minmax(0, 1fr);
+    min-height: 138px;
+  }
+
+  .feast-card-body {
+    padding: 10px;
+  }
+
+  .feast-card-title-row {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .feast-card-title-row h2 {
+    font-size: 15px;
+  }
+
+  .feast-minimum {
+    padding: 5px 6px;
+  }
+
+  .feast-card-stats {
+    gap: 5px;
+    margin-top: 8px;
+  }
+
+  .feast-card-stats span {
+    min-height: 24px;
+    padding: 4px 6px;
+    font-size: 10px;
+  }
+
+  .feast-card .outside-food-primary-btn {
+    min-height: 36px;
+    font-size: 13px;
+  }
+
+  .feast-card .feast-card-btn {
+    min-width: 112px;
+  }
+
+  .feast-menu-backdrop {
+    padding: 76px 12px 12px;
+  }
+
+  .feast-menu-modal {
+    width: min(420px, calc(100vw - 24px));
+    max-height: calc(100dvh - 96px);
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .feast-menu-head h2 {
+    font-size: 19px;
+  }
+
+  .feast-menu-frame {
+    height: min(58vh, 440px);
+  }
+
+  .feast-menu-open-btn {
+    width: 100%;
+  }
+
+  .feast-refresh-btn {
+    min-width: 88px;
+    min-height: 30px;
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+
+  .pool-card-flat .outside-food-card-body {
+    padding: 12px;
+  }
+
+  .pool-card-head h2 {
+    font-size: 17px;
+  }
+
+  .pool-stat-row {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .pool-stat-stack.is-locked .pool-stat-row:first-child {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .pool-stat-stack.is-locked .pool-stat-row:last-child {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .pool-stat-row span {
+    min-height: 28px;
+    padding: 5px 4px;
+    font-size: 9.5px;
+  }
+
+  .pool-value-row {
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
   }
 }
 

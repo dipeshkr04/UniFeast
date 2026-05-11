@@ -1,20 +1,24 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { outsideFoodAPI } from '../api';
-import { useSocket } from '../contexts/SocketContext';
-import { HiOutlineRefresh, HiOutlineUserGroup } from 'react-icons/hi';
+import {
+  HiOutlineEye,
+  HiOutlineEyeOff,
+  HiOutlinePencil,
+  HiOutlinePlus,
+  HiOutlineRefresh,
+  HiOutlineTrash,
+  HiOutlineX,
+} from 'react-icons/hi';
 import { MdOutlineRestaurant } from 'react-icons/md';
 import toast from 'react-hot-toast';
 
 const emptyRestaurant = {
   name: '',
-  image: '',
-  cuisineTags: '',
   minPoolAmount: '700',
-  estimatedDeliveryTime: '45-60 min',
+  orderWindow: '1:00 PM - 7:30 PM',
+  location: '',
   contactNumber: '',
   menuLink: '',
-  whatsappLink: '',
-  pickupPoints: '',
   active: true,
 };
 
@@ -26,68 +30,133 @@ function formatCurrency(value) {
   }).format(Number(value || 0));
 }
 
-function toLocalInputValue(value = Date.now() + 10 * 60 * 1000) {
-  const date = new Date(value);
-  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60 * 1000);
-  return localDate.toISOString().slice(0, 16);
+function compactTimeLabel(value) {
+  return String(value || '')
+    .trim()
+    .replace(/:00\b/g, '')
+    .replace(/\s+/g, '')
+    .toLowerCase();
 }
 
-function getEmptyPool() {
+function formatOrderWindow(value) {
+  const text = String(value || '').trim();
+  if (!text) return 'Window not set';
+  const [from, to] = text.split(/\s*-\s*/);
+  if (!from || !to) return text;
+  return `${compactTimeLabel(from)} to ${compactTimeLabel(to)}`;
+}
+
+function restaurantToForm(restaurant = {}) {
   return {
-    restaurantId: '',
-    title: '',
-    targetAmount: '',
-    opensAt: toLocalInputValue(),
-    durationMinutes: '20',
-    pickupPoint: '',
+    name: restaurant.name || '',
+    minPoolAmount: String(restaurant.minPoolAmount || '700'),
+    orderWindow: restaurant.orderWindow || '1:00 PM - 7:30 PM',
+    location: restaurant.location || '',
+    contactNumber: restaurant.contactNumber || '',
+    menuLink: restaurant.menuLink || '',
+    active: restaurant.active !== false,
   };
 }
 
-function mergePoolById(list, update) {
-  if (!update?._id && !update?.poolId) return list;
-  const id = (update._id || update.poolId).toString();
-  const exists = list.some((pool) => pool._id?.toString() === id);
-  if (!exists && update._id) return [update, ...list];
-  return list.map((pool) => (
-    pool._id?.toString() === id
-      ? {
-        ...pool,
-        ...update,
-        restaurant: update.restaurant || pool.restaurant,
-        participants: update.participants || pool.participants,
-      }
-      : pool
-  ));
+function RestaurantThumb({ restaurant }) {
+  const [failed, setFailed] = useState(false);
+  if (!restaurant.image || failed) return <MdOutlineRestaurant />;
+
+  return (
+    <img
+      src={restaurant.image}
+      alt={restaurant.name}
+      onError={() => setFailed(true)}
+    />
+  );
 }
 
-function formatWindow(pool) {
-  const opensAt = pool.opensAt ? new Date(pool.opensAt) : null;
-  const closesAt = pool.closesAt ? new Date(pool.closesAt) : null;
-  if (!opensAt || !closesAt) return 'Window not set';
-  return `${opensAt.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })} - ${closesAt.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}`;
+function RestaurantFormModal({
+  form,
+  editing,
+  saving,
+  onChange,
+  onClose,
+  onSubmit,
+}) {
+  return (
+    <div className="outside-food-modal-backdrop" onClick={onClose}>
+      <form
+        className="outside-food-join-modal restaurant-form-modal"
+        onClick={(event) => event.stopPropagation()}
+        onSubmit={onSubmit}
+      >
+        <div className="outside-food-modal-header">
+          <div>
+            <span>{editing ? 'Edit Restaurant' : 'Add Restaurant'}</span>
+            <h2>{editing ? 'Update feast highlight' : 'New feast highlight'}</h2>
+          </div>
+          <button type="button" onClick={onClose} aria-label="Close restaurant form">
+            <HiOutlineX />
+          </button>
+        </div>
+
+        <div className="restaurant-form-grid">
+          <label className="outside-food-field">
+            <span>Name</span>
+            <input value={form.name} onChange={(event) => onChange('name', event.target.value)} required />
+          </label>
+          <label className="outside-food-field">
+            <span>Location</span>
+            <input value={form.location} onChange={(event) => onChange('location', event.target.value)} placeholder="Sitabuldi, Nagpur" required />
+          </label>
+          <label className="outside-food-field">
+            <span>Order window</span>
+            <input value={form.orderWindow} onChange={(event) => onChange('orderWindow', event.target.value)} placeholder="1:00 PM - 7:30 PM" required />
+          </label>
+          <label className="outside-food-field">
+            <span>Contact number</span>
+            <input value={form.contactNumber} onChange={(event) => onChange('contactNumber', event.target.value)} required />
+          </label>
+          <label className="outside-food-field">
+            <span>Menu link</span>
+            <input value={form.menuLink} onChange={(event) => onChange('menuLink', event.target.value)} placeholder="https://..." />
+          </label>
+          <label className="outside-food-field">
+            <span>Minimum order</span>
+            <input type="number" min="1" value={form.minPoolAmount} onChange={(event) => onChange('minPoolAmount', event.target.value)} required />
+          </label>
+        </div>
+
+        <div className="restaurant-form-footer">
+          <label className="outside-food-admin-check">
+            <input
+              type="checkbox"
+              checked={form.active}
+              onChange={(event) => onChange('active', event.target.checked)}
+            />
+            Show in Find Your Feast
+          </label>
+          <button type="submit" className="outside-food-primary-btn restaurant-submit-btn" disabled={saving}>
+            {saving ? 'Saving...' : editing ? 'Save Changes' : 'Add Restaurant'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 }
 
 export default function AdminOutsideFoodPage() {
   const [restaurants, setRestaurants] = useState([]);
-  const [pools, setPools] = useState([]);
   const [restaurantForm, setRestaurantForm] = useState(emptyRestaurant);
-  const [poolForm, setPoolForm] = useState(getEmptyPool);
   const [loading, setLoading] = useState(true);
   const [savingRestaurant, setSavingRestaurant] = useState(false);
-  const [savingPool, setSavingPool] = useState(false);
-  const { socket } = useSocket() || {};
+  const [actioningRestaurant, setActioningRestaurant] = useState('');
+  const [editingRestaurant, setEditingRestaurant] = useState(null);
+  const [formOpen, setFormOpen] = useState(false);
 
   const loadData = useCallback(async ({ quiet = false } = {}) => {
     if (!quiet) setLoading(true);
     try {
-      const [restaurantResponse, poolResponse] = await Promise.all([
-        outsideFoodAPI.restaurants.getAll({ includeInactive: true }),
-        outsideFoodAPI.pools.getAll({ scope: 'admin', includeArchived: false }),
-      ]);
+      const restaurantResponse = await outsideFoodAPI.restaurants.getAll({ includeInactive: true });
       setRestaurants(restaurantResponse.data.data || []);
-      setPools(poolResponse.data.data || []);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Unable to load outside food admin data');
+      toast.error(error.response?.data?.message || 'Unable to load restaurants');
     } finally {
       setLoading(false);
     }
@@ -97,76 +166,45 @@ export default function AdminOutsideFoodPage() {
     loadData();
   }, [loadData]);
 
-  useEffect(() => {
-    if (!socket) return undefined;
-
-    const handlePoolUpdate = (pool) => setPools((previous) => mergePoolById(previous, pool));
-    const handleParticipantUpdate = (update) => setPools((previous) => mergePoolById(previous, update));
-
-    socket.on('pool:update', handlePoolUpdate);
-    socket.on('pool:unlock', handlePoolUpdate);
-    socket.on('pool:lock', handlePoolUpdate);
-    socket.on('pool:coordinator-update', handlePoolUpdate);
-    socket.on('pool:status-update', handlePoolUpdate);
-    socket.on('pool:participant-update', handleParticipantUpdate);
-
-    return () => {
-      socket.off('pool:update', handlePoolUpdate);
-      socket.off('pool:unlock', handlePoolUpdate);
-      socket.off('pool:lock', handlePoolUpdate);
-      socket.off('pool:coordinator-update', handlePoolUpdate);
-      socket.off('pool:status-update', handlePoolUpdate);
-      socket.off('pool:participant-update', handleParticipantUpdate);
-    };
-  }, [socket]);
-
-  const selectedRestaurant = useMemo(() => (
-    restaurants.find((restaurant) => restaurant._id === poolForm.restaurantId)
-  ), [poolForm.restaurantId, restaurants]);
-
-  useEffect(() => {
-    if (!selectedRestaurant) return;
-    setPoolForm((previous) => ({
-      ...previous,
-      title: previous.title || `${selectedRestaurant.name} Pool`,
-      targetAmount: previous.targetAmount || String(selectedRestaurant.minPoolAmount || ''),
-      pickupPoint: previous.pickupPoint || selectedRestaurant.pickupPoints?.[0] || '',
-    }));
-  }, [selectedRestaurant]);
-
-  const activePools = useMemo(() => (
-    pools
-      .filter((pool) => !pool.archived)
-      .sort((a, b) => new Date(a.opensAt) - new Date(b.opensAt))
-  ), [pools]);
-
   const updateRestaurantForm = (field, value) => {
     setRestaurantForm((previous) => ({ ...previous, [field]: value }));
-  };
-
-  const updatePoolForm = (field, value) => {
-    setPoolForm((previous) => ({ ...previous, [field]: value }));
   };
 
   const handleRestaurantSubmit = async (event) => {
     event.preventDefault();
     setSavingRestaurant(true);
     try {
-      const { data } = await outsideFoodAPI.restaurants.create({
+      const payload = {
         ...restaurantForm,
         minPoolAmount: Number(restaurantForm.minPoolAmount),
-      });
-      setRestaurants((previous) => [data.data, ...previous]);
+        image: '',
+        cuisineTags: '',
+        estimatedDeliveryTime: '',
+        whatsappLink: '',
+        pickupPoints: '',
+      };
+      const { data } = editingRestaurant
+        ? await outsideFoodAPI.restaurants.update(editingRestaurant._id, payload)
+        : await outsideFoodAPI.restaurants.create(payload);
+
+      setRestaurants((previous) => (
+        editingRestaurant
+          ? previous.map((item) => (item._id === editingRestaurant._id ? data.data : item))
+          : [data.data, ...previous]
+      ));
       setRestaurantForm(emptyRestaurant);
-      toast.success('Restaurant added for outside food pooling');
+      setEditingRestaurant(null);
+      setFormOpen(false);
+      toast.success(editingRestaurant ? 'Restaurant updated' : 'Restaurant highlight added');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Unable to create restaurant');
+      toast.error(error.response?.data?.message || 'Unable to save restaurant');
     } finally {
       setSavingRestaurant(false);
     }
   };
 
   const toggleRestaurant = async (restaurant) => {
+    setActioningRestaurant(`toggle-${restaurant._id}`);
     try {
       const { data } = await outsideFoodAPI.restaurants.update(restaurant._id, {
         active: !restaurant.active,
@@ -174,52 +212,46 @@ export default function AdminOutsideFoodPage() {
       setRestaurants((previous) => previous.map((item) => (
         item._id === restaurant._id ? data.data : item
       )));
-      toast.success(data.data.active ? 'Restaurant activated' : 'Restaurant deactivated');
+      toast.success(data.data.active ? 'Restaurant activated' : 'Restaurant hidden');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Unable to update restaurant');
-    }
-  };
-
-  const handlePoolSubmit = async (event) => {
-    event.preventDefault();
-    setSavingPool(true);
-    try {
-      const { data } = await outsideFoodAPI.pools.create({
-        ...poolForm,
-        targetAmount: Number(poolForm.targetAmount),
-        durationMinutes: Number(poolForm.durationMinutes),
-        opensAt: new Date(poolForm.opensAt).toISOString(),
-      });
-      setPools((previous) => [data.data, ...previous]);
-      setPoolForm(getEmptyPool());
-      toast.success('Scheduled outside food pool created');
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Unable to create pool');
     } finally {
-      setSavingPool(false);
+      setActioningRestaurant('');
     }
   };
 
-  const updatePoolStatus = async (pool, status, statusMessage) => {
-    try {
-      const { data } = await outsideFoodAPI.pools.updateStatus(pool._id, {
-        status,
-        statusMessage,
-      });
-      setPools((previous) => mergePoolById(previous, data.data));
-      toast.success(`Pool marked ${status.toLowerCase()}`);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Unable to update pool');
-    }
+  const openCreateForm = () => {
+    setRestaurantForm(emptyRestaurant);
+    setEditingRestaurant(null);
+    setFormOpen(true);
   };
 
-  const archivePool = async (pool) => {
+  const openEditForm = (restaurant) => {
+    setRestaurantForm(restaurantToForm(restaurant));
+    setEditingRestaurant(restaurant);
+    setFormOpen(true);
+  };
+
+  const closeForm = () => {
+    if (savingRestaurant) return;
+    setFormOpen(false);
+    setEditingRestaurant(null);
+    setRestaurantForm(emptyRestaurant);
+  };
+
+  const deleteRestaurant = async (restaurant) => {
+    const ok = window.confirm(`Delete ${restaurant.name}? This will remove it from Find Your Feast.`);
+    if (!ok) return;
+
+    setActioningRestaurant(`delete-${restaurant._id}`);
     try {
-      const { data } = await outsideFoodAPI.pools.archive(pool._id);
-      setPools((previous) => mergePoolById(previous, data.data));
-      toast.success('Pool archived');
+      await outsideFoodAPI.restaurants.delete(restaurant._id);
+      setRestaurants((previous) => previous.filter((item) => item._id !== restaurant._id));
+      toast.success('Restaurant deleted');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Unable to archive pool');
+      toast.error(error.response?.data?.message || 'Unable to delete restaurant');
+    } finally {
+      setActioningRestaurant('');
     }
   };
 
@@ -227,220 +259,81 @@ export default function AdminOutsideFoodPage() {
     <div className="outside-food-admin-page">
       <header className="outside-food-admin-header">
         <div>
-          <span>Admin Outside Food</span>
-          <h1>Restaurant pools and realtime rooms</h1>
-          <p>Create scheduled windows, configure unlock amounts, and monitor the temporary rooms without touching the hostel canteen system.</p>
+          <span>Restaurant Highlights</span>
+          <h1>Find Your Feast data</h1>
+          <p>Add restaurants students can browse from the Find Your Feast section. Pool creation stays fully student-managed.</p>
         </div>
-        <button type="button" className="outside-food-secondary-btn" onClick={() => loadData({ quiet: true })}>
-          <HiOutlineRefresh />
-          Refresh
-        </button>
+        <div className="outside-food-header-actions">
+          <button type="button" className="outside-food-secondary-btn" onClick={() => loadData({ quiet: true })}>
+            <HiOutlineRefresh />
+            Refresh
+          </button>
+          <button type="button" className="outside-food-primary-btn outside-food-create-btn" onClick={openCreateForm}>
+            <HiOutlinePlus />
+            Add
+          </button>
+        </div>
       </header>
 
-      <div className="outside-food-admin-grid">
-        <form className="outside-food-admin-panel" onSubmit={handleRestaurantSubmit}>
-          <h2>Add Restaurant</h2>
-          <label className="outside-food-field">
-            <span>Name</span>
-            <input value={restaurantForm.name} onChange={(event) => updateRestaurantForm('name', event.target.value)} required />
-          </label>
-          <label className="outside-food-field">
-            <span>Image URL</span>
-            <input value={restaurantForm.image} onChange={(event) => updateRestaurantForm('image', event.target.value)} placeholder="https://..." />
-          </label>
-          <div className="outside-food-admin-two">
-            <label className="outside-food-field">
-              <span>Cuisine tags</span>
-              <input value={restaurantForm.cuisineTags} onChange={(event) => updateRestaurantForm('cuisineTags', event.target.value)} placeholder="Pizza, Burgers" />
-            </label>
-            <label className="outside-food-field">
-              <span>Minimum pool amount</span>
-              <input type="number" min="1" value={restaurantForm.minPoolAmount} onChange={(event) => updateRestaurantForm('minPoolAmount', event.target.value)} required />
-            </label>
-          </div>
-          <div className="outside-food-admin-two">
-            <label className="outside-food-field">
-              <span>Delivery estimate</span>
-              <input value={restaurantForm.estimatedDeliveryTime} onChange={(event) => updateRestaurantForm('estimatedDeliveryTime', event.target.value)} />
-            </label>
-            <label className="outside-food-field">
-              <span>Contact number</span>
-              <input value={restaurantForm.contactNumber} onChange={(event) => updateRestaurantForm('contactNumber', event.target.value)} />
-            </label>
-          </div>
-          <label className="outside-food-field">
-            <span>Menu link</span>
-            <input value={restaurantForm.menuLink} onChange={(event) => updateRestaurantForm('menuLink', event.target.value)} placeholder="Optional" />
-          </label>
-          <label className="outside-food-field">
-            <span>WhatsApp link</span>
-            <input value={restaurantForm.whatsappLink} onChange={(event) => updateRestaurantForm('whatsappLink', event.target.value)} placeholder="Optional post-unlock link" />
-          </label>
-          <label className="outside-food-field">
-            <span>Pickup points</span>
-            <input value={restaurantForm.pickupPoints} onChange={(event) => updateRestaurantForm('pickupPoints', event.target.value)} placeholder="Hostel A Gate, Main Circle" required />
-          </label>
-          <label className="outside-food-admin-check">
-            <input
-              type="checkbox"
-              checked={restaurantForm.active}
-              onChange={(event) => updateRestaurantForm('active', event.target.checked)}
-            />
-            Active restaurant
-          </label>
-          <button type="submit" className="outside-food-primary-btn" disabled={savingRestaurant}>
-            {savingRestaurant ? 'Saving...' : 'Create Restaurant'}
-          </button>
-        </form>
-
-        <form className="outside-food-admin-panel" onSubmit={handlePoolSubmit}>
-          <h2>Schedule Pool</h2>
-          <label className="outside-food-field">
-            <span>Restaurant</span>
-            <select
-              value={poolForm.restaurantId}
-              onChange={(event) => updatePoolForm('restaurantId', event.target.value)}
-              required
-            >
-              <option value="">Select restaurant</option>
-              {restaurants.filter((restaurant) => restaurant.active).map((restaurant) => (
-                <option key={restaurant._id} value={restaurant._id}>{restaurant.name}</option>
-              ))}
-            </select>
-          </label>
-          <label className="outside-food-field">
-            <span>Pool title</span>
-            <input value={poolForm.title} onChange={(event) => updatePoolForm('title', event.target.value)} required />
-          </label>
-          <div className="outside-food-admin-two">
-            <label className="outside-food-field">
-              <span>Target amount</span>
-              <input type="number" min="1" value={poolForm.targetAmount} onChange={(event) => updatePoolForm('targetAmount', event.target.value)} required />
-            </label>
-            <label className="outside-food-field">
-              <span>Duration minutes</span>
-              <input type="number" min="5" value={poolForm.durationMinutes} onChange={(event) => updatePoolForm('durationMinutes', event.target.value)} required />
-            </label>
-          </div>
-          <label className="outside-food-field">
-            <span>Opens at</span>
-            <input
-              type="datetime-local"
-              value={poolForm.opensAt}
-              onChange={(event) => updatePoolForm('opensAt', event.target.value)}
-              required
-            />
-          </label>
-          <label className="outside-food-field">
-            <span>Pickup point</span>
-            <input value={poolForm.pickupPoint} onChange={(event) => updatePoolForm('pickupPoint', event.target.value)} required />
-          </label>
-          <button type="submit" className="outside-food-primary-btn" disabled={savingPool}>
-            {savingPool ? 'Scheduling...' : 'Create Scheduled Pool'}
-          </button>
-        </form>
-      </div>
-
       <section className="outside-food-admin-section">
         <div className="outside-food-admin-section-head">
-          <h2>Restaurants</h2>
-          <span>{restaurants.length} configured</span>
-        </div>
-        <div className="outside-food-admin-list">
-          {restaurants.map((restaurant) => (
-            <article key={restaurant._id} className="outside-food-admin-restaurant">
-              <div className="outside-food-admin-thumb">
-                {restaurant.image ? <img src={restaurant.image} alt={restaurant.name} /> : <MdOutlineRestaurant />}
-              </div>
-              <div>
-                <strong>{restaurant.name}</strong>
-                <p>{restaurant.cuisineTags?.join(', ') || 'No cuisine tags'} · Minimum {formatCurrency(restaurant.minPoolAmount)}</p>
-              </div>
-              <button type="button" className="outside-food-secondary-btn" onClick={() => toggleRestaurant(restaurant)}>
-                {restaurant.active ? 'Deactivate' : 'Activate'}
-              </button>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="outside-food-admin-section">
-        <div className="outside-food-admin-section-head">
-          <h2>Active Room Monitor</h2>
-          <span>{activePools.length} rooms</span>
+          <div>
+            <h2>Restaurants</h2>
+            <p className="restaurant-section-copy">Existing entries shown to students in Find Your Feast.</p>
+          </div>
+          <span className="restaurant-count-pill"><strong>{restaurants.length}</strong> configured</span>
         </div>
 
         {loading ? (
           <div className="outside-food-skeleton" />
-        ) : activePools.length === 0 ? (
+        ) : restaurants.length === 0 ? (
           <div className="outside-food-empty">
             <MdOutlineRestaurant />
-            <h2>No outside food rooms</h2>
-            <p>Create a scheduled pool to start the realtime room lifecycle.</p>
+            <h2>No restaurants added</h2>
+            <p>Add restaurant highlights so students can browse them from Find Your Feast.</p>
+            <button type="button" className="outside-food-primary-btn outside-food-create-btn" onClick={openCreateForm}>
+              <HiOutlinePlus />
+              Add Restaurant
+            </button>
           </div>
         ) : (
-          <div className="outside-food-admin-pool-grid">
-            {activePools.map((pool) => (
-              <article key={pool._id} className="outside-food-admin-pool">
-                <div className="outside-food-admin-pool-head">
-                  <div>
-                    <span>{pool.status}</span>
-                    <h3>{pool.title}</h3>
-                    <p>{pool.restaurant?.name}</p>
-                  </div>
-                  <strong>{pool.progressPercent || 0}%</strong>
+          <div className="outside-food-admin-list restaurant-admin-list">
+            {restaurants.map((restaurant) => (
+              <article key={restaurant._id} className="outside-food-admin-restaurant">
+                <div className="outside-food-admin-thumb">
+                  <RestaurantThumb restaurant={restaurant} />
                 </div>
-
-                <div className="outside-food-progress-track">
-                  <div className="outside-food-progress-fill" style={{ width: `${Math.min(100, Number(pool.progressPercent || 0))}%` }} />
+                <div>
+                  <strong>{restaurant.name}</strong>
+                  <p>{restaurant.location || 'Location not added'} - {formatOrderWindow(restaurant.orderWindow)}</p>
+                  <p>{restaurant.cuisineTags?.join(', ') || 'No cuisine tags'} - Minimum {formatCurrency(restaurant.minPoolAmount)}</p>
                 </div>
-
-                <div className="outside-food-admin-pool-meta">
-                  <span><HiOutlineUserGroup /> {pool.participantCount} joined</span>
-                  <span>{formatCurrency(pool.currentAmount)} / {formatCurrency(pool.targetAmount)}</span>
-                </div>
-                <div className="outside-food-admin-pool-meta">
-                  <span>{formatWindow(pool)}</span>
-                  <span>{pool.onlineCount || 0} online</span>
-                </div>
-                <p className="outside-food-admin-pool-meta">{pool.pickupPoint}</p>
-
-                <div className="outside-food-admin-participants">
-                  {(pool.participants || []).length === 0 ? (
-                    <span>No participants yet</span>
-                  ) : pool.participants.map((participant) => (
-                    <span key={participant._id}>
-                      {(pool.coordinators || []).some((coordinator) => coordinator.userId?.toString?.() === participant.userId?.toString?.())
-                        ? 'Coordinator: '
-                        : ''}
-                      {participant.name}
-                    </span>
-                  ))}
-                </div>
-
-                <div className="outside-food-admin-actions">
-                  {pool.status === 'OPEN' && (
-                    <button type="button" className="outside-food-secondary-btn" onClick={() => updatePoolStatus(pool, 'UNLOCKED', 'Pool unlocked - grace window started')}>
-                      Unlock
-                    </button>
-                  )}
-                  {['OPEN', 'UNLOCKED'].includes(pool.status) && (
-                    <button type="button" className="outside-food-secondary-btn" onClick={() => updatePoolStatus(pool, 'LOCKED', 'Pool locked')}>
-                      Lock
-                    </button>
-                  )}
-                  {['UNLOCKED', 'LOCKED'].includes(pool.status) && (
-                    <button type="button" className="outside-food-secondary-btn" onClick={() => updatePoolStatus(pool, 'COORDINATING', 'Restaurant communication confirmed')}>
-                      Coordinating
-                    </button>
-                  )}
-                  {pool.status !== 'COMPLETED' && pool.status !== 'ARCHIVED' && (
-                    <button type="button" className="outside-food-secondary-btn" onClick={() => updatePoolStatus(pool, 'COMPLETED', 'Delivery completed')}>
-                      Complete
-                    </button>
-                  )}
-                  <button type="button" className="outside-food-secondary-btn" onClick={() => archivePool(pool)}>
-                    Archive
+                <div className="restaurant-card-actions">
+                  <button
+                    type="button"
+                    className="restaurant-action-btn"
+                    onClick={() => toggleRestaurant(restaurant)}
+                    disabled={actioningRestaurant === `toggle-${restaurant._id}`}
+                  >
+                    {restaurant.active ? <HiOutlineEyeOff /> : <HiOutlineEye />}
+                    {restaurant.active ? 'Hide' : 'Show'}
+                  </button>
+                  <button
+                    type="button"
+                    className="restaurant-action-btn"
+                    onClick={() => openEditForm(restaurant)}
+                  >
+                    <HiOutlinePencil />
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="restaurant-action-btn danger"
+                    onClick={() => deleteRestaurant(restaurant)}
+                    disabled={actioningRestaurant === `delete-${restaurant._id}`}
+                  >
+                    <HiOutlineTrash />
+                    Delete
                   </button>
                 </div>
               </article>
@@ -448,6 +341,17 @@ export default function AdminOutsideFoodPage() {
           </div>
         )}
       </section>
+
+      {formOpen && (
+        <RestaurantFormModal
+          form={restaurantForm}
+          editing={Boolean(editingRestaurant)}
+          saving={savingRestaurant}
+          onChange={updateRestaurantForm}
+          onClose={closeForm}
+          onSubmit={handleRestaurantSubmit}
+        />
+      )}
     </div>
   );
 }

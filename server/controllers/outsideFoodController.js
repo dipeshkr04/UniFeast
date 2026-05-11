@@ -3,19 +3,23 @@ const OutsideFoodPool = require('../models/OutsideFoodPool');
 const OutsideFoodChatMessage = require('../models/OutsideFoodChatMessage');
 const {
   OUTSIDE_FOOD_LOBBY_ROOM,
+  VISIBLE_POOL_STATUSES,
   getOutsideFoodRoomName,
   outsideFoodError,
   parsePositiveAmount,
-  parseDateValue,
   normalizeStringList,
   serializePool,
   serializeMessage,
-  createRoomMessage,
-  emitPoolState,
+  createStudentPool,
   joinOutsideFoodPool,
+  createJoinRequest,
+  resolveJoinRequest,
+  leaveOutsideFoodPool,
+  kickPoolParticipant,
   assertRoomAccess,
   sendTextMessage,
   updateOutsideFoodPoolStatus,
+  postPoolStatusUpdate,
   volunteerAsCoordinator,
   expireDueOutsideFoodPools,
   buildRestaurantPayload,
@@ -25,21 +29,25 @@ function handleOutsideFoodError(res, error) {
   const status = error.statusCode || error.status || 500;
   res.status(status).json({
     success: false,
-    message: error.message || 'Outside food request failed',
+    message: error.message || 'Pool request failed',
   });
 }
 
 function restaurantPayloadFromBody(body = {}) {
   return {
     name: body.name,
-    image: body.image || '',
-    cuisineTags: normalizeStringList(body.cuisineTags),
-    minPoolAmount: parsePositiveAmount(body.minPoolAmount, 'Minimum pool amount'),
-    estimatedDeliveryTime: body.estimatedDeliveryTime || '45-60 min',
+    image: '',
+    cuisineTags: [],
+    minPoolAmount: body.minPoolAmount === undefined
+      ? 700
+      : parsePositiveAmount(body.minPoolAmount, 'Minimum pool amount'),
+    estimatedDeliveryTime: '',
+    orderWindow: body.orderWindow || '1:00 PM - 7:30 PM',
+    location: body.location || '',
     contactNumber: body.contactNumber || '',
     menuLink: body.menuLink || '',
-    whatsappLink: body.whatsappLink || '',
-    pickupPoints: normalizeStringList(body.pickupPoints),
+    whatsappLink: '',
+    pickupPoints: [],
     active: body.active === undefined ? true : String(body.active).toLowerCase() !== 'false',
   };
 }
@@ -49,11 +57,10 @@ exports.getRestaurants = async (req, res) => {
     const includeInactive = req.user.role === 'admin' && req.query.includeInactive === 'true';
     const filter = includeInactive ? {} : { active: true };
     const restaurants = await OutsideFoodRestaurant.find(filter).sort({ active: -1, name: 1 });
-    const revealContacts = req.user.role === 'admin';
     res.json({
       success: true,
       count: restaurants.length,
-      data: restaurants.map((restaurant) => buildRestaurantPayload(restaurant, revealContacts)),
+      data: restaurants.map((restaurant) => buildRestaurantPayload(restaurant)),
     });
   } catch (error) {
     handleOutsideFoodError(res, error);
@@ -65,7 +72,7 @@ exports.createRestaurant = async (req, res) => {
     const payload = restaurantPayloadFromBody(req.body);
     payload.createdByAdmin = req.user._id;
     const restaurant = await OutsideFoodRestaurant.create(payload);
-    res.status(201).json({ success: true, data: buildRestaurantPayload(restaurant, true) });
+    res.status(201).json({ success: true, data: buildRestaurantPayload(restaurant) });
   } catch (error) {
     handleOutsideFoodError(res, error);
   }
@@ -77,12 +84,10 @@ exports.updateRestaurant = async (req, res) => {
     if (!existing) throw outsideFoodError('Restaurant not found', 404);
 
     const updates = {};
-    const fields = ['name', 'image', 'estimatedDeliveryTime', 'contactNumber', 'menuLink', 'whatsappLink'];
+    const fields = ['name', 'orderWindow', 'location', 'contactNumber', 'menuLink'];
     fields.forEach((field) => {
       if (req.body[field] !== undefined) updates[field] = req.body[field];
     });
-    if (req.body.cuisineTags !== undefined) updates.cuisineTags = normalizeStringList(req.body.cuisineTags);
-    if (req.body.pickupPoints !== undefined) updates.pickupPoints = normalizeStringList(req.body.pickupPoints);
     if (req.body.minPoolAmount !== undefined) {
       updates.minPoolAmount = parsePositiveAmount(req.body.minPoolAmount, 'Minimum pool amount');
     }
@@ -94,7 +99,22 @@ exports.updateRestaurant = async (req, res) => {
       { new: true, runValidators: true }
     );
 
-    res.json({ success: true, data: buildRestaurantPayload(restaurant, true) });
+    res.json({ success: true, data: buildRestaurantPayload(restaurant) });
+  } catch (error) {
+    handleOutsideFoodError(res, error);
+  }
+};
+
+exports.deleteRestaurant = async (req, res) => {
+  try {
+    const restaurant = await OutsideFoodRestaurant.findByIdAndDelete(req.params.id);
+    if (!restaurant) throw outsideFoodError('Restaurant not found', 404);
+
+    res.json({
+      success: true,
+      data: buildRestaurantPayload(restaurant),
+      message: 'Restaurant deleted',
+    });
   } catch (error) {
     handleOutsideFoodError(res, error);
   }
@@ -104,23 +124,21 @@ exports.getPools = async (req, res) => {
   try {
     await expireDueOutsideFoodPools(req.app.get('io'));
 
-    const isAdmin = req.user.role === 'admin';
-    const filter = {};
-
-    if (!isAdmin || req.query.scope !== 'admin') {
-      filter.archived = false;
-      filter.status = { $in: ['OPEN', 'UNLOCKED'] };
-    } else if (req.query.includeArchived !== 'true') {
-      filter.archived = false;
+    const filter = { archived: false };
+    if (req.user.role !== 'admin' || req.query.scope !== 'admin') {
+      filter.status = { $in: VISIBLE_POOL_STATUSES };
     }
-
     if (req.query.status) {
       filter.status = String(req.query.status).toUpperCase();
+    }
+    if (req.query.category) {
+      filter.category = String(req.query.category).toLowerCase();
     }
 
     const pools = await OutsideFoodPool.find(filter)
       .populate('restaurantId')
-      .sort({ status: 1, opensAt: 1, closesAt: 1 });
+      .populate('broadcaster', 'name email')
+      .sort({ status: 1, updatedAt: -1, createdAt: -1 });
 
     const data = await Promise.all(pools.map((pool) => serializePool(pool, req.user._id, req.user.role)));
     res.json({ success: true, count: data.length, data });
@@ -131,54 +149,15 @@ exports.getPools = async (req, res) => {
 
 exports.createPool = async (req, res) => {
   try {
-    const restaurant = await OutsideFoodRestaurant.findById(req.body.restaurantId);
-    if (!restaurant) throw outsideFoodError('Restaurant not found', 404);
-    if (!restaurant.active) throw outsideFoodError('Cannot create a pool for an inactive restaurant');
-
-    const opensAt = parseDateValue(req.body.opensAt, new Date());
-    const durationMinutes = Number(req.body.durationMinutes || 20);
-    const closesAt = parseDateValue(
-      req.body.closesAt,
-      new Date(opensAt.getTime() + Math.max(5, durationMinutes) * 60 * 1000)
-    );
-
-    if (closesAt <= opensAt) {
-      throw outsideFoodError('Pool close time must be after open time');
-    }
-
-    const targetAmount = req.body.targetAmount !== undefined
-      ? parsePositiveAmount(req.body.targetAmount, 'Target amount')
-      : restaurant.minPoolAmount;
-    const pickupPoint = String(req.body.pickupPoint || restaurant.pickupPoints?.[0] || '').trim();
-    if (!pickupPoint) throw outsideFoodError('Pickup point is required');
-
-    const pool = await OutsideFoodPool.create({
-      restaurantId: restaurant._id,
-      title: req.body.title || `${restaurant.name} Pool`,
-      targetAmount,
-      currentAmount: 0,
-      participantCount: 0,
-      participants: [],
-      opensAt,
-      closesAt,
-      pickupPoint,
-      status: 'OPEN',
-      archived: false,
-      createdByAdmin: req.user._id,
-    });
-
-    await createRoomMessage({
-      poolId: pool._id,
-      type: 'SYSTEM',
-      content: `${pool.title} room created`,
+    const pool = await createStudentPool({
+      user: req.user,
+      category: req.body.category,
+      title: req.body.title || req.body.name,
+      targetAmount: req.body.targetAmount || req.body.poolValue,
       io: req.app.get('io'),
     });
-    await emitPoolState(req.app.get('io'), pool._id, 'pool:update');
 
-    res.status(201).json({
-      success: true,
-      data: await serializePool(await OutsideFoodPool.findById(pool._id).populate('restaurantId'), req.user._id, req.user.role),
-    });
+    res.status(201).json({ success: true, data: pool });
   } catch (error) {
     handleOutsideFoodError(res, error);
   }
@@ -187,8 +166,10 @@ exports.createPool = async (req, res) => {
 exports.getPoolDetails = async (req, res) => {
   try {
     await expireDueOutsideFoodPools(req.app.get('io'));
-    const pool = await OutsideFoodPool.findById(req.params.poolId).populate('restaurantId');
-    if (!pool) throw outsideFoodError('Outside food pool not found', 404);
+    const pool = await OutsideFoodPool.findById(req.params.poolId)
+      .populate('restaurantId')
+      .populate('broadcaster', 'name email');
+    if (!pool) throw outsideFoodError('Pool not found', 404);
 
     res.json({
       success: true,
@@ -215,6 +196,67 @@ exports.joinPool = async (req, res) => {
   }
 };
 
+exports.createJoinRequest = async (req, res) => {
+  try {
+    const pool = await createJoinRequest({
+      poolId: req.params.poolId,
+      user: req.user,
+      intendedAmount: req.body.intendedAmount,
+      orderPreview: req.body.orderPreview,
+      io: req.app.get('io'),
+    });
+
+    res.status(201).json({ success: true, data: pool });
+  } catch (error) {
+    handleOutsideFoodError(res, error);
+  }
+};
+
+exports.resolveJoinRequest = async (req, res) => {
+  try {
+    const pool = await resolveJoinRequest({
+      poolId: req.params.poolId,
+      requestId: req.params.requestId,
+      user: req.user,
+      action: req.body.action,
+      io: req.app.get('io'),
+    });
+
+    res.json({ success: true, data: pool });
+  } catch (error) {
+    handleOutsideFoodError(res, error);
+  }
+};
+
+exports.leavePool = async (req, res) => {
+  try {
+    const pool = await leaveOutsideFoodPool({
+      poolId: req.params.poolId,
+      user: req.user,
+      io: req.app.get('io'),
+    });
+
+    res.json({ success: true, data: pool });
+  } catch (error) {
+    handleOutsideFoodError(res, error);
+  }
+};
+
+exports.kickParticipant = async (req, res) => {
+  try {
+    const pool = await kickPoolParticipant({
+      poolId: req.params.poolId,
+      participantUserId: req.params.userId,
+      user: req.user,
+      io: req.app.get('io'),
+    });
+
+    res.json({ success: true, data: pool });
+  } catch (error) {
+    handleOutsideFoodError(res, error);
+  }
+};
+
 exports.getChatMessages = async (req, res) => {
   try {
     await assertRoomAccess(req.params.poolId, req.user);
@@ -233,6 +275,20 @@ exports.getChatMessages = async (req, res) => {
 exports.sendChatMessage = async (req, res) => {
   try {
     const message = await sendTextMessage({
+      poolId: req.params.poolId,
+      user: req.user,
+      content: req.body.content,
+      io: req.app.get('io'),
+    });
+    res.status(201).json({ success: true, data: message });
+  } catch (error) {
+    handleOutsideFoodError(res, error);
+  }
+};
+
+exports.sendBroadcastMessage = async (req, res) => {
+  try {
+    const message = await postPoolStatusUpdate({
       poolId: req.params.poolId,
       user: req.user,
       content: req.body.content,
@@ -299,13 +355,13 @@ exports.getSocketInfo = async (req, res) => {
         'pool:leave',
         'pool:update',
         'pool:message',
-        'pool:unlock',
         'pool:lock',
-        'pool:coordinator-update',
-        'pool:grace-timer',
+        'pool:request-update',
         'pool:status-update',
         'pool:status',
         'pool:participant-update',
+        'pool:kicked',
+        'pool:expired',
       ],
     },
   });

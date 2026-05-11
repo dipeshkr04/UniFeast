@@ -2,14 +2,11 @@ const OutsideFoodRestaurant = require('../models/OutsideFoodRestaurant');
 const OutsideFoodPool = require('../models/OutsideFoodPool');
 const OutsideFoodParticipant = require('../models/OutsideFoodParticipant');
 const OutsideFoodChatMessage = require('../models/OutsideFoodChatMessage');
+const OutsideFoodJoinRequest = require('../models/OutsideFoodJoinRequest');
 
 const OUTSIDE_FOOD_LOBBY_ROOM = 'outside-food:lobby';
-const ACTIVE_POOL_STATUSES = ['OPEN', 'UNLOCKED'];
-const COORDINATOR_STATUSES = ['UNLOCKED', 'LOCKED', 'COORDINATING', 'COMPLETED'];
-const COORDINATOR_MANAGED_STATUSES = ['COORDINATING', 'COMPLETED'];
-const DEFAULT_GRACE_MINUTES = 5;
-const COORDINATOR_INACTIVE_AFTER_MS = 10 * 60 * 1000;
-const ARCHIVE_AFTER_MS = 24 * 60 * 60 * 1000;
+const VISIBLE_POOL_STATUSES = ['OPEN', 'LOCKED'];
+const POOL_TTL_MS = 2 * 24 * 60 * 60 * 1000;
 
 function getOutsideFoodRoomName(poolId) {
   return `pool:${poolId}`;
@@ -48,52 +45,68 @@ function normalizeStringList(value) {
   return [];
 }
 
+function normalizeCategory(value) {
+  const category = String(value || 'food').trim().toLowerCase();
+  return OutsideFoodPool.categories.includes(category) ? category : 'others';
+}
+
 function idToString(value) {
   if (!value) return '';
   if (value._id) return value._id.toString();
   return value.toString();
 }
 
-function getJoinDeadline(pool) {
-  if (pool.status === 'UNLOCKED') {
-    return pool.graceClosesAt || pool.closesAt;
-  }
-  return pool.closesAt;
+function isBroadcaster(pool, userOrId) {
+  return idToString(pool?.broadcaster) === idToString(userOrId);
+}
+
+function isPoolExpired(pool) {
+  return pool?.createdAt && Date.now() - new Date(pool.createdAt).getTime() > POOL_TTL_MS;
 }
 
 function canJoinPool(pool) {
-  const now = Date.now();
-  const opensAt = pool.opensAt ? new Date(pool.opensAt).getTime() : 0;
-  const closesAt = getJoinDeadline(pool) ? new Date(getJoinDeadline(pool)).getTime() : 0;
   return (
-    ACTIVE_POOL_STATUSES.includes(pool.status) &&
+    pool?.status === 'OPEN' &&
     !pool.archived &&
-    now >= opensAt &&
-    now < closesAt
+    !isPoolExpired(pool)
   );
 }
 
-function buildRestaurantPayload(restaurant, revealContacts = false) {
+function canRequestPool(pool) {
+  return (
+    pool?.status === 'LOCKED' &&
+    !pool.archived &&
+    !isPoolExpired(pool)
+  );
+}
+
+function buildRestaurantPayload(restaurant) {
   if (!restaurant) return null;
   const raw = typeof restaurant.toObject === 'function' ? restaurant.toObject() : restaurant;
-  const payload = {
+  return {
     _id: raw._id,
     name: raw.name,
     image: raw.image || '',
     cuisineTags: raw.cuisineTags || [],
     minPoolAmount: raw.minPoolAmount,
     estimatedDeliveryTime: raw.estimatedDeliveryTime || '',
+    orderWindow: raw.orderWindow || '1:00 PM - 7:30 PM',
+    location: raw.location || '',
+    contactNumber: raw.contactNumber || '',
+    menuLink: raw.menuLink || '',
+    whatsappLink: raw.whatsappLink || '',
     pickupPoints: raw.pickupPoints || [],
     active: raw.active,
   };
+}
 
-  if (revealContacts) {
-    payload.contactNumber = raw.contactNumber || '';
-    payload.menuLink = raw.menuLink || '';
-    payload.whatsappLink = raw.whatsappLink || '';
-  }
-
-  return payload;
+function serializeUser(user) {
+  if (!user) return null;
+  return {
+    _id: user._id || user,
+    name: user.name || 'Student',
+    email: user.email || '',
+  };
 }
 
 function serializeParticipant(participant) {
@@ -110,6 +123,23 @@ function serializeParticipant(participant) {
     messageCount: Number(raw.messageCount || 0),
     lastActiveAt: raw.lastActiveAt,
     online: Boolean(raw.online),
+  };
+}
+
+function serializeJoinRequest(request) {
+  const raw = typeof request.toObject === 'function' ? request.toObject() : request;
+  const user = raw.userId || {};
+  return {
+    _id: raw._id,
+    poolId: raw.poolId,
+    userId: user._id || raw.userId,
+    name: user.name || 'Student',
+    email: user.email || '',
+    intendedAmount: raw.intendedAmount,
+    orderPreview: raw.orderPreview || '',
+    status: raw.status,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
   };
 }
 
@@ -133,86 +163,64 @@ async function serializeMessage(message) {
 }
 
 async function serializePool(poolDoc, viewerUserId = null, viewerRole = '') {
-  const pool = poolDoc.restaurantId?.name
+  const pool = poolDoc?.broadcaster?.name
     ? poolDoc
-    : await OutsideFoodPool.findById(poolDoc._id || poolDoc).populate('restaurantId');
+    : await OutsideFoodPool.findById(poolDoc._id || poolDoc)
+      .populate('restaurantId')
+      .populate('broadcaster', 'name email');
 
   if (!pool) return null;
 
-  const participants = await OutsideFoodParticipant.find({ poolId: pool._id })
-    .populate('userId', 'name email')
-    .sort({ joinedAt: 1 });
+  const [participants, pendingRequests] = await Promise.all([
+    OutsideFoodParticipant.find({ poolId: pool._id })
+      .populate('userId', 'name email')
+      .sort({ joinedAt: 1 }),
+    OutsideFoodJoinRequest.find({ poolId: pool._id, status: 'PENDING' })
+      .populate('userId', 'name email')
+      .sort({ createdAt: 1 }),
+  ]);
 
   const participantRows = participants.map(serializeParticipant);
+  const requestRows = pendingRequests.map(serializeJoinRequest);
   const viewerId = viewerUserId ? viewerUserId.toString() : '';
+  const broadcasterId = idToString(pool.broadcaster);
   const viewerParticipant = viewerId
     ? participantRows.find((participant) => participant.userId?.toString() === viewerId)
     : null;
+  const viewerPendingRequest = viewerId
+    ? requestRows.find((request) => request.userId?.toString() === viewerId)
+    : null;
   const isAdmin = viewerRole === 'admin';
   const isRoomBroadcast = viewerRole === 'room';
-  const coordinatorIds = (pool.coordinators || []).map(idToString).filter(Boolean);
-  const coordinatorRows = participantRows.filter((participant) => (
-    coordinatorIds.includes(idToString(participant.userId))
-  ));
-  const viewerIsCoordinator = Boolean(viewerId && coordinatorIds.includes(viewerId));
-  const hasUnlocked = Boolean(pool.unlockAt);
-  const revealContacts = isAdmin || (hasUnlocked && (Boolean(viewerParticipant) || isRoomBroadcast));
+  const viewerIsBroadcaster = Boolean(viewerId && broadcasterId === viewerId);
+  const canSeeRequests = isAdmin || viewerIsBroadcaster || isRoomBroadcast;
   const remainingAmount = Math.max(0, Number(pool.targetAmount || 0) - Number(pool.currentAmount || 0));
   const progressPercent = pool.targetAmount
     ? Math.min(100, Math.round((Number(pool.currentAmount || 0) / Number(pool.targetAmount || 1)) * 100))
     : 0;
   const recentCutoff = Date.now() - (5 * 60 * 1000);
-  const recentlyJoinedCount = participantRows.filter((participant) => (
-    new Date(participant.joinedAt).getTime() >= recentCutoff
-  )).length;
-  const suggestedCoordinator = coordinatorRows.length
-    ? null
-    : participantRows
-      .slice()
-      .sort((a, b) => {
-        const activityScore = (participant) => (
-          (participant.online ? 100 : 0) +
-          Number(participant.messageCount || 0) * 8 +
-          Number(participant.intendedAmount || 0) / 100
-        );
-        const scoreDiff = activityScore(b) - activityScore(a);
-        if (scoreDiff !== 0) return scoreDiff;
-        return new Date(a.joinedAt) - new Date(b.joinedAt);
-      })[0] || null;
-  const coordinatorInactive = coordinatorRows.length > 0 &&
-    COORDINATOR_STATUSES.includes(pool.status) &&
-    pool.coordinatorLastActiveAt &&
-    Date.now() - new Date(pool.coordinatorLastActiveAt).getTime() > COORDINATOR_INACTIVE_AFTER_MS;
-  const activeWindowClosesAt = getJoinDeadline(pool);
 
   return {
     _id: pool._id,
-    restaurantId: pool.restaurantId?._id || pool.restaurantId,
-    restaurant: buildRestaurantPayload(pool.restaurantId, revealContacts),
+    restaurantId: pool.restaurantId?._id || pool.restaurantId || null,
+    restaurant: buildRestaurantPayload(pool.restaurantId),
+    category: pool.category || 'food',
     title: pool.title,
     status: pool.status,
     targetAmount: pool.targetAmount,
     currentAmount: pool.currentAmount,
     participantCount: pool.participantCount,
     participants: participantRows,
+    pendingRequests: canSeeRequests ? requestRows : [],
+    pendingRequestCount: requestRows.length,
+    broadcaster: serializeUser(pool.broadcaster),
     onlineCount: participantRows.filter((participant) => participant.online).length,
-    recentlyJoinedCount,
+    recentlyJoinedCount: participantRows.filter((participant) => (
+      new Date(participant.joinedAt).getTime() >= recentCutoff
+    )).length,
     opensAt: pool.opensAt,
     closesAt: pool.closesAt,
-    unlockAt: pool.unlockAt,
-    graceClosesAt: pool.graceClosesAt,
     lockedAt: pool.lockedAt,
-    activeWindowClosesAt,
-    pickupPoint: pool.pickupPoint,
-    coordinators: coordinatorRows,
-    coordinatorCount: coordinatorRows.length,
-    coordinatorLastActiveAt: pool.coordinatorLastActiveAt,
-    coordinationConfirmedAt: pool.coordinationConfirmedAt,
-    suggestedCoordinator,
-    coordinatorInactive: Boolean(coordinatorInactive),
-    coordinationPrompt: hasUnlocked && coordinatorRows.length === 0
-      ? 'Who wants to coordinate restaurant communication?'
-      : '',
     archived: pool.archived,
     createdAt: pool.createdAt,
     updatedAt: pool.updatedAt,
@@ -220,10 +228,17 @@ async function serializePool(poolDoc, viewerUserId = null, viewerRole = '') {
     remainingAmount,
     progressPercent,
     isJoinable: canJoinPool(pool),
+    isRequestable: canRequestPool(pool),
+    isExpired: isPoolExpired(pool),
     viewer: {
       isParticipant: Boolean(viewerParticipant),
-      isCoordinator: viewerIsCoordinator,
+      isBroadcaster: viewerIsBroadcaster,
       isAdmin,
+      pendingRequest: viewerPendingRequest || null,
+      canJoin: Boolean(canJoinPool(pool) && !viewerParticipant && !viewerIsBroadcaster),
+      canRequest: Boolean(canRequestPool(pool) && !viewerParticipant && !viewerIsBroadcaster && !viewerPendingRequest),
+      canLock: Boolean(viewerIsBroadcaster && ['OPEN', 'LOCKED'].includes(pool.status)),
+      canLeave: Boolean(viewerParticipant && !viewerIsBroadcaster),
     },
   };
 }
@@ -258,37 +273,32 @@ async function syncPoolTotals(poolId) {
   const pool = await OutsideFoodPool.findById(poolId);
 
   if (!pool) {
-    throw outsideFoodError('Outside food pool not found', 404);
+    throw outsideFoodError('Pool not found', 404);
   }
 
-  const unlockedNow = pool.status === 'OPEN' && currentAmount >= Number(pool.targetAmount || 0);
   pool.currentAmount = currentAmount;
   pool.participantCount = participants.length;
   pool.participants = participantIds;
-
-  if (unlockedNow) {
-    pool.status = 'UNLOCKED';
-    pool.unlockAt = new Date();
-    pool.graceClosesAt = new Date(pool.unlockAt.getTime() + DEFAULT_GRACE_MINUTES * 60 * 1000);
-  }
-
   await pool.save();
-  return { pool, unlockedNow };
+  return pool;
 }
 
 async function emitParticipantUpdate(io, poolId) {
   if (!io) return;
-  const pool = await OutsideFoodPool.findById(poolId).populate('restaurantId');
+  const pool = await OutsideFoodPool.findById(poolId).populate('restaurantId').populate('broadcaster', 'name email');
   if (!pool) return;
   const payload = await serializePool(pool, null, '');
   const summary = {
     poolId: pool._id,
+    status: payload.status,
     participantCount: payload.participantCount,
     onlineCount: payload.onlineCount,
     recentlyJoinedCount: payload.recentlyJoinedCount,
     currentAmount: payload.currentAmount,
+    targetAmount: payload.targetAmount,
     progressPercent: payload.progressPercent,
     remainingAmount: payload.remainingAmount,
+    pendingRequestCount: payload.pendingRequestCount,
   };
   io.to(OUTSIDE_FOOD_LOBBY_ROOM).emit('pool:participant-update', summary);
   io.to(getOutsideFoodRoomName(poolId)).emit('pool:participant-update', summary);
@@ -296,7 +306,7 @@ async function emitParticipantUpdate(io, poolId) {
 
 async function emitPoolState(io, poolId, eventName = 'pool:update') {
   if (!io) return;
-  const pool = await OutsideFoodPool.findById(poolId).populate('restaurantId');
+  const pool = await OutsideFoodPool.findById(poolId).populate('restaurantId').populate('broadcaster', 'name email');
   if (!pool) return;
 
   const publicPayload = await serializePool(pool, null, '');
@@ -304,44 +314,173 @@ async function emitPoolState(io, poolId, eventName = 'pool:update') {
 
   io.to(OUTSIDE_FOOD_LOBBY_ROOM).emit(eventName, publicPayload);
   io.to(getOutsideFoodRoomName(poolId)).emit(eventName, roomPayload);
-  if (roomPayload.status === 'UNLOCKED' && roomPayload.graceClosesAt) {
-    const timerPayload = {
-      poolId: roomPayload._id,
-      graceClosesAt: roomPayload.graceClosesAt,
-      activeWindowClosesAt: roomPayload.activeWindowClosesAt,
-    };
-    io.to(OUTSIDE_FOOD_LOBBY_ROOM).emit('pool:grace-timer', timerPayload);
-    io.to(getOutsideFoodRoomName(poolId)).emit('pool:grace-timer', timerPayload);
-  }
   await emitParticipantUpdate(io, poolId);
 }
 
-async function joinOutsideFoodPool({ poolId, user, intendedAmount, orderPreview = '', io = null }) {
-  const amount = parsePositiveAmount(intendedAmount, 'Intended order amount');
-  const pool = await OutsideFoodPool.findById(poolId).populate('restaurantId');
+async function createStudentPool({ user, category, title, targetAmount, io = null }) {
+  const poolTitle = String(title || '').trim();
+  if (!poolTitle) throw outsideFoodError('Pool name is required');
 
-  if (!pool) throw outsideFoodError('Outside food pool not found', 404);
-  if (Date.now() < new Date(pool.opensAt).getTime()) {
-    throw outsideFoodError('This scheduled pool has not opened yet');
-  }
+  const amount = parsePositiveAmount(targetAmount, 'Pool value');
+  const now = new Date();
+  const pool = await OutsideFoodPool.create({
+    category: normalizeCategory(category),
+    title: poolTitle,
+    targetAmount: amount,
+    currentAmount: 0,
+    participantCount: 0,
+    participants: [],
+    opensAt: now,
+    closesAt: new Date(now.getTime() + POOL_TTL_MS),
+    status: 'OPEN',
+    archived: false,
+    broadcaster: user._id,
+  });
+
+  await createRoomMessage({
+    poolId: pool._id,
+    senderId: user._id,
+    type: 'SYSTEM',
+    content: `${user.name} created the pool`,
+    io,
+  });
+  await emitPoolState(io, pool._id, 'pool:update');
+
+  return serializePool(
+    await OutsideFoodPool.findById(pool._id).populate('restaurantId').populate('broadcaster', 'name email'),
+    user._id,
+    user.role
+  );
+}
+
+async function joinOutsideFoodPool({ poolId, user, intendedAmount, orderPreview = '', io = null }) {
+  const amount = parsePositiveAmount(intendedAmount, 'Contribution amount');
+  const pool = await OutsideFoodPool.findById(poolId).populate('broadcaster', 'name email');
+
+  if (!pool) throw outsideFoodError('Pool not found', 404);
+  if (isBroadcaster(pool, user._id)) throw outsideFoodError('You are already the broadcaster of this pool');
   if (!canJoinPool(pool)) {
-    throw outsideFoodError('This pool room is no longer accepting participants');
-  }
-  if (Date.now() >= new Date(getJoinDeadline(pool)).getTime()) {
-    throw outsideFoodError('This pool window has closed');
+    throw outsideFoodError(pool.status === 'LOCKED'
+      ? 'This pool is locked. Send a request to the broadcaster.'
+      : 'This pool is no longer accepting members');
   }
 
   const existing = await OutsideFoodParticipant.findOne({ poolId, userId: user._id });
-  let participant;
-  let isNewParticipant = false;
+  const participant = await OutsideFoodParticipant.findOneAndUpdate(
+    { poolId, userId: user._id },
+    {
+      $set: {
+        intendedAmount: amount,
+        orderPreview: String(orderPreview || '').trim(),
+      },
+      $setOnInsert: {
+        joinedAt: new Date(),
+        online: false,
+      },
+    },
+    { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+  );
 
-  try {
-    participant = await OutsideFoodParticipant.findOneAndUpdate(
-      { poolId, userId: user._id },
+  await OutsideFoodJoinRequest.updateMany(
+    { poolId, userId: user._id, status: 'PENDING' },
+    { $set: { status: 'CANCELLED', resolvedAt: new Date(), resolvedBy: user._id } }
+  );
+
+  const updatedPool = await syncPoolTotals(poolId);
+  await createRoomMessage({
+    poolId,
+    senderId: user._id,
+    type: 'SYSTEM',
+    content: existing ? `${user.name} updated their contribution` : `${user.name} joined the pool`,
+    io,
+  });
+  await emitPoolState(io, poolId, 'pool:update');
+
+  return {
+    participant,
+    pool: await serializePool(
+      await OutsideFoodPool.findById(updatedPool._id).populate('restaurantId').populate('broadcaster', 'name email'),
+      user._id,
+      user.role
+    ),
+  };
+}
+
+async function createJoinRequest({ poolId, user, intendedAmount, orderPreview = '', io = null }) {
+  const amount = parsePositiveAmount(intendedAmount, 'Contribution amount');
+  const preview = String(orderPreview || '').trim();
+  if (!preview) throw outsideFoodError('Order note is required for a locked pool request');
+
+  const pool = await OutsideFoodPool.findById(poolId).populate('broadcaster', 'name email');
+  if (!pool) throw outsideFoodError('Pool not found', 404);
+  if (isBroadcaster(pool, user._id)) throw outsideFoodError('Broadcasters cannot request to join their own pool');
+  if (!canRequestPool(pool)) throw outsideFoodError('This pool is not accepting requests');
+
+  const participant = await OutsideFoodParticipant.findOne({ poolId, userId: user._id });
+  if (participant) throw outsideFoodError('You are already in this pool');
+
+  const existing = await OutsideFoodJoinRequest.findOne({ poolId, userId: user._id, status: 'PENDING' });
+  const request = await OutsideFoodJoinRequest.findOneAndUpdate(
+    { poolId, userId: user._id, status: 'PENDING' },
+    {
+      $set: {
+        intendedAmount: amount,
+        orderPreview: preview,
+      },
+      $setOnInsert: {
+        poolId,
+        userId: user._id,
+        status: 'PENDING',
+      },
+    },
+    { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
+  );
+
+  await createRoomMessage({
+    poolId,
+    senderId: user._id,
+    type: 'SYSTEM',
+    content: existing ? `${user.name} updated a join request` : `${user.name} requested to join`,
+    io,
+  });
+  await emitPoolState(io, poolId, 'pool:request-update');
+
+  return serializePool(
+    await OutsideFoodPool.findById(poolId).populate('restaurantId').populate('broadcaster', 'name email'),
+    user._id,
+    user.role
+  );
+}
+
+async function resolveJoinRequest({ poolId, requestId, user, action, io = null }) {
+  const requestedAction = String(action || '').toLowerCase();
+  if (!['accept', 'reject'].includes(requestedAction)) {
+    throw outsideFoodError('Request action must be accept or reject');
+  }
+
+  const pool = await OutsideFoodPool.findById(poolId).populate('broadcaster', 'name email');
+  if (!pool) throw outsideFoodError('Pool not found', 404);
+  if (!isBroadcaster(pool, user._id)) throw outsideFoodError('Only the broadcaster can manage join requests', 403);
+  if (pool.archived || pool.status === 'ARCHIVED' || pool.status === 'COMPLETED') {
+    throw outsideFoodError('This pool is closed');
+  }
+
+  const request = await OutsideFoodJoinRequest.findOne({ _id: requestId, poolId, status: 'PENDING' })
+    .populate('userId', 'name email');
+  if (!request) throw outsideFoodError('Join request not found', 404);
+
+  request.status = requestedAction === 'accept' ? 'ACCEPTED' : 'REJECTED';
+  request.resolvedAt = new Date();
+  request.resolvedBy = user._id;
+  await request.save();
+
+  if (requestedAction === 'accept') {
+    await OutsideFoodParticipant.findOneAndUpdate(
+      { poolId, userId: request.userId._id || request.userId },
       {
         $set: {
-          intendedAmount: amount,
-          orderPreview: String(orderPreview || '').trim(),
+          intendedAmount: request.intendedAmount,
+          orderPreview: request.orderPreview,
         },
         $setOnInsert: {
           joinedAt: new Date(),
@@ -350,64 +489,88 @@ async function joinOutsideFoodPool({ poolId, user, intendedAmount, orderPreview 
       },
       { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
     );
-    isNewParticipant = !existing;
-  } catch (error) {
-    if (error.code !== 11000) throw error;
-    participant = await OutsideFoodParticipant.findOneAndUpdate(
-      { poolId, userId: user._id },
-      {
-        $set: {
-          intendedAmount: amount,
-          orderPreview: String(orderPreview || '').trim(),
-        },
-      },
-      { new: true, runValidators: true }
-    );
+    await syncPoolTotals(poolId);
   }
 
-  const { pool: updatedPool, unlockedNow } = await syncPoolTotals(poolId);
+  await createRoomMessage({
+    poolId,
+    senderId: user._id,
+    type: 'SYSTEM',
+    content: `${request.userId.name || 'Student'} request ${requestedAction === 'accept' ? 'accepted' : 'rejected'}`,
+    io,
+  });
+  await emitPoolState(io, poolId, requestedAction === 'accept' ? 'pool:update' : 'pool:request-update');
 
-  if (isNewParticipant) {
-    await createRoomMessage({
-      poolId,
-      type: 'SYSTEM',
-      content: `${user.name} joined the pool`,
-      io,
+  if (io) {
+    const requesterId = idToString(request.userId);
+    const requesterPool = await OutsideFoodPool.findById(poolId)
+      .populate('restaurantId')
+      .populate('broadcaster', 'name email');
+    const requesterPayload = await serializePool(requesterPool, requesterId, 'student');
+    io.to(`user:${requesterId}`).emit('pool:request-resolved', {
+      action: requestedAction,
+      pool: requesterPayload,
     });
   }
 
-  if (unlockedNow) {
-    await createRoomMessage({
-      poolId,
-      type: 'STATUS_UPDATE',
-      content: 'Pool unlocked - restaurant details revealed',
-      io,
-    });
-    await createRoomMessage({
-      poolId,
-      type: 'SYSTEM',
-      content: `${DEFAULT_GRACE_MINUTES} minute grace window started. New participants can still join.`,
-      io,
-    });
-    await createRoomMessage({
-      poolId,
-      type: 'SYSTEM',
-      content: 'Who wants to coordinate restaurant communication?',
-      io,
-    });
-    await emitPoolState(io, poolId, 'pool:unlock');
-  } else {
-    await emitPoolState(io, poolId, 'pool:update');
-  }
+  return serializePool(
+    await OutsideFoodPool.findById(poolId).populate('restaurantId').populate('broadcaster', 'name email'),
+    user._id,
+    user.role
+  );
+}
 
-  return {
-    participant,
-    pool: await serializePool(
-      await OutsideFoodPool.findById(updatedPool._id).populate('restaurantId'),
-      user._id,
-      user.role
-    ),
-  };
+async function leaveOutsideFoodPool({ poolId, user, io = null }) {
+  const pool = await OutsideFoodPool.findById(poolId);
+  if (!pool) throw outsideFoodError('Pool not found', 404);
+  if (isBroadcaster(pool, user._id)) throw outsideFoodError('Broadcasters cannot leave their own pool');
+
+  const deleted = await OutsideFoodParticipant.findOneAndDelete({ poolId, userId: user._id });
+  if (!deleted) throw outsideFoodError('You are not a member of this pool', 404);
+
+  await syncPoolTotals(poolId);
+  await createRoomMessage({
+    poolId,
+    senderId: user._id,
+    type: 'SYSTEM',
+    content: `${user.name} left the pool`,
+    io,
+  });
+  await emitPoolState(io, poolId, 'pool:update');
+
+  return serializePool(
+    await OutsideFoodPool.findById(poolId).populate('restaurantId').populate('broadcaster', 'name email'),
+    user._id,
+    user.role
+  );
+}
+
+async function kickPoolParticipant({ poolId, participantUserId, user, io = null }) {
+  const pool = await OutsideFoodPool.findById(poolId);
+  if (!pool) throw outsideFoodError('Pool not found', 404);
+  if (!isBroadcaster(pool, user._id)) throw outsideFoodError('Only the broadcaster can remove members', 403);
+  if (idToString(participantUserId) === idToString(user._id)) throw outsideFoodError('Broadcasters cannot remove themselves');
+
+  const deleted = await OutsideFoodParticipant.findOneAndDelete({ poolId, userId: participantUserId })
+    .populate('userId', 'name email');
+  if (!deleted) throw outsideFoodError('Pool member not found', 404);
+
+  await syncPoolTotals(poolId);
+  await createRoomMessage({
+    poolId,
+    senderId: user._id,
+    type: 'SYSTEM',
+    content: `${deleted.userId?.name || 'A member'} was removed by the broadcaster`,
+    io,
+  });
+  if (io) io.to(`user:${idToString(participantUserId)}`).emit('pool:kicked', { poolId });
+  await emitPoolState(io, poolId, 'pool:update');
+
+  return serializePool(
+    await OutsideFoodPool.findById(poolId).populate('restaurantId').populate('broadcaster', 'name email'),
+    user._id,
+    user.role
+  );
 }
 
 async function setParticipantOnline(poolId, userId, online, io = null) {
@@ -424,30 +587,28 @@ async function setParticipantOnline(poolId, userId, online, io = null) {
 }
 
 async function assertRoomAccess(poolId, user) {
-  const pool = await OutsideFoodPool.findById(poolId).populate('restaurantId');
-  if (!pool) throw outsideFoodError('Outside food pool not found', 404);
+  const pool = await OutsideFoodPool.findById(poolId).populate('restaurantId').populate('broadcaster', 'name email');
+  if (!pool) throw outsideFoodError('Pool not found', 404);
   if (user.role === 'admin') {
     return {
       pool,
       participant: null,
       isAdmin: true,
-      isCoordinator: true,
+      isBroadcaster: false,
     };
   }
 
+  const broadcaster = isBroadcaster(pool, user._id);
   const participant = await OutsideFoodParticipant.findOne({ poolId, userId: user._id });
-  if (!participant) {
+  if (!broadcaster && !participant) {
     throw outsideFoodError('Join this pool before entering the room', 403);
   }
-  const isCoordinator = (pool.coordinators || []).some((coordinatorId) => (
-    idToString(coordinatorId) === user._id.toString()
-  ));
 
   return {
     pool,
     participant,
     isAdmin: false,
-    isCoordinator,
+    isBroadcaster: broadcaster,
   };
 }
 
@@ -468,12 +629,6 @@ async function sendTextMessage({ poolId, user, content, io = null }) {
       }
     );
   }
-  if (!access.isAdmin && access.isCoordinator) {
-    await OutsideFoodPool.updateOne(
-      { _id: poolId },
-      { $set: { coordinatorLastActiveAt: new Date() } }
-    );
-  }
 
   return createRoomMessage({
     poolId,
@@ -487,51 +642,46 @@ async function sendTextMessage({ poolId, user, content, io = null }) {
 async function updateOutsideFoodPoolStatus({ poolId, user, status, statusMessage = '', io = null }) {
   const requestedStatus = String(status || '').toUpperCase();
   if (!OutsideFoodPool.statuses.includes(requestedStatus)) {
-    throw outsideFoodError('Invalid outside food pool status');
+    throw outsideFoodError('Invalid pool status');
   }
 
-  const access = await assertRoomAccess(poolId, user);
-  if (requestedStatus === 'ARCHIVED' && !access.isAdmin) {
-    throw outsideFoodError('Only admins can archive outside food pools', 403);
+  const pool = await OutsideFoodPool.findById(poolId).populate('broadcaster', 'name email');
+  if (!pool) throw outsideFoodError('Pool not found', 404);
+  const userIsAdmin = user.role === 'admin';
+  const userIsBroadcaster = isBroadcaster(pool, user._id);
+  if (!userIsAdmin && !userIsBroadcaster) {
+    throw outsideFoodError('Only the broadcaster can update this pool', 403);
   }
-  if (!access.isAdmin) {
-    if (!access.isCoordinator) {
-      throw outsideFoodError('Only coordinators or admins can update this pool', 403);
-    }
-    if (!COORDINATOR_MANAGED_STATUSES.includes(requestedStatus)) {
-      throw outsideFoodError('Coordinators can only post coordination or completion updates', 403);
-    }
-  }
-
-  const pool = access.pool;
   if (pool.status === 'ARCHIVED' || pool.archived) {
     throw outsideFoodError('This pool is already archived');
   }
 
+  if (requestedStatus === 'OPEN') {
+    if (!userIsBroadcaster) throw outsideFoodError('Only the broadcaster can unlock this pool', 403);
+    if (pool.status !== 'LOCKED') throw outsideFoodError('Only locked pools can be unlocked');
+    pool.lockedAt = null;
+  } else if (requestedStatus === 'LOCKED') {
+    if (!userIsBroadcaster) throw outsideFoodError('Only the broadcaster can lock this pool', 403);
+    if (pool.status !== 'OPEN') throw outsideFoodError('Only open pools can be locked');
+    pool.lockedAt = pool.lockedAt || new Date();
+  } else if (requestedStatus === 'COMPLETED') {
+    if (!['OPEN', 'LOCKED'].includes(pool.status)) throw outsideFoodError('This pool cannot be completed now');
+  } else if (requestedStatus === 'ARCHIVED') {
+    pool.archived = true;
+  } else {
+    throw outsideFoodError('This status is not available in student-managed pools');
+  }
+
   pool.status = requestedStatus;
-  if (requestedStatus === 'UNLOCKED' && !pool.unlockAt) {
-    pool.unlockAt = new Date();
-    pool.graceClosesAt = new Date(pool.unlockAt.getTime() + DEFAULT_GRACE_MINUTES * 60 * 1000);
-  }
-  if (requestedStatus === 'LOCKED' && !pool.lockedAt) pool.lockedAt = new Date();
-  if (requestedStatus === 'COORDINATING') {
-    pool.coordinationConfirmedAt = pool.coordinationConfirmedAt || new Date();
-    pool.coordinatorLastActiveAt = new Date();
-  }
-  if (requestedStatus === 'COMPLETED') {
-    pool.coordinatorLastActiveAt = new Date();
-  }
-  if (requestedStatus === 'ARCHIVED') pool.archived = true;
   await pool.save();
 
   const defaultMessages = {
-    UNLOCKED: 'Pool unlocked - grace window started',
-    LOCKED: 'Pool locked',
-    COORDINATING: 'Restaurant communication confirmed',
-    COMPLETED: 'Delivery completed',
+    OPEN: 'Pool unlocked by the broadcaster',
+    LOCKED: 'Pool locked by the broadcaster',
+    COMPLETED: 'Pool marked completed',
     ARCHIVED: 'Pool archived',
   };
-  const content = String(statusMessage || '').trim() || defaultMessages[requestedStatus] || `Pool status updated to ${requestedStatus}`;
+  const content = String(statusMessage || '').trim() || defaultMessages[requestedStatus];
 
   await createRoomMessage({
     poolId,
@@ -540,25 +690,19 @@ async function updateOutsideFoodPoolStatus({ poolId, user, status, statusMessage
     content,
     io,
   });
-  if (requestedStatus === 'UNLOCKED') {
-    await createRoomMessage({
-      poolId,
-      type: 'SYSTEM',
-      content: 'Who wants to coordinate restaurant communication?',
-      io,
-    });
-  }
 
-  const eventName = requestedStatus === 'UNLOCKED'
-    ? 'pool:unlock'
-    : requestedStatus === 'LOCKED'
-      ? 'pool:lock'
-      : ['COORDINATING', 'COMPLETED'].includes(requestedStatus)
-        ? 'pool:status-update'
-        : 'pool:update';
+  const eventName = requestedStatus === 'LOCKED'
+    ? 'pool:lock'
+    : requestedStatus === 'COMPLETED'
+      ? 'pool:status-update'
+      : 'pool:update';
   await emitPoolState(io, poolId, eventName);
 
-  return serializePool(await OutsideFoodPool.findById(poolId).populate('restaurantId'), user._id, user.role);
+  return serializePool(
+    await OutsideFoodPool.findById(poolId).populate('restaurantId').populate('broadcaster', 'name email'),
+    user._id,
+    user.role
+  );
 }
 
 async function postPoolStatusUpdate({ poolId, user, content, io = null }) {
@@ -566,25 +710,14 @@ async function postPoolStatusUpdate({ poolId, user, content, io = null }) {
   if (!text) throw outsideFoodError('statusMessage is required');
 
   const access = await assertRoomAccess(poolId, user);
-  if (!access.isAdmin && !access.isCoordinator) {
-    throw outsideFoodError('Only coordinators or admins can post status updates', 403);
+  if (!access.isAdmin && !access.isBroadcaster) {
+    throw outsideFoodError('Only the broadcaster can post status updates', 403);
   }
   if (access.pool.archived || access.pool.status === 'ARCHIVED') {
     throw outsideFoodError('This room is archived and no longer accepts updates');
   }
 
-  if (access.isCoordinator) {
-    await OutsideFoodPool.updateOne(
-      { _id: poolId },
-      { $set: { coordinatorLastActiveAt: new Date() } }
-    );
-    await OutsideFoodParticipant.updateOne(
-      { poolId, userId: user._id },
-      { $set: { lastActiveAt: new Date() } }
-    );
-  }
-
-  await createRoomMessage({
+  const message = await createRoomMessage({
     poolId,
     senderId: user._id,
     type: 'STATUS_UPDATE',
@@ -592,128 +725,58 @@ async function postPoolStatusUpdate({ poolId, user, content, io = null }) {
     io,
   });
   await emitPoolState(io, poolId, 'pool:status-update');
+  return message;
 }
 
-async function volunteerAsCoordinator({ poolId, user, io = null }) {
-  const access = await assertRoomAccess(poolId, user);
-  const pool = access.pool;
-  if (!access.participant) {
-    throw outsideFoodError('Only pool participants can volunteer as coordinators', 403);
-  }
-  if (!pool.unlockAt || !COORDINATOR_STATUSES.includes(pool.status)) {
-    throw outsideFoodError('Coordinators can volunteer after the pool unlocks');
-  }
-  if (pool.archived || pool.status === 'ARCHIVED') {
-    throw outsideFoodError('This pool is archived');
-  }
-
-  const coordinatorIds = (pool.coordinators || []).map(idToString);
-  const alreadyCoordinator = coordinatorIds.includes(user._id.toString());
-  if (!alreadyCoordinator) {
-    pool.coordinators.push(user._id);
-  }
-  pool.coordinatorLastActiveAt = new Date();
-  await pool.save();
-
-  await OutsideFoodParticipant.updateOne(
-    { poolId, userId: user._id },
-    { $set: { lastActiveAt: new Date() } }
-  );
-  if (!alreadyCoordinator) {
-    await createRoomMessage({
-      poolId,
-      senderId: user._id,
-      type: 'SYSTEM',
-      content: `${user.name} volunteered as coordinator`,
-      io,
-    });
-  }
-  await emitPoolState(io, poolId, 'pool:coordinator-update');
-
-  return serializePool(await OutsideFoodPool.findById(poolId).populate('restaurantId'), user._id, user.role);
+async function volunteerAsCoordinator() {
+  throw outsideFoodError('This pool is managed by its broadcaster');
 }
 
 async function expireDueOutsideFoodPools(io = null) {
-  const now = new Date();
-  await OutsideFoodPool.updateMany(
-    { status: 'EXPIRED' },
-    { $set: { status: 'LOCKED', lockedAt: now } }
-  );
+  const cutoff = new Date(Date.now() - POOL_TTL_MS);
+  const stalePools = await OutsideFoodPool.find({ createdAt: { $lte: cutoff } }).select('_id');
+  const staleIds = stalePools.map((pool) => pool._id);
+  if (!staleIds.length) return { removed: 0 };
 
-  const dueOpenPools = await OutsideFoodPool.find({
-    status: 'OPEN',
-    archived: false,
-    closesAt: { $lte: now },
-  });
+  await Promise.all([
+    OutsideFoodParticipant.deleteMany({ poolId: { $in: staleIds } }),
+    OutsideFoodChatMessage.deleteMany({ poolId: { $in: staleIds } }),
+    OutsideFoodJoinRequest.deleteMany({ poolId: { $in: staleIds } }),
+    OutsideFoodPool.deleteMany({ _id: { $in: staleIds } }),
+  ]);
 
-  for (const pool of dueOpenPools) {
-    pool.status = 'LOCKED';
-    pool.lockedAt = pool.lockedAt || now;
-    await pool.save();
-    await createRoomMessage({
-      poolId: pool._id,
-      type: 'STATUS_UPDATE',
-      content: 'Pool locked',
-      io,
+  if (io) {
+    staleIds.forEach((poolId) => {
+      io.to(OUTSIDE_FOOD_LOBBY_ROOM).emit('pool:expired', { poolId });
+      io.to(getOutsideFoodRoomName(poolId)).emit('pool:expired', { poolId });
     });
-    await emitPoolState(io, pool._id, 'pool:lock');
   }
 
-  const graceDuePools = await OutsideFoodPool.find({
-    status: 'UNLOCKED',
-    archived: false,
-    graceClosesAt: { $lte: now },
-  });
-
-  for (const pool of graceDuePools) {
-    pool.status = 'LOCKED';
-    pool.lockedAt = pool.lockedAt || now;
-    await pool.save();
-    await createRoomMessage({
-      poolId: pool._id,
-      type: 'STATUS_UPDATE',
-      content: 'Pool locked',
-      io,
-    });
-    await emitPoolState(io, pool._id, 'pool:lock');
-  }
-
-  const archiveCutoff = new Date(Date.now() - ARCHIVE_AFTER_MS);
-  const stalePools = await OutsideFoodPool.find({
-    status: { $in: ['COMPLETED'] },
-    archived: false,
-    updatedAt: { $lte: archiveCutoff },
-  });
-
-  for (const pool of stalePools) {
-    pool.status = 'ARCHIVED';
-    pool.archived = true;
-    await pool.save();
-    await createRoomMessage({
-      poolId: pool._id,
-      type: 'SYSTEM',
-      content: 'Pool archived',
-      io,
-    });
-    await emitPoolState(io, pool._id, 'pool:update');
-  }
-
-  return { locked: dueOpenPools.length + graceDuePools.length, archived: stalePools.length };
+  return { removed: staleIds.length };
 }
 
 module.exports = {
   OUTSIDE_FOOD_LOBBY_ROOM,
+  VISIBLE_POOL_STATUSES,
+  POOL_TTL_MS,
   getOutsideFoodRoomName,
   outsideFoodError,
   parsePositiveAmount,
   parseDateValue,
   normalizeStringList,
+  normalizeCategory,
   canJoinPool,
+  canRequestPool,
   serializePool,
   serializeMessage,
   createRoomMessage,
   emitPoolState,
+  createStudentPool,
   joinOutsideFoodPool,
+  createJoinRequest,
+  resolveJoinRequest,
+  leaveOutsideFoodPool,
+  kickPoolParticipant,
   setParticipantOnline,
   assertRoomAccess,
   sendTextMessage,

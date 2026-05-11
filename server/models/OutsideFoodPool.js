@@ -1,11 +1,23 @@
 const mongoose = require('mongoose');
 
 const POOL_STATUSES = ['OPEN', 'UNLOCKED', 'LOCKED', 'COORDINATING', 'COMPLETED', 'ARCHIVED'];
+const POOL_CATEGORIES = ['food', 'travel', 'others'];
 
 const outsideFoodPoolSchema = new mongoose.Schema({
   restaurantId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'OutsideFoodRestaurant',
+    default: null,
+  },
+  category: {
+    type: String,
+    enum: POOL_CATEGORIES,
+    default: 'food',
+    lowercase: true,
+  },
+  broadcaster: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
     required: true,
   },
   title: {
@@ -44,7 +56,7 @@ const outsideFoodPoolSchema = new mongoose.Schema({
   },
   closesAt: {
     type: Date,
-    required: true,
+    default: null,
   },
   unlockAt: {
     type: Date,
@@ -72,7 +84,7 @@ const outsideFoodPoolSchema = new mongoose.Schema({
   },
   pickupPoint: {
     type: String,
-    required: true,
+    default: '',
     trim: true,
   },
   archived: {
@@ -91,7 +103,10 @@ const outsideFoodPoolSchema = new mongoose.Schema({
 outsideFoodPoolSchema.index({ status: 1, archived: 1, opensAt: 1, closesAt: 1 });
 outsideFoodPoolSchema.index({ restaurantId: 1, closesAt: 1 });
 outsideFoodPoolSchema.index({ coordinators: 1 });
+outsideFoodPoolSchema.index({ broadcaster: 1, status: 1, createdAt: -1 });
+outsideFoodPoolSchema.index({ category: 1, status: 1, createdAt: -1 });
 
 outsideFoodPoolSchema.statics.statuses = POOL_STATUSES;
+outsideFoodPoolSchema.statics.categories = POOL_CATEGORIES;
 
 module.exports = mongoose.model('OutsideFoodPool', outsideFoodPoolSchema);

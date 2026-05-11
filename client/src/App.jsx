@@ -17,6 +17,7 @@ import NutritionPage from './pages/NutritionPage';
 import LiveQueuePage from './pages/LiveQueuePage';
 import OutsideFoodPage from './pages/OutsideFoodPage';
 import OutsideFoodPoolPage from './pages/OutsideFoodPoolPage';
+import FindFeastPage from './pages/FindFeastPage';
 import KitchenDashboard from './pages/KitchenDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import MenuManage from './pages/MenuManage';
@@ -191,8 +192,11 @@ function AppRoutes() {
         <Route path="orders" element={<ProtectedRoute roles={['student']}><OrdersPage /></ProtectedRoute>} />
         <Route path="live-queue" element={<ProtectedRoute roles={['student']}><LiveQueuePage /></ProtectedRoute>} />
         <Route path="nutrition" element={<ProtectedRoute roles={['student']}><NutritionPage /></ProtectedRoute>} />
-        <Route path="outside-food" element={<ProtectedRoute roles={['student']}><OutsideFoodPage /></ProtectedRoute>} />
+        <Route path="pools" element={<ProtectedRoute roles={['student']}><OutsideFoodPage /></ProtectedRoute>} />
+        <Route path="pools/:poolId" element={<ProtectedRoute roles={['student']}><OutsideFoodPoolPage /></ProtectedRoute>} />
+        <Route path="outside-food" element={<Navigate to="/pools" replace />} />
         <Route path="outside-food/pool/:poolId" element={<ProtectedRoute roles={['student']}><OutsideFoodPoolPage /></ProtectedRoute>} />
+        <Route path="find-feast" element={<ProtectedRoute roles={['student']}><FindFeastPage /></ProtectedRoute>} />
 
         {/* Kitchen Routes */}
         <Route path="kitchen" element={<ProtectedRoute roles={['kitchen']}><KitchenDashboard /></ProtectedRoute>} />
@@ -202,7 +206,8 @@ function AppRoutes() {
         {/* Admin Routes */}
         <Route path="stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="analytics" /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="users" /></ProtectedRoute>} />
-        <Route path="admin/outside-food" element={<ProtectedRoute roles={['admin']}><AdminOutsideFoodPage /></ProtectedRoute>} />
+        <Route path="admin/restaurants" element={<ProtectedRoute roles={['admin']}><AdminOutsideFoodPage /></ProtectedRoute>} />
+        <Route path="admin/outside-food" element={<Navigate to="/admin/restaurants" replace />} />
       </Route>
 
       {/* Catch all */}

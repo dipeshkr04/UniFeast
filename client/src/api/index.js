@@ -109,12 +109,17 @@ export const outsideFoodAPI = {
     getAll: (params) => api.get('/outside-food/restaurants', { params }),
     create: (data) => api.post('/outside-food/restaurants', data),
     update: (id, data) => api.patch(`/outside-food/restaurants/${id}`, data),
+    delete: (id) => api.delete(`/outside-food/restaurants/${id}`),
   },
   pools: {
     getAll: (params) => api.get('/outside-food/pools', { params }),
     create: (data) => api.post('/outside-food/pools', data),
     getOne: (id) => api.get(`/outside-food/pools/${id}`),
     join: (id, data) => api.post(`/outside-food/pools/${id}/join`, data),
+    requestJoin: (id, data) => api.post(`/outside-food/pools/${id}/requests`, data),
+    resolveRequest: (id, requestId, data) => api.patch(`/outside-food/pools/${id}/requests/${requestId}`, data),
+    leave: (id) => api.delete(`/outside-food/pools/${id}/participants/me`),
+    kick: (id, userId) => api.delete(`/outside-food/pools/${id}/participants/${userId}`),
     updateStatus: (id, data) => api.patch(`/outside-food/pools/${id}/status`, data),
     archive: (id) => api.patch(`/outside-food/pools/${id}/archive`),
     volunteerCoordinator: (id) => api.post(`/outside-food/pools/${id}/coordinators`),
@@ -122,6 +127,7 @@ export const outsideFoodAPI = {
   chat: {
     getMessages: (poolId) => api.get(`/outside-food/chat/${poolId}`),
     send: (poolId, data) => api.post(`/outside-food/chat/${poolId}`, data),
+    broadcast: (poolId, data) => api.post(`/outside-food/chat/${poolId}/broadcast`, data),
   },
   socket: {
     info: () => api.get('/outside-food/socket'),

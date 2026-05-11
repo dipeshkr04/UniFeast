@@ -13,7 +13,8 @@ const studentLinks = [
   { to: '/', label: 'Menu' },
   { to: '/live-queue', label: 'Live Queue' },
   { to: '/orders', label: 'My Orders' },
-  { to: '/outside-food', label: 'Outside Food' },
+  { to: '/pools', label: 'Pools' },
+  { to: '/find-feast', label: 'Find Your Feast' },
   { to: '/nutrition', label: 'Nutrition' },
 ];
 
@@ -26,7 +27,7 @@ const kitchenLinks = [
 const adminLinks = [
   { to: '/', label: 'Dashboard' },
   { to: '/users', label: 'Users' },
-  { to: '/admin/outside-food', label: 'Outside Food' },
+  { to: '/admin/restaurants', label: 'Restaurants' },
 ];
 
 export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive }) {

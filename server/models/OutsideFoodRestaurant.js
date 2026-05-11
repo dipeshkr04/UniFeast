@@ -24,6 +24,16 @@ const outsideFoodRestaurantSchema = new mongoose.Schema({
     type: String,
     default: '45-60 min',
   },
+  orderWindow: {
+    type: String,
+    default: '1:00 PM - 7:30 PM',
+    trim: true,
+  },
+  location: {
+    type: String,
+    default: '',
+    trim: true,
+  },
   contactNumber: {
     type: String,
     default: '',

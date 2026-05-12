@@ -20,6 +20,7 @@ export default function Layout() {
   const isPoolRoomPage = user?.role === 'student'
     && (pathname.startsWith('/pools/') || pathname.startsWith('/outside-food/pool/'));
   const isInfoPage = pathname === '/about' || pathname === '/faq';
+  const isNutritionPage = pathname === '/nutrition';
   const appRoutePatterns = [
     /^\/$/,
     /^\/about$/,
@@ -49,6 +50,7 @@ export default function Layout() {
     || isFindFeastPage
     || isRestaurantAdminPage
     || isInfoPage
+    || isNutritionPage
     || isNotFoundPage;
 
   // Fetch canteen status on mount

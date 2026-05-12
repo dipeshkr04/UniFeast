@@ -11,30 +11,41 @@ export default function RankProgressSummary({ userStats, badgeTiers = NUTRITION_
   const shownBadge = nextBadge || currentBadge;
   const badgeProgress = userStats?.badgeProgress || {};
   const xpMeter = nextBadge?.xp ? Math.min(((userStats?.totalXP || 0) / nextBadge.xp) * 100, 100) : 100;
+  const currentStreak = userStats?.currentStreak || userStats?.streak || 0;
 
   return (
     <section className="leaderboard-progress-grid nutrition-rank-progress">
       <div className="rank-user-panel">
-        <div className="rank-user-media">
-          <span className="rank-pill">Your Rank</span>
-          <img
-            src={getBadgeAsset(currentBadge)}
-            alt={`${currentBadge?.name || 'Begin'} badge`}
-            className="rank-user-badge-image"
-          />
-        </div>
-
-        <div className="rank-user-copy">
-          <p className="rank-user-number">#{userStats?.rank || '-'}</p>
-          <div className="rank-user-name">
-            <span>{userStats?.name || 'Student'}</span>
-            <HiOutlineCheckCircle className="w-4 h-4 text-primary-500" />
+        <div className="rank-user-profile">
+          <div className="rank-user-media">
+            <span className="rank-pill">Your Rank</span>
+            <img
+              src={getBadgeAsset(currentBadge)}
+              alt={`${currentBadge?.name || 'Begin'} badge`}
+              className="rank-user-badge-image"
+            />
           </div>
-          <p className="rank-user-score-label">Progress Score</p>
-          <p className="rank-user-score">{formatNumber(userStats?.rankScore)}</p>
+          <div className="rank-user-identity">
+            <p className="rank-user-number">#{userStats?.rank || '-'}</p>
+            <div className="rank-user-name">
+              <span>{userStats?.name || 'Student'}</span>
+              <HiOutlineCheckCircle className="w-4 h-4 text-primary-500" />
+            </div>
+          </div>
         </div>
 
         <div className="rank-user-stats">
+          <div className="rank-user-stat-summary">
+            <div>
+              <p className="rank-user-score-label">Progress Score</p>
+              <p className="rank-user-score">{formatNumber(userStats?.rankScore)}</p>
+            </div>
+            <div>
+              <p className="rank-user-score-label">Current Streak</p>
+              <p className="rank-user-streak">{currentStreak > 0 ? `${currentStreak} day${currentStreak === 1 ? '' : 's'}` : 'No streak yet'}</p>
+            </div>
+          </div>
+
           <div className="rank-stat-line">
             <span>Consistency</span>
             <strong>{userStats?.consistency || 0}%</strong>

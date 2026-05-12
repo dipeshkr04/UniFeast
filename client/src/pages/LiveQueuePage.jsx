@@ -2,6 +2,7 @@
 import { HiOutlineRefresh, HiOutlineSearch } from 'react-icons/hi';
 import { orderAPI } from '../api';
 import toast from 'react-hot-toast';
+import { getImageUrl } from '../utils/imageUrl';
 
 export default function LiveQueuePage() {
   const [items, setItems] = useState([]);
@@ -85,7 +86,7 @@ export default function LiveQueuePage() {
             {filteredItems.map((item) => (
               <article className="live-queue-page-row" key={item.menuItemId || item.name}>
                 <div className="live-queue-page-thumb">
-                  {item.imageUrl ? <img src={item.imageUrl} alt={item.name} /> : item.name?.charAt(0)}
+                  {item.imageUrl ? <img src={getImageUrl(item.imageUrl)} alt={item.name} /> : item.name?.charAt(0)}
                 </div>
                 <div className="live-queue-page-main">
                   <h3>{item.name}</h3>

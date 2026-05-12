@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
+import { getImageUrl } from '../utils/imageUrl';
 
 const Motion = motion;
 
@@ -219,7 +220,7 @@ export default function MenuPage() {
                 >
                   <div className="student-menu-card-media bg-surface-900">
                     {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.name} className="student-menu-card-image" />
+                      <img src={getImageUrl(item.imageUrl)} alt={item.name} className="student-menu-card-image" />
                     ) : (
                       <div className="student-menu-card-fallback">
                         <span>{
@@ -341,7 +342,7 @@ export default function MenuPage() {
               <div className="flex items-center gap-4 mb-6">
                 <div className="w-16 h-16 rounded-2xl overflow-hidden bg-surface-900 flex-shrink-0 border border-white/5">
                   {selectedItem.imageUrl ? (
-                    <img src={selectedItem.imageUrl} alt={selectedItem.name} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(selectedItem.imageUrl)} alt={selectedItem.name} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-3xl">🍲</div>
                   )}

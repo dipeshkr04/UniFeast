@@ -22,6 +22,19 @@ const formatCurrency = (value = 0) => `₹${Number(value || 0).toLocaleString('e
 const formatNumber = (value = 0) => Number(value || 0).toLocaleString('en-IN');
 const chartColors = ['#ff4714', '#3b82f6', '#10b981', '#f59e0b', '#a1a1aa', '#71717a'];
 
+function normalizeStudentAnalyticsRow(student = {}, index = 0) {
+  const fallbackId = student.userId ? `USER-${String(student.userId).slice(-6).toUpperCase()}` : '';
+  const btId = student.btId || student.displayLabel || fallbackId;
+  const name = student.name || student.email || btId || fallbackId;
+
+  return {
+    ...student,
+    name,
+    btId,
+    displayLabel: student.displayLabel || btId || name,
+  };
+}
+
 function getDefaultStartDate() {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
@@ -278,9 +291,15 @@ export default function AdminDashboard({ mode = 'analytics' }) {
 
   const fetchChartStats = useCallback(async () => {
     try {
+      const requests = new Map();
       const entries = await Promise.all(
         Object.entries(chartFilters).map(async ([key, filter]) => {
-          const { data } = await adminAPI.getStats(buildStatsParams(filter));
+          const params = buildStatsParams(filter);
+          const requestKey = JSON.stringify(params);
+          if (!requests.has(requestKey)) {
+            requests.set(requestKey, adminAPI.getStats(params));
+          }
+          const { data } = await requests.get(requestKey);
           return [key, data.data];
         })
       );
@@ -321,10 +340,27 @@ export default function AdminDashboard({ mode = 'analytics' }) {
       toast.success('User deleted');
       fetchUsers();
       fetchData();
-    } catch {
-      toast.error('Failed to delete user');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete user');
     }
   };
+
+  const studentSpendRows = useMemo(
+    () => (stats.studentSpending || []).map(normalizeStudentAnalyticsRow),
+    [stats.studentSpending]
+  );
+  const nightCanteenRows = useMemo(
+    () => (stats.nightCanteenSpending || []).map(normalizeStudentAnalyticsRow),
+    [stats.nightCanteenSpending]
+  );
+  const chartStudentSpendRows = useMemo(
+    () => (chartStats.students?.studentSpending || []).map(normalizeStudentAnalyticsRow),
+    [chartStats.students]
+  );
+  const chartNightCanteenRows = useMemo(
+    () => (chartStats.night?.nightCanteenSpending || []).map(normalizeStudentAnalyticsRow),
+    [chartStats.night]
+  );
 
   const analyticsExportRows = useMemo(() => {
     const sales = [
@@ -360,7 +396,7 @@ export default function AdminDashboard({ mode = 'analytics' }) {
 
     const students = [
       ['Name', 'Email', 'BTID', 'Cohort', 'Orders', 'Total spent (INR)', 'Average order value (INR)'],
-      ...(chartStats.students?.studentSpending || []).map((student) => [
+      ...chartStudentSpendRows.map((student) => [
         student.name,
         student.email,
         student.btId,
@@ -373,7 +409,7 @@ export default function AdminDashboard({ mode = 'analytics' }) {
 
     const night = [
       ['Name', 'Email', 'BTID', 'Cohort', 'Orders', 'Total spent (INR)', 'Average order value (INR)'],
-      ...(chartStats.night?.nightCanteenSpending || []).map((student) => [
+      ...chartNightCanteenRows.map((student) => [
         student.name,
         student.email,
         student.btId,
@@ -385,7 +421,7 @@ export default function AdminDashboard({ mode = 'analytics' }) {
     ];
 
     return { sales, items, cohort, students, night };
-  }, [chartStats]);
+  }, [chartStats, chartStudentSpendRows, chartNightCanteenRows]);
 
   const updateChartFilter = (key, nextFilter) => {
     setChartFilters((prev) => ({ ...prev, [key]: nextFilter }));
@@ -611,12 +647,12 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                   />
                 </div>
                 <div className="analytics-chart-frame">
-                  {(chartStats.students?.studentSpending || []).length > 0 ? (
+                  {chartStudentSpendRows.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartStats.students.studentSpending.slice(0, 8)} layout="vertical" margin={{ left: 16, right: 16 }}>
+                      <BarChart data={chartStudentSpendRows.slice(0, 8)} layout="vertical" margin={{ left: 16, right: 16 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
                         <XAxis type="number" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <YAxis dataKey="btId" type="category" width={90} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <YAxis dataKey="displayLabel" type="category" width={116} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
                         <Tooltip cursor={false} contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
                         <Bar dataKey="totalSpent" fill="#3b82f6" radius={[0, 8, 8, 0]} barSize={20} activeBar={false} />
                       </BarChart>
@@ -642,12 +678,12 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                   />
                 </div>
                 <div className="analytics-chart-frame">
-                  {(chartStats.night?.nightCanteenSpending || []).length > 0 ? (
+                  {chartNightCanteenRows.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartStats.night.nightCanteenSpending.slice(0, 8)} layout="vertical" margin={{ left: 16, right: 16 }}>
+                      <BarChart data={chartNightCanteenRows.slice(0, 8)} layout="vertical" margin={{ left: 16, right: 16 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
                         <XAxis type="number" tick={{ fill: '#71717a', fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <YAxis dataKey="btId" type="category" width={90} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <YAxis dataKey="displayLabel" type="category" width={116} tick={{ fill: '#e4e4e7', fontSize: 11 }} axisLine={false} tickLine={false} />
                         <Tooltip cursor={false} contentStyle={{ background: '#18181b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, color: '#fff' }} />
                         <Bar dataKey="totalSpent" fill="#f59e0b" radius={[0, 8, 8, 0]} barSize={20} activeBar={false} />
                       </BarChart>
@@ -676,7 +712,7 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                 title="Student Spend by BTID"
                 subtitle="Top spenders with derived BTID and batch."
                 columns={['Student', 'BTID', 'Orders', 'Spent']}
-                rows={(stats.studentSpending || []).map((student) => [student.name, student.btId, formatNumber(student.orders), formatCurrency(student.totalSpent)])}
+                rows={studentSpendRows.map((student) => [student.name, student.btId, formatNumber(student.orders), formatCurrency(student.totalSpent)])}
               />
               <AnalyticsTable
                 title="Cohort Purchasing Power"
@@ -688,7 +724,7 @@ export default function AdminDashboard({ mode = 'analytics' }) {
                 title="Night Canteen Spenders"
                 subtitle="Most spend between 8 PM and 5 AM."
                 columns={['Student', 'BTID', 'Orders', 'Spent']}
-                rows={(stats.nightCanteenSpending || []).map((student) => [student.name, student.btId, formatNumber(student.orders), formatCurrency(student.totalSpent)])}
+                rows={nightCanteenRows.map((student) => [student.name, student.btId, formatNumber(student.orders), formatCurrency(student.totalSpent)])}
               />
               <AnalyticsTable
                 title="Top Items by Period"

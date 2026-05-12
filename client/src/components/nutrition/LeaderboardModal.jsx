@@ -1,30 +1,8 @@
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { leaderboardAPI } from '../../api';
 import { getBadgeAsset } from '../../constants/nutritionBadges';
-import { HiOutlineCalendar, HiOutlineChartBar, HiOutlineFire, HiOutlineStar, HiOutlineX } from 'react-icons/hi';
-
-const formulaItems = [
-  {
-    label: 'Consistency Days',
-    requirement: '14 / 28 / 50 / 100 / 200 / 365',
-    detail: 'Badge upgrades require long-term valid logging days.',
-    icon: HiOutlineCalendar,
-  },
-  {
-    label: 'XP Requirement',
-    requirement: '1K to 60K XP',
-    detail: 'XP comes from logging, goal accuracy, macro targets, and streak bonuses.',
-    icon: HiOutlineFire,
-  },
-  {
-    label: 'Average Adherence',
-    requirement: '60% to 85%',
-    detail: 'Your average adherence must meet the badge threshold.',
-    icon: HiOutlineChartBar,
-  },
-];
-
-const rankOrder = ['Badge tier', 'Total XP', 'Consistent days', 'Average adherence'];
+import { HiOutlineX } from 'react-icons/hi';
 
 function formatNumber(value) {
   return Number(value || 0).toLocaleString('en-IN');
@@ -66,9 +44,9 @@ export default function LeaderboardModal({ onClose }) {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-3 md:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
-      <div className="leaderboard-modal-shell glass-card-static w-full max-w-7xl max-h-[calc(100vh-24px)] h-[92vh] flex flex-col relative border border-surface-700/50 shadow-2xl overflow-hidden rounded-2xl z-[2001]">
+  const modal = (
+    <div className="leaderboard-modal-overlay fixed inset-0 z-[2000] flex items-center justify-center p-3 md:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+      <div className="leaderboard-modal-shell glass-card-static w-full flex flex-col relative border border-surface-700/50 shadow-2xl overflow-hidden rounded-2xl z-[2001]">
         <button
           onClick={onClose}
           className="absolute top-4 right-4 w-11 h-11 rounded-full bg-surface-900/80 hover:bg-surface-800 transition-colors text-surface-400 hover:text-white z-20 flex items-center justify-center border border-surface-700/70"
@@ -78,49 +56,6 @@ export default function LeaderboardModal({ onClose }) {
         </button>
 
         <div className="leaderboard-modal-body">
-          <section className="rank-formula-panel">
-            <div className="rank-formula-title">
-              <h2>How Our Badge Rank Works</h2>
-              <p>Begin starts by default. Every higher badge unlocks only when all three requirements are met.</p>
-              <p className="rank-formula-subcopy">Progress Score is bounded from 0-100 and measures movement toward the next badge.</p>
-            </div>
-
-            <div className="rank-formula-flow">
-              {formulaItems.map((item, index) => {
-                const Icon = item.icon;
-                return (
-                  <div className="rank-formula-step" key={item.label}>
-                    <div className="rank-formula-icon">
-                      <Icon className="w-7 h-7" />
-                    </div>
-                    <div>
-                      <p className="rank-formula-label">{item.label}</p>
-                      <p className="rank-formula-weight">{item.requirement}</p>
-                      <p className="rank-formula-copy">{item.detail}</p>
-                    </div>
-                    {index < formulaItems.length - 1 && <span className="rank-formula-plus">+</span>}
-                  </div>
-                );
-              })}
-              <div className="rank-formula-result">
-                <span>=</span>
-                <div className="rank-formula-trophy">
-                  <HiOutlineStar className="w-10 h-10" />
-                </div>
-                <p>Highest Qualified Badge</p>
-              </div>
-            </div>
-
-            <div className="rank-order-note">
-              <span>Leaderboard order</span>
-              {rankOrder.map((item, index) => (
-                <p key={item}>
-                  {index + 1}. {item}
-                </p>
-              ))}
-            </div>
-          </section>
-
           {loading ? (
             <div className="leaderboard-loading">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div>
@@ -140,11 +75,10 @@ export default function LeaderboardModal({ onClose }) {
                   <div className="leaderboard-rank-head">
                     <span>Rank</span>
                     <span>User</span>
-                    <span>Progress Score</span>
                     <span>Consistency</span>
                     <span>XP</span>
                     <span>Adherence</span>
-                    <span>Badge</span>
+                    <span>Points & Badge</span>
                   </div>
 
                   {rows.map((user) => (
@@ -168,14 +102,16 @@ export default function LeaderboardModal({ onClose }) {
                         </div>
                       </div>
 
-                      <strong className="leaderboard-score-cell">{formatNumber(user.rankScore)}</strong>
-                      <span>{user.consistency}%</span>
-                      <span>{formatNumber(user.totalXP)}</span>
-                      <span>{user.adherence}%</span>
+                      <span className="leaderboard-metric-cell">{user.consistency}%</span>
+                      <span className="leaderboard-metric-cell">{formatNumber(user.totalXP)}</span>
+                      <span className="leaderboard-metric-cell">{user.adherence}%</span>
 
-                      <div className="leaderboard-badge-cell">
-                        <img src={getBadgeAsset(user.badge)} alt={`${user.badge?.name || 'Badge'} badge`} />
-                        <span>{user.badge?.name || 'Begin'}</span>
+                      <div className="leaderboard-points-badge-cell">
+                        <strong className="leaderboard-score-cell">{formatNumber(user.rankScore)}</strong>
+                        <div className="leaderboard-badge-cell">
+                          <img src={getBadgeAsset(user.badge)} alt={`${user.badge?.name || 'Badge'} badge`} />
+                          <span>{user.badge?.name || 'Begin'}</span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -193,4 +129,6 @@ export default function LeaderboardModal({ onClose }) {
       </div>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }

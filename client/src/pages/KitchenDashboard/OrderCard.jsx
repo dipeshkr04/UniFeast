@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { STATUS_COLORS, URGENCY } from './kitchenColors';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const getOrderItemId = (order, item, index) => String(item._id || item.menuItem?._id || `${order._id}-${index}`);
 
@@ -180,7 +181,7 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady, busyOrde
       <div className="card-items">
         {(order.items || []).map((it, idx) => {
           const itemName = it.menuItem?.name || it.name || 'Item';
-          const imageUrl = it.menuItem?.imageUrl || it.imageUrl || getFallbackThumb(itemName);
+          const imageUrl = getImageUrl(it.menuItem?.imageUrl || it.imageUrl) || getFallbackThumb(itemName);
           const itemQty = Number(it.quantity || 0);
           const readyQty = (isOrderCompleted || isOrderReady)
             ? itemQty

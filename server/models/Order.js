@@ -40,6 +40,11 @@ const orderSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
+  userSnapshot: {
+    name: { type: String, default: '' },
+    email: { type: String, default: '' },
+    btId: { type: String, default: '' },
+  },
   items: [orderItemSchema],
   totalAmount: {
     type: Number,

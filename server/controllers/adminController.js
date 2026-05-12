@@ -76,14 +76,17 @@ function getCohort(email = '') {
 
 function enrichStudent(row) {
   const email = row.email || '';
+  const derivedBtId = row.btId || getBtId(email);
   const orders = row.orders || 0;
   const totalSpent = row.totalSpent || 0;
   return {
     ...row,
-    name: row.name || 'Unknown student',
+    userId: row.userId || null,
+    name: row.name || email || derivedBtId,
     email,
-    btId: getBtId(email),
-    cohort: getCohort(email),
+    btId: derivedBtId,
+    displayLabel: derivedBtId || row.name || email,
+    cohort: getCohort(email || derivedBtId),
     totalSpent,
     orders,
     averageOrderValue: orders ? Math.round((totalSpent / orders) * 100) / 100 : 0,
@@ -126,6 +129,7 @@ async function aggregateStudentSpending(match) {
         _id: '$user',
         totalSpent: { $sum: '$totalAmount' },
         orders: { $sum: 1 },
+        userSnapshot: { $first: '$userSnapshot' },
       },
     },
     {
@@ -137,12 +141,14 @@ async function aggregateStudentSpending(match) {
       },
     },
     { $unwind: { path: '$student', preserveNullAndEmptyArrays: true } },
+    { $match: { 'student._id': { $exists: true }, 'student.role': 'student' } },
     {
       $project: {
         _id: 0,
         userId: '$_id',
-        name: '$student.name',
-        email: '$student.email',
+        name: { $ifNull: ['$student.name', '$userSnapshot.name'] },
+        email: { $ifNull: ['$student.email', '$userSnapshot.email'] },
+        btId: '$userSnapshot.btId',
         totalSpent: 1,
         orders: 1,
       },
@@ -174,6 +180,7 @@ async function aggregateNightSpending(match) {
         _id: '$user',
         totalSpent: { $sum: '$totalAmount' },
         orders: { $sum: 1 },
+        userSnapshot: { $first: '$userSnapshot' },
       },
     },
     {
@@ -185,11 +192,14 @@ async function aggregateNightSpending(match) {
       },
     },
     { $unwind: { path: '$student', preserveNullAndEmptyArrays: true } },
+    { $match: { 'student._id': { $exists: true }, 'student.role': 'student' } },
     {
       $project: {
         _id: 0,
-        name: '$student.name',
-        email: '$student.email',
+        userId: '$_id',
+        name: { $ifNull: ['$student.name', '$userSnapshot.name'] },
+        email: { $ifNull: ['$student.email', '$userSnapshot.email'] },
+        btId: '$userSnapshot.btId',
         totalSpent: 1,
         orders: 1,
       },
@@ -316,6 +326,14 @@ exports.updateUserRole = async (req, res) => {
 // @route   DELETE /api/admin/users/:id
 exports.deleteUser = async (req, res) => {
   try {
+    const orderCount = await Order.countDocuments({ user: req.params.id });
+    if (orderCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'This user has order history and cannot be deleted because analytics attribution would be lost.',
+      });
+    }
+
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });

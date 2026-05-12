@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion as Motion } from 'framer-motion';
-import { HiOutlineExternalLink, HiOutlineUserGroup } from 'react-icons/hi';
+import { HiOutlineUserGroup } from 'react-icons/hi';
+import { FaGithub, FaLinkedin } from 'react-icons/fa';
 import { MdRestaurantMenu } from 'react-icons/md';
 import { useAuth } from '../contexts/AuthContext';
 import PublicNav from '../components/common/PublicNav';
@@ -10,21 +11,25 @@ const teamMembers = [
     name: 'Shubh Goel',
     image: '/team/shubh.jpeg',
     linkedin: 'https://www.linkedin.com/in/shubhhgoel/',
+    github: 'https://github.com/shubhgoel124',
   },
   {
     name: 'Kawyanshu Raj',
     image: '/team/kawyanshu.png',
-    linkedin: 'https://www.linkedin.com/in/kawyanshuraj/?skipRedirect=true',
+    linkedin: 'https://www.linkedin.com/in/kawyanshuraj/',
+    github: 'https://github.com/masked-byte18',
   },
   {
     name: 'Shivang Tonde',
     image: '/team/shivang.jpeg',
-    linkedin: 'https://www.linkedin.com/in/shivang-tonde-56757528a/?skipRedirect=true',
+    linkedin: 'https://www.linkedin.com/in/shivang-tonde-56757528a/',
+    github: 'https://github.com/cybercondor18',
   },
   {
     name: 'Dipesh Kumar',
     image: '/team/dipesh.jpg',
-    linkedin: 'https://www.linkedin.com/in/dipesh-kumar09/?skipRedirect=true',
+    linkedin: 'https://www.linkedin.com/in/dipesh-kumar09/',
+    github: 'https://github.com/dipeshkr04',
   },
 ];
 
@@ -45,9 +50,9 @@ function AboutContent({ isPublic }) {
           className="about-hero-copy"
         >
           <p className="about-kicker">About UniFeast</p>
-          <h1>Built by students for a smoother campus canteen.</h1>
+          <h1>Student-built campus dining.</h1>
           <p>
-            UniFeast brings menu discovery, cart reservations, queue tracking, pooled orders, and nutrition insights into a single IIIT Nagpur dining platform.
+            UniFeast keeps menus, queues, pooled orders, and nutrition simple for IIIT Nagpur.
           </p>
           <div className="about-hero-actions">
             <Link to={isPublic ? '/register' : '/'} className="btn-primary about-primary-action">
@@ -100,10 +105,16 @@ function AboutContent({ isPublic }) {
                 <h3>{member.name}</h3>
                 <p>UniFeast creator</p>
               </div>
-              <a href={member.linkedin} target="_blank" rel="noreferrer" className="about-linkedin-btn">
-                LinkedIn
-                <HiOutlineExternalLink className="w-4 h-4" />
-              </a>
+              <div className="about-team-links" aria-label={`${member.name} profile links`}>
+                <a href={member.linkedin} target="_blank" rel="noreferrer" className="about-social-btn about-linkedin-btn">
+                  <FaLinkedin className="w-4 h-4" />
+                  LinkedIn
+                </a>
+                <a href={member.github} target="_blank" rel="noreferrer" className="about-social-btn about-github-btn">
+                  <FaGithub className="w-4 h-4" />
+                  GitHub
+                </a>
+              </div>
             </Motion.article>
           ))}
         </div>

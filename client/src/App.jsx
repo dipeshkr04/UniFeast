@@ -22,6 +22,9 @@ import KitchenDashboard from './pages/KitchenDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import MenuManage from './pages/MenuManage';
 import AdminOutsideFoodPage from './pages/AdminOutsideFoodPage';
+import AboutPage from './pages/AboutPage';
+import FAQPage from './pages/FAQPage';
+import NotFoundPage from './pages/NotFoundPage';
 
 const PENDING_ORDER_KEY = 'unifeast_pending_order';
 
@@ -171,9 +174,10 @@ function AppRoutes() {
     return (
       <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     );
   }
@@ -186,12 +190,14 @@ function AppRoutes() {
 
       <Route path="/" element={<Layout />}>
         <Route index element={getHomePage()} />
+        <Route path="about" element={<AboutPage />} />
 
         {/* Student Routes */}
         <Route path="cart" element={<ProtectedRoute roles={['student']}><CartPage /></ProtectedRoute>} />
         <Route path="orders" element={<ProtectedRoute roles={['student']}><OrdersPage /></ProtectedRoute>} />
         <Route path="live-queue" element={<ProtectedRoute roles={['student']}><LiveQueuePage /></ProtectedRoute>} />
         <Route path="nutrition" element={<ProtectedRoute roles={['student']}><NutritionPage /></ProtectedRoute>} />
+        <Route path="faq" element={<ProtectedRoute roles={['student']}><FAQPage /></ProtectedRoute>} />
         <Route path="pools" element={<ProtectedRoute roles={['student']}><OutsideFoodPage /></ProtectedRoute>} />
         <Route path="pools/:poolId" element={<ProtectedRoute roles={['student']}><OutsideFoodPoolPage /></ProtectedRoute>} />
         <Route path="outside-food" element={<Navigate to="/pools" replace />} />
@@ -208,10 +214,11 @@ function AppRoutes() {
         <Route path="users" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="users" /></ProtectedRoute>} />
         <Route path="admin/restaurants" element={<ProtectedRoute roles={['admin']}><AdminOutsideFoodPage /></ProtectedRoute>} />
         <Route path="admin/outside-food" element={<Navigate to="/admin/restaurants" replace />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Route>
 
       {/* Catch all */}
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

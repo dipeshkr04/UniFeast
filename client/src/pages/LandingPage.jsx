@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { motion as Motion } from 'framer-motion';
 import { MdRestaurantMenu, MdOutlineFlashOn, MdOutlineGroups, MdOutlineSpeed, MdChevronRight } from 'react-icons/md';
-import ThemeToggle from '../components/common/ThemeToggle';
+import PublicNav from '../components/common/PublicNav';
 
 const features = [
   {
@@ -24,25 +24,7 @@ const features = [
 export default function LandingPage() {
   return (
     <div className="public-landing-page">
-      <nav className="public-nav">
-        <div className="public-nav-inner">
-          <Link to="/" className="public-brand">
-            <span className="public-brand-icon gradient-primary">
-              <MdRestaurantMenu className="w-5 h-5 text-white" />
-            </span>
-            <span className="public-brand-copy">
-              <span className="public-brand-title">Uni<span className="text-primary-500">Feast</span></span>
-              <span className="public-brand-subtitle text-primary-400/80">IIIT Nagpur</span>
-            </span>
-          </Link>
-
-          <div className="public-nav-actions">
-            <ThemeToggle variant="public" />
-            <Link to="/login" className="public-nav-link text-surface-300 hover:text-white">Sign In</Link>
-            <Link to="/register" className="btn-primary public-nav-cta">Get Started</Link>
-          </div>
-        </div>
-      </nav>
+      <PublicNav />
 
       <main className="public-main">
         <section className="public-hero">

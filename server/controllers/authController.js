@@ -262,19 +262,14 @@ async function googleSignin(req, res) {
         let user = await User.findOne({ email });
 
         if (!user) {
-            if (reservedRole) {
-                return res.status(403).json({
-                    message: `This email is reserved for ${reservedRole} access and must be registered by an admin.`
-                });
-            }
-
             const name = String(payload?.given_name || payload?.name || 'Google').trim() || 'Google';
 
             user = await User.create({
                 email,
                 authProvider: 'google',
                 googleId: googleSub,
-                name
+                name,
+                role: reservedRole || 'student'
             });
         } else {
             let shouldSave = false;

@@ -2,7 +2,8 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   HiOutlineHome, HiOutlineClipboardList, HiOutlineUserGroup,
-  HiOutlineChartBar, HiOutlineLogout, HiOutlineX
+  HiOutlineChartBar, HiOutlineLogout, HiOutlineX, HiOutlineInformationCircle,
+  HiOutlineQuestionMarkCircle
 } from 'react-icons/hi';
 import { MdRestaurantMenu, MdOutlineKitchen } from 'react-icons/md';
 import { MdOutlineDeliveryDining } from 'react-icons/md';
@@ -17,18 +18,22 @@ const studentLinks = [
   { to: '/pools', icon: MdOutlineDeliveryDining, label: 'Pools' },
   { to: '/find-feast', icon: MdRestaurantMenu, label: 'Find Your Feast' },
   { to: '/nutrition', icon: IoNutritionOutline, label: 'Nutrition' },
+  { to: '/faq', icon: HiOutlineQuestionMarkCircle, label: 'FAQ' },
+  { to: '/about', icon: HiOutlineInformationCircle, label: 'About' },
 ];
 
 const kitchenLinks = [
   { to: '/', icon: MdOutlineKitchen, label: 'Live Orders' },
   { to: '/menu-manage', icon: MdRestaurantMenu, label: 'Menu' },
   { to: '/kitchen-analytics', icon: HiOutlineChartBar, label: 'Analytics' },
+  { to: '/about', icon: HiOutlineInformationCircle, label: 'About' },
 ];
 
 const adminLinks = [
   { to: '/', icon: HiOutlineHome, label: 'Dashboard' },
   { to: '/users', icon: HiOutlineUserGroup, label: 'Users' },
   { to: '/admin/restaurants', icon: MdOutlineDeliveryDining, label: 'Restaurants' },
+  { to: '/about', icon: HiOutlineInformationCircle, label: 'About' },
 ];
 
 export default function Sidebar({ open, onClose }) {

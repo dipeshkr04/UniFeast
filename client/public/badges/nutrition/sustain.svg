@@ -1,0 +1,23 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" data-badge="sustain">
+  <title>Sustain nutrition badge</title>
+  <defs>
+    <linearGradient id="sustain-bg" x1="30" y1="26" x2="226" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1d273f"/>
+      <stop offset="1" stop-color="#0d141c"/>
+    </linearGradient>
+    <linearGradient id="sustain-ring" x1="60" y1="39" x2="197" y2="181" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#a78bfa"/>
+      <stop offset="1" stop-color="#62c77f"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="52" fill="url(#sustain-bg)"/>
+  <circle cx="128" cy="108" r="70" fill="#121827" stroke="url(#sustain-ring)" stroke-width="10"/>
+  <path d="M89 89a48 48 0 0 1 76-13" stroke="#eef2ff" stroke-width="9" stroke-linecap="round"/>
+  <path d="M161 55l7 23-24-1" stroke="#eef2ff" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M167 126a48 48 0 0 1-76 14" stroke="#88d987" stroke-width="9" stroke-linecap="round"/>
+  <path d="M94 162l-7-23 24 1" stroke="#88d987" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M121 120c-13-16-12-35 1-51 15 16 16 35-1 51z" fill="#7ccf83"/>
+  <path d="M129 121c19-9 37-4 50 10-17 13-36 14-50-10z" fill="#b9a5ff"/>
+  <text x="128" y="205" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="800" letter-spacing="1.5" fill="#f3f1ff">SUSTAIN</text>
+  <text x="128" y="226" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="3" fill="#aeb5cf">NUTRITION</text>
+</svg>

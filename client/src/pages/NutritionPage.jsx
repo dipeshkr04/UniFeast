@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
-import { nutritionAPI } from '../api';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { leaderboardAPI, nutritionAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { HiOutlineFire, HiOutlineChevronLeft, HiOutlineChevronRight, HiPlus, HiMinus, HiOutlineTrash, HiOutlineCog, HiOutlineSparkles, HiOutlineLockClosed, HiOutlineX } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import LeaderboardWidget from '../components/nutrition/LeaderboardWidget';
 import LeaderboardModal from '../components/nutrition/LeaderboardModal';
+import RankProgressSummary from '../components/nutrition/RankProgressSummary';
+import { NUTRITION_BADGES } from '../constants/nutritionBadges';
 
 const COLORS = ['#e06449', '#facc15', '#3b82f6', '#10b981'];
 const DEFAULT_LOG_FORM = {
@@ -38,6 +40,8 @@ export default function NutritionPage() {
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
   const [chartView, setChartView] = useState('weekly');
+  const [rankProgress, setRankProgress] = useState(null);
+  const [rankBadgeTiers, setRankBadgeTiers] = useState(NUTRITION_BADGES);
   const fileInputRef = useRef(null);
 
   const [logForm, setLogForm] = useState(DEFAULT_LOG_FORM);
@@ -53,27 +57,30 @@ export default function NutritionPage() {
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [aiResult, setAiResult] = useState(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [date]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [dailyRes, weeklyRes, monthlyRes] = await Promise.all([
+      const [dailyRes, weeklyRes, monthlyRes, leaderboardRes] = await Promise.all([
         nutritionAPI.getDaily(date),
         nutritionAPI.getWeekly(),
-        nutritionAPI.getMonthly()
+        nutritionAPI.getMonthly(),
+        leaderboardAPI.getWidget('allTime').catch(() => null),
       ]);
       setDaily(dailyRes.data.data);
       setWeekly(weeklyRes.data.data);
       setMonthly(monthlyRes.data.data);
-    } catch (err) {
+      setRankProgress(leaderboardRes?.data?.data?.userStats || null);
+      setRankBadgeTiers(leaderboardRes?.data?.data?.badgeTiers || NUTRITION_BADGES);
+    } catch {
       toast.error('Failed to load nutrition data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [date]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleImageSelect = async (e) => {
     const file = e.target.files[0];
@@ -106,7 +113,7 @@ export default function NutritionPage() {
         
         toast.success(`Detected: ${foodName}`, { icon: '🎯' });
       }
-    } catch (err) {
+    } catch {
       toast.error('AI Analysis failed. Please enter details manually.');
       setAiResult({ error: true });
     } finally {
@@ -129,7 +136,7 @@ export default function NutritionPage() {
       setLogForm(DEFAULT_LOG_FORM);
       setAiResult(null);
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to log meal');
     }
   };
@@ -140,7 +147,7 @@ export default function NutritionPage() {
       await nutritionAPI.deleteMeal(logId, mealId);
       toast.success('Meal deleted');
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete meal');
     }
   };
@@ -150,7 +157,7 @@ export default function NutritionPage() {
     try {
       await nutritionAPI.updateMealQuantity(logId, mealId, newQty);
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to update quantity');
     }
   };
@@ -163,7 +170,7 @@ export default function NutritionPage() {
       toast.success('Goals updated successfully!');
       setShowGoalsModal(false);
       fetchData();
-    } catch (err) {
+    } catch {
       toast.error('Failed to update goals');
     }
   };
@@ -448,53 +455,6 @@ export default function NutritionPage() {
         </div>
       </div>
 
-      {/* Trend Charts */}
-      <div className="nutrition-card glass-card-static">
-        <div className="nutrition-chart-header">
-          <h3 className="text-sm font-semibold text-surface-400 uppercase tracking-wider">Calorie Trend</h3>
-          <div className="bg-surface-800 rounded-lg p-1 flex w-full md:w-auto justify-center">
-            <button onClick={() => setChartView('weekly')}
-              className={`min-h-[44px] flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-md transition-colors ${chartView === 'weekly' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-200'}`}>
-              Weekly
-            </button>
-            <button onClick={() => setChartView('monthly')}
-              className={`min-h-[44px] flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-md transition-colors ${chartView === 'monthly' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-200'}`}>
-              Monthly
-            </button>
-          </div>
-        </div>
-
-        {chartView === 'weekly' ? (
-          weekly.length > 0 ? (
-            <div className="nutrition-chart-frame">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weekly}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={d => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 12, color: '#f1f5f9' }} />
-                  <Bar dataKey="calories" fill="#e06449" radius={[4, 4, 0, 0]} barSize={30} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          ) : <p className="text-surface-500 text-center py-10">No weekly data</p>
-        ) : (
-          monthly.length > 0 ? (
-            <div className="nutrition-chart-frame">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthly}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={d => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 12, color: '#f1f5f9' }} />
-                  <Line type="monotone" dataKey="calories" stroke="#e06449" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#e06449', stroke: '#fff', strokeWidth: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          ) : <p className="text-surface-500 text-center py-10">No monthly data</p>
-        )}
-      </div>
-
       {/* Today's Meals List */}
       <div className="nutrition-card glass-card-static overflow-hidden p-0">
         <div className="nutrition-meals-header border-b border-surface-800 flex items-center justify-between">
@@ -557,6 +517,64 @@ export default function NutritionPage() {
           </div>
         )}
 
+      </div>
+
+      {/* Analysis Panel */}
+      <div className="nutrition-card nutrition-analysis-panel glass-card-static">
+        <div className="nutrition-analysis-top">
+          <div className="nutrition-analysis-title">
+            <p className="text-xs font-bold text-primary-400 uppercase tracking-widest mb-1">Analysis</p>
+            <h3 className="text-lg font-black text-white">Your Rank Progress</h3>
+          </div>
+
+          <RankProgressSummary userStats={rankProgress} badgeTiers={rankBadgeTiers} />
+        </div>
+
+        <div className="nutrition-chart-header nutrition-analysis-header">
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-surface-400 uppercase tracking-wider">Calorie Trend</h3>
+          </div>
+          <div className="bg-surface-800 rounded-lg p-1 flex w-full md:w-auto justify-center">
+            <button onClick={() => setChartView('weekly')}
+              className={`min-h-[44px] flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-md transition-colors ${chartView === 'weekly' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-200'}`}>
+              Weekly
+            </button>
+            <button onClick={() => setChartView('monthly')}
+              className={`min-h-[44px] flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-md transition-colors ${chartView === 'monthly' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-200'}`}>
+              Monthly
+            </button>
+          </div>
+        </div>
+
+        {chartView === 'weekly' ? (
+          weekly.length > 0 ? (
+            <div className="nutrition-chart-frame">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weekly}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={d => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })} />
+                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 12, color: '#f1f5f9' }} />
+                  <Bar dataKey="calories" fill="#e06449" radius={[4, 4, 0, 0]} barSize={30} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p className="text-surface-500 text-center py-10">No weekly data</p>
+        ) : (
+          monthly.length > 0 ? (
+            <div className="nutrition-chart-frame">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthly}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
+                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={d => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} />
+                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 12, color: '#f1f5f9' }} />
+                  <Line type="monotone" dataKey="calories" stroke="#e06449" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#e06449', stroke: '#fff', strokeWidth: 2 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          ) : <p className="text-surface-500 text-center py-10">No monthly data</p>
+        )}
       </div>
 
       {/* Leaderboard Widget */}

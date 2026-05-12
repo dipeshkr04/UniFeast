@@ -1,0 +1,21 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" data-badge="steady">
+  <title>Steady nutrition badge</title>
+  <defs>
+    <linearGradient id="steady-bg" x1="30" y1="27" x2="227" y2="231" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#102637"/>
+      <stop offset="1" stop-color="#081017"/>
+    </linearGradient>
+    <linearGradient id="steady-ring" x1="60" y1="38" x2="198" y2="181" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#80d7f5"/>
+      <stop offset="1" stop-color="#8dcf83"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="52" fill="url(#steady-bg)"/>
+  <circle cx="128" cy="108" r="70" fill="#0c1b26" stroke="url(#steady-ring)" stroke-width="10"/>
+  <path d="M79 118h22l12-32 20 57 14-38h30" stroke="#edf8f6" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M85 83c14-12 32-19 50-18 15 1 29 7 40 17" stroke="#315366" stroke-width="8" stroke-linecap="round"/>
+  <path d="M84 151c14 11 32 17 51 16 15-1 28-6 39-16" stroke="#315366" stroke-width="8" stroke-linecap="round"/>
+  <path d="M106 73c8 0 15-4 20-13 6 11 6 22-2 31-9-1-15-7-18-18z" fill="#89d47a"/>
+  <text x="128" y="205" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="800" letter-spacing="2" fill="#f0f8f6">STEADY</text>
+  <text x="128" y="226" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="3" fill="#93b4c2">NUTRITION</text>
+</svg>

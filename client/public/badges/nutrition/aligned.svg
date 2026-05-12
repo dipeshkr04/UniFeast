@@ -1,0 +1,22 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" data-badge="aligned">
+  <title>Aligned nutrition badge</title>
+  <defs>
+    <linearGradient id="aligned-bg" x1="31" y1="26" x2="224" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#1b2240"/>
+      <stop offset="1" stop-color="#0c101c"/>
+    </linearGradient>
+    <linearGradient id="aligned-ring" x1="62" y1="41" x2="196" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#bfc8ff"/>
+      <stop offset="1" stop-color="#79cf9f"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="52" fill="url(#aligned-bg)"/>
+  <circle cx="128" cy="108" r="70" fill="#111729" stroke="url(#aligned-ring)" stroke-width="10"/>
+  <circle cx="128" cy="108" r="48" stroke="#dfe5ff" stroke-width="8"/>
+  <circle cx="128" cy="108" r="24" stroke="#7c8be9" stroke-width="8"/>
+  <circle cx="128" cy="108" r="8" fill="#8acf87"/>
+  <path d="M93 111l21 20 48-53" stroke="#f4f6ff" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M164 72c-4 12-2 23 7 32 10-11 12-23 4-35-4 0-7 1-11 3z" fill="#8acf87"/>
+  <text x="128" y="205" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="800" letter-spacing="1.5" fill="#f4f6ff">ALIGNED</text>
+  <text x="128" y="226" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="3" fill="#a8afd2">NUTRITION</text>
+</svg>

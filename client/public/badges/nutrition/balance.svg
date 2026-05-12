@@ -1,0 +1,23 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" data-badge="balance">
+  <title>Balance nutrition badge</title>
+  <defs>
+    <linearGradient id="balance-bg" x1="31" y1="27" x2="226" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2b2412"/>
+      <stop offset="1" stop-color="#10150e"/>
+    </linearGradient>
+    <linearGradient id="balance-ring" x1="63" y1="38" x2="195" y2="181" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0c75c"/>
+      <stop offset="1" stop-color="#72bf88"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="52" fill="url(#balance-bg)"/>
+  <circle cx="128" cy="108" r="70" fill="#161b13" stroke="url(#balance-ring)" stroke-width="10"/>
+  <circle cx="128" cy="108" r="50" fill="#f5efd5"/>
+  <path d="M128 108V58a50 50 0 0 1 43 75z" fill="#e4b64f"/>
+  <path d="M128 108l43 25a50 50 0 0 1-86 0z" fill="#76bd7f"/>
+  <path d="M128 108H78a50 50 0 0 1 50-50z" fill="#d86f5c"/>
+  <circle cx="128" cy="108" r="15" fill="#26382b"/>
+  <path d="M75 164h106" stroke="#3c4635" stroke-width="8" stroke-linecap="round"/>
+  <text x="128" y="205" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="25" font-weight="800" letter-spacing="1.5" fill="#fbf4dc">BALANCE</text>
+  <text x="128" y="226" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="3" fill="#b8aa7d">NUTRITION</text>
+</svg>

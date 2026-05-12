@@ -154,8 +154,8 @@ export const nutritionAPI = {
 // ─── Leaderboard API ──────────────────────────
 
 export const leaderboardAPI = {
-  getWidget: (period = 'weekly') => api.get('/leaderboard/widget', { params: { period } }),
-  getFull: (category, page, limit, period = 'weekly') => api.get('/leaderboard/full', {
+  getWidget: (period = 'allTime') => api.get('/leaderboard/widget', { params: { period } }),
+  getFull: (category, page, limit, period = 'allTime') => api.get('/leaderboard/full', {
     params: { category, page, limit, period },
   }),
 };

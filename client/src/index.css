@@ -3612,6 +3612,138 @@ input[type="radio"] {
   color: var(--app-text);
 }
 
+.app-loading-screen {
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.app-loader {
+  display: inline-grid;
+  grid-template-columns: 38px auto 30px;
+  align-items: center;
+  gap: 12px;
+  min-width: min(280px, 100%);
+  padding: 12px 14px;
+  border: 1px solid var(--app-border-soft);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--app-card) 84%, transparent);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.22);
+}
+
+.app-loader-mark {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--color-primary-500) 24%, transparent);
+}
+
+.app-loader-mark::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1px solid color-mix(in srgb, var(--color-primary-400) 34%, transparent);
+  border-radius: 16px;
+  opacity: 0;
+  animation: unifeast-loader-ring 1.45s ease-out infinite;
+}
+
+.app-loader-mark svg {
+  width: 19px;
+  height: 19px;
+}
+
+.app-loader-copy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.app-loader-title {
+  color: var(--app-text);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+.app-loader-title span {
+  color: var(--color-primary-500);
+}
+
+.app-loader-subtitle {
+  color: var(--color-surface-500);
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.app-loader-dots {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.app-loader-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: var(--color-primary-500);
+  opacity: 0.35;
+  animation: unifeast-loader-dot 1s ease-in-out infinite;
+}
+
+.app-loader-dots span:nth-child(2) {
+  animation-delay: 0.14s;
+}
+
+.app-loader-dots span:nth-child(3) {
+  animation-delay: 0.28s;
+}
+
+@keyframes unifeast-loader-ring {
+  0% {
+    transform: scale(0.84);
+    opacity: 0.62;
+  }
+  100% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+@keyframes unifeast-loader-dot {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.3;
+  }
+  50% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-loader-mark::after,
+  .app-loader-dots span {
+    animation: none;
+  }
+
+  .app-loader-dots span {
+    opacity: 0.7;
+  }
+}
+
 .app-main-shell {
   padding-top: 72px;
 }

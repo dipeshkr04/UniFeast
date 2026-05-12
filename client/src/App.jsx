@@ -7,6 +7,7 @@ import { orderAPI } from './api';
 import { SocketProvider } from './contexts/SocketContext';
 import { CartProvider } from './contexts/CartContext';
 import Layout from './components/common/Layout';
+import { MdRestaurantMenu } from 'react-icons/md';
 
 const LandingPage = lazy(() => import('./pages/LandingPage'));
 const Login = lazy(() => import('./pages/Login'));
@@ -48,10 +49,20 @@ function ProtectedRoute({ children, roles }) {
 
 function AppLoadingScreen() {
   return (
-    <div className="app-loading-screen min-h-screen flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-        <p className="text-surface-400 font-bold uppercase tracking-widest text-xs">Loading...</p>
+    <div className="app-loading-screen min-h-screen">
+      <div className="app-loader" role="status" aria-live="polite" aria-label="Loading UniFeast">
+        <span className="app-loader-mark" aria-hidden="true">
+          <MdRestaurantMenu />
+        </span>
+        <span className="app-loader-copy">
+          <span className="app-loader-title">Uni<span>Feast</span></span>
+          <span className="app-loader-subtitle">Preparing your table</span>
+        </span>
+        <span className="app-loader-dots" aria-hidden="true">
+          <span />
+          <span />
+          <span />
+        </span>
       </div>
     </div>
   );

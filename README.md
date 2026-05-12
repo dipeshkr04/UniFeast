@@ -1,120 +1,185 @@
+<div align="center">
+
 # UniFeast
 
-UniFeast is a campus-first dining platform for IIIT Nagpur. It brings menu discovery, cart reservations, paid orders, live kitchen operations, queue visibility, pooled outside-food coordination, nutrition tracking, and admin analytics into one connected system.
+### Campus Dining OS for IIIT Nagpur
 
-This README is written as private project documentation. It explains the product flow, architecture, data movement, and key functionality. It intentionally does not include local setup or deployment instructions.
+<p>
+  A private, full-stack dining platform connecting students, kitchen teams, admins, pooled orders, live queue visibility, nutrition intelligence, and analytics.
+</p>
 
-## Product Snapshot
+<p>
+  <img alt="React" src="https://img.shields.io/badge/React-19-0f172a?style=for-the-badge&logo=react&logoColor=61DAFB&labelColor=111827">
+  <img alt="Vite" src="https://img.shields.io/badge/Vite-6-ff4714?style=for-the-badge&logo=vite&logoColor=white&labelColor=111827">
+  <img alt="Node" src="https://img.shields.io/badge/Node.js-Express-16a34a?style=for-the-badge&logo=node.js&logoColor=white&labelColor=111827">
+  <img alt="MongoDB" src="https://img.shields.io/badge/MongoDB-Mongoose-10b981?style=for-the-badge&logo=mongodb&logoColor=white&labelColor=111827">
+  <img alt="Socket.IO" src="https://img.shields.io/badge/Realtime-Socket.IO-f97316?style=for-the-badge&logo=socket.io&logoColor=white&labelColor=111827">
+</p>
 
-| Area | What UniFeast Handles |
+<p>
+  <img alt="Razorpay" src="https://img.shields.io/badge/Payments-Razorpay-2563eb?style=flat-square&labelColor=111827">
+  <img alt="Cloudinary" src="https://img.shields.io/badge/Images-Cloudinary-38bdf8?style=flat-square&labelColor=111827">
+  <img alt="JWT" src="https://img.shields.io/badge/Auth-JWT%20%2B%20OTP-facc15?style=flat-square&labelColor=111827">
+  <img alt="Analytics" src="https://img.shields.io/badge/Admin-Analytics-a855f7?style=flat-square&labelColor=111827">
+  <img alt="Nutrition" src="https://img.shields.io/badge/Nutrition-Badges%20%2B%20XP-22c55e?style=flat-square&labelColor=111827">
+</p>
+
+</div>
+
+---
+
+## Signal Board
+
+| Zone | Flow | Signature Experience |
+| --- | --- | --- |
+| **Student** | Menu, cart holds, payment, QR pickup, live order tracking | Browse fast, reserve stock, pay safely, track without asking the counter. |
+| **Kitchen** | Live orders, produced stock, queue timing, QR completion | Operational command center for preparation and pickup. |
+| **Admin** | Users, roles, analytics, restaurants, canteen controls | A control room for usage, spend, students, items, and system settings. |
+| **Nutrition** | Logs, goals, image analysis, charts, XP, badges | Food tracking tied to a competitive campus leaderboard. |
+| **Pools** | Broadcaster-created pools, joining, requests, chat, closure | Group ordering with ownership, approval, and realtime coordination. |
+| **Realtime Layer** | Orders, ETA, kitchen summary, stock, pools, chat | Socket.IO keeps every panel alive without manual refresh. |
+
+## Visual Index
+
+| Section | What It Shows |
 | --- | --- |
-| Student ordering | Browse fixed canteen menu, reserve limited stock, pay, track order status, view QR pickup proof, and see personal order history. |
-| Kitchen operations | Manage menu items, daily stock, production quantity, live orders, queue timing, QR scanning, and order status movement. |
-| Admin control | Manage users, roles, restaurants, canteen status, cart hold timing, and analytics across spend, orders, cohorts, and items. |
-| Outside-food pools | Students create or join shared pools, request locked-pool access, chat in pool rooms, and coordinate group ordering. |
-| Nutrition | Students log meals, analyze food images, set goals, track daily/weekly/monthly nutrition, and compete on a badge-based leaderboard. |
-| Realtime updates | Socket.IO pushes order, queue, stock, kitchen, ETA, and pool updates without waiting for manual refresh. |
+| [System Map](#system-map) | How frontend, backend, sockets, database, payments, images, and mail connect. |
+| [Role Portal](#role-portal) | Where each role lands and what they control. |
+| [User Flow Gallery](#user-flow-gallery) | Ordering, kitchen fulfillment, nutrition ranking, and outside-food pooling. |
+| [Feature Matrix](#feature-matrix) | The product surface by module. |
+| [Data Constellation](#data-constellation) | Main MongoDB collections and relationships. |
+| [Tech Stack](#tech-stack) | The exact technologies powering the product. |
+| [Realtime Mesh](#realtime-mesh) | Event rooms and live updates. |
 
-## System Overview
+---
+
+## System Map
 
 ```mermaid
 flowchart LR
-  Student[Student Panel] --> ReactApp[React + Vite Client]
-  Kitchen[Kitchen Panel] --> ReactApp
-  Admin[Admin Panel] --> ReactApp
+  Student[Student Panel] --> Client[React + Vite Client]
+  Kitchen[Kitchen Panel] --> Client
+  Admin[Admin Panel] --> Client
 
-  ReactApp --> Axios[Axios API Layer]
-  ReactApp <--> SocketClient[Socket.IO Client]
+  Client --> API[Axios API Layer]
+  Client <--> SocketClient[Socket.IO Client]
 
-  Axios --> Express[Express API Server]
+  API --> Server[Express API Server]
   SocketClient <--> SocketServer[Socket.IO Server]
 
-  Express --> Auth[Auth + Role Guards]
-  Express --> Orders[Orders + Queue Engine]
-  Express --> Nutrition[Nutrition + Leaderboard Engine]
-  Express --> Pools[Outside Food Pool Service]
-  Express --> AdminStats[Admin Analytics]
+  Server --> Auth[Auth + Role Guard]
+  Server --> Orders[Orders + Queue Engine]
+  Server --> Nutrition[Nutrition + Badge Engine]
+  Server --> Pools[Outside Food Pools]
+  Server --> Analytics[Admin Analytics]
 
   Orders --> Mongo[(MongoDB Atlas)]
   Nutrition --> Mongo
   Pools --> Mongo
-  AdminStats --> Mongo
+  Analytics --> Mongo
 
-  Express --> Cloudinary[Cloudinary Image Storage]
-  Express --> Razorpay[Razorpay Payments]
-  Express --> Mail[Email OTP Service]
+  Server --> Cloudinary[Cloudinary]
+  Server --> Razorpay[Razorpay]
+  Server --> Mail[OTP Email]
 
-  SocketServer --> ReactApp
+  SocketServer --> Client
+
+  classDef panel fill:#1f2937,stroke:#ff4714,color:#ffffff,stroke-width:2px;
+  classDef client fill:#111827,stroke:#f97316,color:#ffffff,stroke-width:2px;
+  classDef server fill:#22110c,stroke:#fb923c,color:#ffffff,stroke-width:2px;
+  classDef data fill:#052e2b,stroke:#10b981,color:#ecfeff,stroke-width:2px;
+  classDef vendor fill:#172554,stroke:#38bdf8,color:#eff6ff,stroke-width:2px;
+
+  class Student,Kitchen,Admin panel;
+  class Client,API,SocketClient client;
+  class Server,SocketServer,Auth,Orders,Nutrition,Pools,Analytics server;
+  class Mongo data;
+  class Cloudinary,Razorpay,Mail vendor;
 ```
 
-## Role Based Experience
+## Role Portal
 
 ```mermaid
 flowchart TD
-  Login[Login or Register] --> RoleCheck{User Role}
-  RoleCheck -->|student| StudentHome[Student Menu]
-  RoleCheck -->|kitchen| KitchenHome[Kitchen Dashboard]
-  RoleCheck -->|admin| AdminHome[Admin Dashboard]
+  Gate[Login, Google Sign In, or OTP Registration] --> Role{Role}
 
-  StudentHome --> Cart[Cart + Stock Hold]
-  Cart --> Payment[Payment Verification]
-  Payment --> MyOrders[My Orders + QR]
-  StudentHome --> NutritionPage[Nutrition]
+  Role -->|student| StudentHome[Menu]
+  Role -->|kitchen| KitchenHome[Live Orders]
+  Role -->|admin| AdminHome[Dashboard]
+
+  StudentHome --> Cart[Cart Holds]
+  Cart --> Payment[Verified Payment]
+  Payment --> StudentOrders[My Orders + QR]
+  StudentHome --> Queue[Live Queue]
+  StudentHome --> NutritionPage[Nutrition Hub]
   StudentHome --> PoolsPage[Campus Pools]
-  StudentHome --> LiveQueue[Live Queue]
+  StudentHome --> Feast[Find Your Feast]
 
-  KitchenHome --> LiveOrders[Live Orders]
-  KitchenHome --> Stock[Produced Stock]
+  KitchenHome --> Production[Produced Stock]
+  KitchenHome --> QRScan[QR Scan]
   KitchenHome --> MenuManage[Menu Management]
-  KitchenHome --> QRScan[QR Pickup Scan]
+  KitchenHome --> KitchenAnalytics[Kitchen Analytics]
 
-  AdminHome --> Analytics[Analytics]
-  AdminHome --> Users[User Management]
-  AdminHome --> Restaurants[Outside Food Restaurants]
+  AdminHome --> Users[Users + Roles]
+  AdminHome --> AnalyticsPage[Analytics]
+  AdminHome --> Restaurants[Restaurants]
   AdminHome --> Settings[Canteen + Cart Settings]
+
+  classDef entry fill:#ff4714,stroke:#ffb199,color:#fff,stroke-width:2px;
+  classDef student fill:#0f172a,stroke:#fb923c,color:#fff,stroke-width:2px;
+  classDef kitchen fill:#1a2e05,stroke:#84cc16,color:#f7fee7,stroke-width:2px;
+  classDef admin fill:#2e1065,stroke:#a855f7,color:#faf5ff,stroke-width:2px;
+  classDef neutral fill:#111827,stroke:#475569,color:#e5e7eb;
+
+  class Gate,Role entry;
+  class StudentHome,Cart,Payment,StudentOrders,Queue,NutritionPage,PoolsPage,Feast student;
+  class KitchenHome,Production,QRScan,MenuManage,KitchenAnalytics kitchen;
+  class AdminHome,Users,AnalyticsPage,Restaurants,Settings admin;
 ```
 
-## Core User Flows
+---
 
-### 1. Student Canteen Order Flow
+## User Flow Gallery
+
+### 1. Student Canteen Order
 
 ```mermaid
 sequenceDiagram
-  participant S as Student
-  participant C as Client
+  participant Student
+  participant Client as React Client
   participant API as Express API
   participant DB as MongoDB
-  participant P as Razorpay
-  participant K as Kitchen Socket Room
+  participant Pay as Razorpay
+  participant Kitchen as Kitchen Socket Room
 
-  S->>C: Browse menu
-  C->>API: GET /api/menu
-  API->>DB: Read available menu + stock
-  DB-->>API: Menu items
-  API-->>C: Optimized menu payload
+  Student->>Client: Browse menu
+  Client->>API: GET /api/menu
+  API->>DB: Read menu, availability, daily stock
+  DB-->>API: Menu payload
+  API-->>Client: Optimized menu data
 
-  S->>C: Add item to cart
-  C->>API: POST /api/cart/hold
-  API->>DB: Reserve stock for hold window
-  API-->>C: Hold confirmed
+  Student->>Client: Add item
+  Client->>API: POST /api/cart/hold
+  API->>DB: Reserve item for hold window
+  API-->>Client: Hold confirmed
 
-  S->>C: Pay
-  C->>API: POST /api/payments/create-order
-  API->>P: Create payment order
-  P-->>API: Razorpay order
-  API-->>C: Payment metadata
+  Student->>Client: Checkout
+  Client->>API: POST /api/payments/create-order
+  API->>Pay: Create payment order
+  Pay-->>API: Payment order
+  API-->>Client: Payment metadata
 
-  C->>API: POST /api/payments/verify
-  API->>P: Verify signature
-  API-->>C: Payment success
+  Client->>API: POST /api/payments/verify
+  API->>Pay: Verify signature
+  API-->>Client: Payment verified
 
-  C->>API: POST /api/orders
-  API->>DB: Create order, consume reservation, compute ETA
-  API->>K: Emit order:new
-  API-->>C: Order created
+  Client->>API: POST /api/orders
+  API->>DB: Create paid order, consume hold, compute ETA
+  API->>Kitchen: Emit order:new
+  API-->>Client: Order created
 ```
 
-### 2. Kitchen Fulfillment Flow
+### 2. Kitchen Fulfillment
 
 ```mermaid
 stateDiagram-v2
@@ -123,6 +188,7 @@ stateDiagram-v2
   queued --> preparing
   preparing --> ready
   ready --> completed
+
   pending --> cancelled
   queued --> cancelled
   preparing --> cancelled
@@ -131,47 +197,60 @@ stateDiagram-v2
   cancelled --> [*]
 ```
 
-Kitchen users work from a live dashboard. New orders enter the kitchen room through Socket.IO, queue summaries update in real time, and produced-stock allocation can automatically mark orders ready when every requested item is covered.
-
-Pickup verification is QR-based:
-
 ```mermaid
 flowchart LR
-  Ready[Order Ready] --> QR[Student QR]
-  QR --> Scan[Kitchen QR Scan]
-  Scan --> Verify[Token Lookup + Secret Check]
-  Verify --> Complete[Order Completed]
-  Complete --> Stock[Made Stock Consumed]
-  Complete --> Student[Student Gets Status Update]
+  Made[Produced Stock] --> Allocate[Auto Allocation]
+  Allocate --> Waiting[Waiting Orders]
+  Waiting --> Ready[Ready when all items assigned]
+  Ready --> QR[Student QR]
+  QR --> Scan[Kitchen Scan]
+  Scan --> Complete[Completed Pickup]
+  Complete --> Notify[Student + Kitchen Updates]
+
+  classDef hot fill:#220a05,stroke:#ff4714,color:#fff,stroke-width:2px;
+  classDef green fill:#052e16,stroke:#22c55e,color:#ecfdf5,stroke-width:2px;
+  class Made,Allocate,Waiting hot;
+  class Ready,QR,Scan,Complete,Notify green;
 ```
 
-### 3. Nutrition and Ranking Flow
+### 3. Nutrition Ranking
 
 ```mermaid
 flowchart TD
-  Goals[Daily Goals] --> Log[Meal Log]
-  Upload[Food Image Upload] --> Cloudinary[Cloudinary]
-  Cloudinary --> AI[Food Analysis Utility]
-  AI --> Log
-  Manual[Manual Meal Entry] --> Log
-  Orders[Auto/linked canteen data] --> Log
+  Goals[Daily Goals] --> Meal[Meal Log]
+  Image[Food Image] --> Cloudinary[Cloudinary Upload]
+  Cloudinary --> Analyzer[Food Analysis]
+  Analyzer --> Meal
+  Manual[Manual Entry] --> Meal
 
-  Log --> Totals[Daily Totals]
-  Totals --> Reports[Daily, Weekly, Monthly Reports]
-  Totals --> Scoring[Adherence + XP + Consistency]
-  Scoring --> Badge[Badge Tier]
-  Badge --> Leaderboard[Nutrition Leaderboard]
+  Meal --> Totals[Daily Totals]
+  Totals --> Reports[Daily, Weekly, Monthly Views]
+  Totals --> Score[Adherence + XP + Consistency]
+  Score --> Badge[Badge Tier]
+  Badge --> Rank[Nutrition Rank]
+
+  classDef start fill:#111827,stroke:#ff4714,color:#fff,stroke-width:2px;
+  classDef nutrition fill:#052e16,stroke:#22c55e,color:#ecfdf5,stroke-width:2px;
+  classDef rank fill:#422006,stroke:#facc15,color:#fffbeb,stroke-width:2px;
+
+  class Goals,Image,Manual start;
+  class Cloudinary,Analyzer,Meal,Totals,Reports,Score nutrition;
+  class Badge,Rank rank;
 ```
 
-Nutrition ranking uses three main ideas:
+#### Nutrition Scoreboard
 
-| Term | Meaning |
-| --- | --- |
-| Consistency | A day counts only when meal data exists and daily adherence is at least 50 percent. |
-| XP | Activity points from logging meals, meaningful logs, adherence quality, protein, fiber, and calorie accuracy. |
-| Adherence | How close daily totals are to calorie, protein, fiber, carb, and fat goals. |
+| Signal | Meaning | Weight or Rule |
+| --- | --- | --- |
+| Calories | Closeness to calorie goal | 35 percent |
+| Protein | Progress toward protein target | 25 percent |
+| Fiber | Progress toward fiber target | 15 percent |
+| Carbs | Closeness to carb goal | 15 percent |
+| Fat | Closeness to fat goal | 10 percent |
+| Consistency | Valid day with meal data and 50 percent adherence | Counts toward badge days |
+| XP | Logging and goal-hit activity points | Capped at 200 per day |
 
-Badge progression requires all three requirements at each tier: consistent days, total XP, and average adherence.
+#### Badge Ladder
 
 | Badge | Days | XP | Average Adherence |
 | --- | ---: | ---: | ---: |
@@ -183,114 +262,61 @@ Badge progression requires all three requirements at each tier: consistent days,
 | Sustain | 200 | 28,000 | 80 percent |
 | Thrive | 365 | 60,000 | 85 percent |
 
-Leaderboard order:
-
-```mermaid
-flowchart LR
-  A[Highest Badge Tier] --> B[Higher Total XP]
-  B --> C[More Consistent Days]
-  C --> D[Higher Average Adherence]
-```
-
-### 4. Outside Food Pooling Flow
+### 4. Outside Food Pooling
 
 ```mermaid
 sequenceDiagram
-  participant B as Broadcaster
-  participant M as Member
+  participant Owner as Broadcaster
+  participant Member
   participant API as Outside Food API
   participant DB as MongoDB
-  participant IO as Pool Socket Room
+  participant Room as Pool Socket Room
 
-  B->>API: Create pool
-  API->>DB: Save pool with broadcaster
-  API->>IO: Emit pool:update
+  Owner->>API: Create pool
+  API->>DB: Save broadcaster, target, status
+  API->>Room: pool:update
 
-  M->>API: Join open pool
-  API->>DB: Save participant and intended amount
-  API->>IO: Emit pool:participant-update
+  Member->>API: Join open pool
+  API->>DB: Save participant amount and note
+  API->>Room: pool:participant-update
 
-  B->>API: Lock pool
-  API->>DB: Update status LOCKED
-  API->>IO: Emit pool:lock
+  Owner->>API: Lock pool
+  API->>DB: status = LOCKED
+  API->>Room: pool:lock
 
-  M->>API: Request access
+  Member->>API: Request locked access
   API->>DB: Save pending request
-  API->>IO: Emit pool:request-update
+  API->>Room: pool:request-update
 
-  B->>API: Accept or reject request
+  Owner->>API: Accept or reject request
   API->>DB: Resolve request
-  API->>IO: Emit pool:update
+  API->>Room: pool:update
 
-  B->>API: Complete/archive pool
-  API->>DB: Close pool state
-  API->>IO: Emit pool:status-update
+  Owner->>API: Complete or archive
+  API->>DB: Close pool
+  API->>Room: pool:status-update
 ```
 
-The pool creator is the broadcaster. In the list, the broadcaster sees a grey "Created" state, while other participants see the green "Joined" state after joining.
+The creator is the broadcaster. The broadcaster sees **Created** in grey. Other members see **Joined** in green after they join.
 
-## Key Functional Modules
+---
 
-### Student Panel
+## Feature Matrix
 
-- Menu discovery with category filters, search, fixed menu item cards, nutrition previews, stock indicators, and cart actions.
-- Optimized item loading using initial viewport fill, cached menu data, debounced search, incremental rendering, and background refresh.
-- Cart stock holds to avoid overselling limited daily stock.
-- Razorpay-backed payment verification before order creation.
-- My Orders with active/completed sections, ETA updates, QR pickup proof, and live status changes.
-- Live queue view for canteen-wide visibility.
-- Nutrition dashboard with daily updates, analysis charts, goals, meal logging, ranking, and instruction pages.
-- Outside-food pools with pool creation, joining, locked requests, chat, participants, and broadcaster controls.
-- FAQ and About pages for product explanation.
+| Module | Student Surface | Kitchen/Admin Surface | Backend Brain |
+| --- | --- | --- | --- |
+| **Menu** | Search, categories, stock badges, nutrition preview | Create, edit, toggle, stock updates | `MenuItem`, upload middleware, stock reset jobs |
+| **Cart** | Add, reduce, reserve item quantity | Cart hold duration control | `CartReservation`, cleanup worker |
+| **Orders** | My Orders, active/completed states, QR pickup | Live board, item ready, status updates, QR scan | `Order`, queue service, ETA engine |
+| **Payments** | Checkout with verified payment | Payment-backed order record | Razorpay order and signature verification |
+| **Queue** | Live queue visibility | Kitchen summary and queue stats | Socket events and queue aggregation |
+| **Nutrition** | Goals, logs, charts, analysis, ranks | Leaderboard visibility | `NutritionLog`, scoring engine, Cloudinary |
+| **Pools** | Create, join, request, chat | Restaurant admin management | Pool service, participants, requests, chat messages |
+| **Analytics** | Not exposed directly | Revenue, spend, cohorts, item sales | MongoDB aggregation and cache |
 
-### Kitchen Panel
+---
 
-- Live order board for pending, queued, preparing, ready, completed, and cancelled states.
-- Kitchen socket room for new orders, status changes, item-ready events, ETA changes, and summary refreshes.
-- Produced-stock management for preparing batches before orders are picked up.
-- Auto allocation against waiting orders when made stock becomes available.
-- QR scanner for pickup completion.
-- Menu management for creating, editing, toggling, deleting, and restocking menu items.
-- Kitchen analytics view powered by the same admin stats backend.
-
-### Admin Panel
-
-- User listing, role changes, and user deletion.
-- Canteen live/offline status controls.
-- Cart hold window configuration.
-- Analytics across order volume, revenue, item sales, student spend, night canteen spend, cohort grouping, and BTID-derived reporting.
-- Outside-food restaurant management for the Find Your Feast flow.
-- Cached analytics responses to reduce dashboard latency under repeated filter changes.
-
-### Nutrition Engine
-
-- Per-user daily goals for calories, protein, carbs, fat, and fiber.
-- Image upload support through Cloudinary.
-- Food analysis utility for nutrition estimation.
-- Manual meal logging with optional image.
-- Daily totals recalculated from meal entries.
-- Weekly and monthly report windows capped at the current date.
-- Future nutrition dates are blocked by the backend.
-- Leaderboard cache invalidation after goal or meal changes.
-
-### Realtime System
-
-```mermaid
-flowchart TD
-  Socket[Socket.IO Server] --> UserRoom[user:<userId>]
-  Socket --> KitchenRoom[kitchen]
-  Socket --> PoolRoom[pool:<poolId>]
-  Socket --> Lobby[outside-food:lobby]
-
-  UserRoom --> StudentEvents[order-update, eta-update]
-  KitchenRoom --> KitchenEvents[order:new, queue-stats, kitchen:summary]
-  PoolRoom --> PoolEvents[pool:message, pool:status, pool:request-update]
-  Lobby --> PoolListEvents[pool:update, pool:expired]
-```
-
-Realtime updates are used where delays would hurt the experience: kitchen orders, student order status, ETA changes, menu stock changes, queue summaries, and pool chat/state changes.
-
-## Data Model Overview
+## Data Constellation
 
 ```mermaid
 erDiagram
@@ -315,125 +341,172 @@ erDiagram
   OUTSIDE_FOOD_RESTAURANT ||--o{ OUTSIDE_FOOD_POOL : optional_source
 ```
 
-Important collections:
-
-| Model | Purpose |
+| Collection | Why It Exists |
 | --- | --- |
-| User | Student, kitchen, and admin accounts with role, auth provider, contact data, and nutrition goals. |
-| MenuItem | Canteen items, price, category, prep time, availability, nutrition, tags, and daily stock. |
-| CartReservation | Temporary stock holds per user and menu item. |
-| Order | Paid canteen order, user snapshot, items, status, ETA, QR token hashes, and completion history. |
-| KitchenStock | Made quantity by menu item for allocation and pickup readiness. |
-| NutritionLog | Daily meal entries and recalculated nutrition totals. |
-| OutsideFoodPool | Student-created outside-food pool with broadcaster, amount target, status, participants, and coordinator data. |
-| OutsideFoodParticipant | Member contribution, note, presence, and activity inside a pool. |
-| OutsideFoodJoinRequest | Pending access requests for locked pools. |
-| OutsideFoodChatMessage | Pool-room chat and broadcaster/system updates. |
-| OutsideFoodRestaurant | Admin-managed restaurant data for the outside-food discovery flow. |
-| Settings | Canteen and cart timing configuration. |
+| `User` | Identity, role, auth provider, nutrition goals, profile data. |
+| `MenuItem` | Canteen catalog, price, category, prep time, availability, nutrition, daily stock. |
+| `CartReservation` | Temporary stock holds before payment and order creation. |
+| `Order` | Paid orders, item snapshots, ETA, QR token hashes, status history. |
+| `KitchenStock` | Produced quantity available for allocation and readiness. |
+| `NutritionLog` | Daily meal entries and recalculated macro totals. |
+| `OutsideFoodPool` | Broadcaster-owned pools with status, target amount, participants, and closure state. |
+| `OutsideFoodParticipant` | Joined members, contribution notes, presence, and activity. |
+| `OutsideFoodJoinRequest` | Pending requests for locked pools. |
+| `OutsideFoodChatMessage` | Pool-room chat, system messages, and broadcaster updates. |
+| `OutsideFoodRestaurant` | Admin-managed discovery records for Find Your Feast. |
+| `Settings` | Canteen live state and cart timing configuration. |
 
-## API Surface
+---
 
-| Domain | Base Path | Main Responsibility |
-| --- | --- | --- |
-| Auth | `/api/auth` | OTP registration, login, Google sign-in, current user, profile updates. |
-| Menu | `/api/menu` | Public menu reads plus kitchen/admin menu creation, editing, stock, nutrition analysis, and availability. |
-| Cart | `/api/cart` | Temporary stock holds, hold release, and hold cleanup. |
-| Payments | `/api/payments` | Razorpay order creation and signature verification. |
-| Orders | `/api/orders` | Student orders, kitchen orders, QR, live queue, summary, stock production, and status updates. |
-| Nutrition | `/api/nutrition` | Daily logs, weekly/monthly reports, goals, image analysis, meal logging, deletion, quantity edits. |
-| Leaderboard | `/api/leaderboard` | Nutrition widget and full leaderboard data. |
-| Admin | `/api/admin` | Users, analytics, canteen status, and cart hold settings. |
-| Outside Food | `/api/outside-food` | Restaurants, pools, members, requests, pool status, archive, and chat. |
-| Legacy Pools | `/api/pools` | Menu-item based pooled-order support. |
+## Tech Stack
 
-## Technology Stack
+### Frontend Deck
 
-### Frontend
-
-| Layer | Technology |
+| Layer | Stack |
 | --- | --- |
-| App runtime | React 19 |
-| Build tooling | Vite 6 |
-| Styling | Tailwind CSS 4 plus custom CSS tokens and responsive component rules |
-| Routing | React Router 7 |
-| API client | Axios with JWT request interceptor |
-| Realtime | Socket.IO Client |
-| Charts | Recharts, lazy loaded where possible |
-| Icons | React Icons and Lucide React |
-| Forms and validation | React Hook Form and Zod where needed |
-| Feedback | React Hot Toast |
-| Performance | Route-level lazy loading, manual chunk splitting, memoized cards, cached menu data, incremental rendering |
+| Core UI | **React 19**, component-driven pages, route-level lazy loading |
+| Build | **Vite 6**, manual chunk splitting, fast production bundles |
+| Routing | **React Router 7** with role-protected page trees |
+| Styling | **Tailwind CSS 4**, custom CSS tokens, glass surfaces, dark/light theme variables |
+| API | **Axios** with JWT request interceptor and 401 handling |
+| Realtime | **Socket.IO Client** for order, queue, stock, and pool events |
+| Charts | **Recharts**, lazy-loaded for nutrition visualizations |
+| Forms | **React Hook Form**, **Zod**, controlled inputs where tighter state is needed |
+| Icons | **React Icons**, **Lucide React** |
+| Feedback | **React Hot Toast** |
+| Performance | Memoized menu cards, cached menu data, incremental rendering, lazy modal chart code |
 
-### Backend
+### Backend Core
 
-| Layer | Technology |
+| Layer | Stack |
 | --- | --- |
-| Runtime | Node.js |
-| API framework | Express |
-| Database | MongoDB with Mongoose |
-| Realtime | Socket.IO |
-| Auth | JWT, bcrypt password hashing, Google OAuth support, OTP email registration |
-| Payments | Razorpay |
-| Image storage | Cloudinary through Multer storage |
-| Email | Nodemailer-backed mail service |
-| Queue logic | Custom queue, ETA, stock, cart hold, and allocation utilities |
-| Analytics | MongoDB aggregation pipelines with short-lived in-memory caching |
+| API | **Node.js**, **Express** |
+| Database | **MongoDB Atlas**, **Mongoose** schemas and indexes |
+| Auth | **JWT**, **bcryptjs**, Google OAuth, OTP email registration |
+| Realtime | **Socket.IO** rooms for users, kitchen, pool rooms, and lobby updates |
+| Payments | **Razorpay** order creation and signature verification |
+| Images | **Multer**, **Cloudinary Storage**, Cloudinary transformations |
+| Email | **Nodemailer** service for OTP delivery |
+| Validation | **Zod** and explicit controller guards |
+| Security | Role middleware, protected routes, hashed passwords, QR token hashing |
+| Analytics | MongoDB aggregation pipelines with short-lived cache |
 
-## Performance and Reliability Choices
+### Platform Services
 
-- Route-level lazy loading keeps inactive pages out of the first bundle.
-- Menu cards avoid heavy image rendering in the student menu and rely on stable static icons.
-- Menu data is cached in memory and session storage, then refreshed in the background.
-- Student menu renders enough cards to fill the first viewport, then loads additional cards incrementally.
-- Nutrition chart code is split out and loaded only when the details modal needs it.
-- Admin analytics uses cache keys by date preset/range to reduce repeated expensive aggregation work.
-- MongoDB indexes support frequent lookups for users, orders, QR tokens, menu filters, nutrition logs, pools, participants, and join requests.
-- Cart reservations and daily stock reset jobs clean up time-sensitive state automatically.
-- Outside-food pool sweep removes stale pool state and emits expiry updates.
-- Payment-backed order creation is idempotent by user and Razorpay payment id to prevent duplicate orders.
+| Service | Used For |
+| --- | --- |
+| MongoDB Atlas | Persistent application data |
+| Cloudinary | Menu and nutrition image storage |
+| Razorpay | Payment order creation and verification |
+| Socket.IO | Realtime state propagation |
+| Email SMTP | OTP delivery |
 
-## Security and Access Control
+---
 
-- Role-based route protection on the client for student, kitchen, and admin panels.
-- Backend route authorization for kitchen/admin operations, user management, menu mutation, analytics, QR scanning, and restaurant administration.
-- JWT authentication for API requests.
-- Passwords are hashed with bcrypt before storage.
-- OTP registration restricts self-registration and supports institution email rules.
-- Razorpay signature verification protects payment completion.
-- QR pickup tokens store hashes/lookups instead of raw secrets.
-- Cloudinary uploads are limited to image formats and file-size constraints.
+## Realtime Mesh
 
-## Product Flow Summary
+```mermaid
+flowchart TD
+  Socket[Socket.IO Server] --> UserRoom[user:<userId>]
+  Socket --> KitchenRoom[kitchen]
+  Socket --> PoolRoom[pool:<poolId>]
+  Socket --> Lobby[outside-food:lobby]
+
+  UserRoom --> StudentEvents[order-update, eta-update, order:statusChanged]
+  KitchenRoom --> KitchenEvents[order:new, queue-stats, kitchen:summary]
+  PoolRoom --> PoolEvents[pool:message, pool:status, pool:request-update]
+  Lobby --> PoolListEvents[pool:update, pool:participant-update, pool:expired]
+
+  classDef socket fill:#160b05,stroke:#ff4714,color:#fff,stroke-width:2px;
+  classDef room fill:#111827,stroke:#38bdf8,color:#eff6ff,stroke-width:2px;
+  classDef event fill:#052e16,stroke:#22c55e,color:#ecfdf5,stroke-width:2px;
+
+  class Socket socket;
+  class UserRoom,KitchenRoom,PoolRoom,Lobby room;
+  class StudentEvents,KitchenEvents,PoolEvents,PoolListEvents event;
+```
+
+Realtime is used only where the product genuinely needs immediacy: kitchen operations, student order status, ETA changes, menu stock updates, queue summaries, and pool coordination.
+
+---
+
+## Reliability Notes
+
+| Concern | UniFeast Handling |
+| --- | --- |
+| Overselling stock | Cart holds reserve stock before payment, then order creation consumes reservations. |
+| Duplicate payment submissions | Order creation is idempotent by user and Razorpay payment id. |
+| Pickup trust | QR payloads use lookup and secret values, with hashes stored server-side. |
+| Expired state | Cart holds, daily stocks, and stale outside-food pools have cleanup jobs. |
+| Analytics latency | Admin stats are cached briefly by selected date range. |
+| Heavy frontend bundles | Route lazy loading, exact manual chunks, and lazy nutrition chart loading reduce first-load cost. |
+| Future nutrition dates | Backend blocks future daily log reads. |
+
+## Security Guardrails
+
+| Layer | Protection |
+| --- | --- |
+| Identity | JWT sessions, bcrypt password hashing, Google OAuth support |
+| Registration | OTP verification and institution email checks |
+| Roles | Student, kitchen, and admin authorization on protected API routes |
+| Payments | Razorpay signature verification before order creation |
+| Uploads | Image-only Cloudinary upload pipeline with size limits |
+| QR | Hashed token lookup and secret verification |
+| Admin | User management, restaurants, analytics, and settings are role-restricted |
+
+---
+
+## Product Pulse
 
 ```mermaid
 flowchart LR
-  Menu[Menu] --> Cart[Cart Hold]
-  Cart --> Pay[Payment]
-  Pay --> Order[Order Created]
+  Menu[Menu Discovery] --> Hold[Stock Hold]
+  Hold --> Pay[Verified Payment]
+  Pay --> Order[Order]
   Order --> Queue[Queue + ETA]
   Queue --> Kitchen[Kitchen Fulfillment]
-  Kitchen --> Ready[Ready]
-  Ready --> QR[QR Pickup]
-  QR --> Completed[Completed Order]
+  Kitchen --> Pickup[QR Pickup]
+  Pickup --> History[Order History]
 
-  Order --> Nutrition[Optional Nutrition Context]
-  Nutrition --> Ranking[XP + Badge Ranking]
+  Order --> Nutrition[Meal Context]
+  Nutrition --> Badge[Badge + XP]
+  Badge --> Rank[Leaderboard]
 
-  Menu --> Pools[Outside Food / Pools]
-  Pools --> Chat[Pool Chat]
-  Chat --> Coordination[Group Coordination]
+  Menu --> Pool[Campus Pools]
+  Pool --> Chat[Pool Chat]
+  Chat --> Coordinate[Group Coordination]
+
+  classDef orange fill:#220a05,stroke:#ff4714,color:#fff,stroke-width:2px;
+  classDef green fill:#052e16,stroke:#22c55e,color:#ecfdf5,stroke-width:2px;
+  classDef blue fill:#082f49,stroke:#38bdf8,color:#f0f9ff,stroke-width:2px;
+  classDef violet fill:#2e1065,stroke:#a855f7,color:#faf5ff,stroke-width:2px;
+
+  class Menu,Hold,Pay,Order,Queue,Kitchen,Pickup,History orange;
+  class Nutrition,Badge,Rank green;
+  class Pool,Chat,Coordinate blue;
 ```
+
+## Design Identity
+
+UniFeast is designed like a compact operations console with a warm campus dining personality:
+
+| Token | Product Feeling |
+| --- | --- |
+| Orange primary | Appetite, action, checkout, and high-priority operations. |
+| Dark glass surfaces | Focused dashboard feel for repeated daily use. |
+| Green live states | Canteen live, available stock, successful status, and ready signals. |
+| Compact cards | Dense information without making students or staff scroll through noise. |
+| Realtime badges | Clear state changes for orders, pools, queue, and availability. |
 
 ## Why UniFeast Matters
 
-UniFeast is not only a menu page. It models the real operational loop of a campus canteen:
+UniFeast is not just a menu screen. It models the real loop of campus dining:
 
-- Students need confidence that food is available before they pay.
-- Kitchen staff need live visibility into what is waiting, what is ready, and what stock has been produced.
-- Admins need truthful reporting tied to real student identity, spending behavior, and canteen usage.
-- Nutrition tracking should connect to actual student eating behavior instead of being an isolated tracker.
-- Group ordering outside the canteen needs structure: ownership, joining, approval, chat, and closure.
+- Students know what is available before they pay.
+- Kitchen staff see what is waiting, what is ready, and what has been produced.
+- Admins get reporting tied to real students, orders, BTID signals, and spending patterns.
+- Nutrition tracking becomes part of the actual food journey instead of a disconnected tracker.
+- Outside-food pooling gets ownership, joining, approval, chat, and closure.
 
-The result is one dining system where ordering, operations, analytics, nutrition, and community pooling all share the same user model and realtime backbone.
+The result is one connected dining system where ordering, operations, analytics, nutrition, and community pooling share the same identity layer and realtime backbone.
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { leaderboardAPI } from '../../api';
 import { HiOutlineStar, HiOutlineViewList, HiOutlineFire } from 'react-icons/hi';
+import { getBadgeAsset } from '../../constants/nutritionBadges';
 import { motion } from 'framer-motion';
 
 const MotionDiv = motion.div;
@@ -80,30 +81,34 @@ export default function LeaderboardWidget({ onOpenFull }) {
       <div className="leaderboard-widget-body">
         {userStats && (
           <div className="adherence-summary border border-surface-800">
-            <div className="adherence-stat">
-              <p className="adherence-label text-surface-500">Your Rank</p>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-3xl font-black text-white">#{userStats.rank}</span>
-                <span className={`text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider bg-gradient-to-r ${getTierColor(userStats.tier)}`}>
-                  {displayTier(userStats.tier)}
-                </span>
+            <div className="adherence-rank-side">
+              <div className="adherence-stat">
+                <p className="adherence-label text-surface-500">Your Rank</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-3xl font-black text-white">#{userStats.rank}</span>
+                  <span className={`text-xs font-bold px-2 py-1 rounded-full uppercase tracking-wider bg-gradient-to-r ${getTierColor(userStats.tier)}`}>
+                    {displayTier(userStats.tier)}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="adherence-stat">
-              <p className="adherence-label text-surface-500">Progress Score</p>
-              <p className="text-2xl font-black text-primary-500">{formatRankScore(userStats.score)} <span className="text-sm font-medium text-surface-400">pts</span></p>
-            </div>
+            <div className="adherence-metrics-side">
+              <div className="adherence-stat">
+                <p className="adherence-label text-surface-500">Progress Score</p>
+                <p className="text-2xl font-black text-primary-500">{formatRankScore(userStats.score)} <span className="text-sm font-medium text-surface-400">pts</span></p>
+              </div>
 
-            <div className="adherence-stat">
-              <p className="adherence-label text-surface-500">Current Streak</p>
-              {userStats.streak > 0 ? (
-                <p className="text-base text-orange-400 font-bold flex items-center gap-2">
-                  <HiOutlineFire className="w-4 h-4"/> {userStats.streak} Day{userStats.streak === 1 ? '' : 's'}
-                </p>
-              ) : (
-                <p className="text-base font-bold text-surface-300">No streak yet</p>
-              )}
+              <div className="adherence-stat">
+                <p className="adherence-label text-surface-500">Current Streak</p>
+                {userStats.streak > 0 ? (
+                  <p className="text-base text-orange-400 font-bold flex items-center gap-2">
+                    <HiOutlineFire className="w-4 h-4"/> {userStats.streak} Day{userStats.streak === 1 ? '' : 's'}
+                  </p>
+                ) : (
+                  <p className="text-base font-bold text-surface-300">No streak yet</p>
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -112,8 +117,8 @@ export default function LeaderboardWidget({ onOpenFull }) {
           <div className="adherence-list-head text-surface-500">
             <span>Rank</span>
             <span>Student</span>
-            <span>Tier</span>
-            <span>Score</span>
+            <span>Points</span>
+            <span>Badge</span>
           </div>
 
           {top5.map((user, i) => (
@@ -126,13 +131,13 @@ export default function LeaderboardWidget({ onOpenFull }) {
             >
               <div className="adherence-rank">
                 <span className={`font-black ${i === 0 ? 'text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]' : i === 1 ? 'text-gray-300' : i === 2 ? 'text-orange-600' : 'text-surface-600'}`}>
-                  #{i + 1}
+                  {i + 1}
                 </span>
               </div>
 
               <div className="adherence-student">
                 {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full object-cover border border-surface-700" />
+                  <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full object-cover border border-surface-700" loading="lazy" decoding="async" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-surface-800 flex items-center justify-center text-sm font-bold text-surface-400 border border-surface-700">
                     {user.name.charAt(0).toUpperCase()}
@@ -140,22 +145,16 @@ export default function LeaderboardWidget({ onOpenFull }) {
                 )}
                 <div className="min-w-0">
                   <p className="text-[14px] font-bold text-surface-200 group-hover:text-white transition-colors truncate">{user.name}</p>
-                  {user.streak >= 3 && (
-                    <p className="text-xs text-orange-400 font-bold flex items-center gap-1 mt-1">
-                      <HiOutlineFire className="w-3 h-3" /> {user.streak} day streak
-                    </p>
-                  )}
                 </div>
               </div>
 
-              <div className="adherence-tier">
-                <span className={`w-2 h-2 rounded-full bg-gradient-to-r ${getTierColor(user.tier).split(' ').slice(0, 2).join(' ')}`}></span>
-                <span className="text-[14px] text-surface-400 font-medium">{displayTier(user.tier)}</span>
+              <div className="adherence-score">
+                <p className="text-base font-black text-white">{formatRankScore(user.score)} <span>pts</span></p>
               </div>
 
-              <div className="adherence-score">
-                <p className="text-base font-black text-white">{formatRankScore(user.score)}</p>
-                <p className="text-xs text-surface-500">pts</p>
+              <div className="adherence-tier">
+                <img src={getBadgeAsset(user.badge)} alt={`${displayTier(user.tier)} badge`} />
+                <span>{displayTier(user.tier)}</span>
               </div>
             </MotionDiv>
           ))}

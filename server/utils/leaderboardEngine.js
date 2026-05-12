@@ -401,7 +401,7 @@ async function getSortedLeaderboard(category = 'rank', limit = 200, page = 1, pe
   const data = await getLeaderboardData(normalizedPeriod);
   const sortedData = sortLeaderboard(data, category).map((item, index) => ({ ...item, rank: index + 1 }));
   const totalStudents = sortedData.length;
-  const safeLimit = Math.max(1, Math.min(Number(limit) || 200, 5000));
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 100, 100));
   const safePage = Math.max(1, Number(page) || 1);
   const startIndex = (safePage - 1) * safeLimit;
   const paginatedData = sortedData.slice(startIndex, startIndex + safeLimit);

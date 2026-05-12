@@ -93,7 +93,7 @@ async def predict_from_url(body: dict):
 
     This endpoint is the primary one used by the Node.js backend,
     since the upload middleware stores images on Cloudinary and
-    provides a URL (req.file.path), not raw bytes.
+    provides an image URL to the Node.js backend, not raw bytes.
     """
     url = body.get("url")
     if not url:

@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { STATUS_COLORS, URGENCY } from './kitchenColors';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const getOrderItemId = (order, item, index) => String(item._id || item.menuItem?._id || `${order._id}-${index}`);
+const EMPTY_PICKUP_CHECKED = new Set();
 
 const getFallbackThumb = (name = 'Food') => {
   const seed = String(name || 'Food').split('').reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -29,17 +31,27 @@ const getFallbackThumb = (name = 'Food') => {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 };
 
-const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady, busyOrderIds, busyItemIds }) => {
+const OrderCard = ({ order, onStatusUpdate, onItemReady, busyOrderIds, busyItemIds }) => {
   const normalizedStatus = (order.status || 'pending').toLowerCase();
   const status = normalizedStatus.toUpperCase();
   const colors = STATUS_COLORS[status] || STATUS_COLORS.PENDING;
   const isOrderCompleted = status === 'COMPLETED';
   const isOrderReady = status === 'READY';
-  const [pickupChecked, setPickupChecked] = useState(() => new Set());
+  const pickupKey = `${order._id}:${status}`;
+  const [pickupState, setPickupState] = useState(() => ({ key: pickupKey, checked: new Set() }));
+  const [now, setNow] = useState(Date.now);
+  const pickupChecked = pickupState.key === pickupKey ? pickupState.checked : EMPTY_PICKUP_CHECKED;
 
+  const shouldRefreshEta = ['QUEUED', 'PREPARING'].includes(status) && Boolean(order.estimatedReadyAt || order.eta);
   useEffect(() => {
-    setPickupChecked(new Set());
-  }, [order._id, status]);
+    if (!shouldRefreshEta) return undefined;
+    const updateSoon = setTimeout(() => setNow(Date.now), 0);
+    const timer = setInterval(() => setNow(Date.now), 30000);
+    return () => {
+      clearTimeout(updateSoon);
+      clearInterval(timer);
+    };
+  }, [order._id, order.estimatedReadyAt, order.eta, shouldRefreshEta]);
 
   let extraClasses = '';
   let shadow = URGENCY.NORMAL.shadow;
@@ -47,13 +59,13 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady, busyOrde
   const etaTarget = order.estimatedReadyAt
     ? new Date(order.estimatedReadyAt)
     : typeof order.eta === 'number'
-      ? new Date(Date.now() + order.eta * 60000)
+      ? new Date(now + order.eta * 60000)
       : order.eta
         ? new Date(order.eta)
         : null;
   if (['QUEUED', 'PREPARING'].includes(status) && etaTarget && order.startedAt) {
     const elapsedRatio =
-      (Date.now() - new Date(order.startedAt).getTime()) /
+      (now - new Date(order.startedAt).getTime()) /
       (new Date(etaTarget).getTime() - new Date(order.startedAt).getTime());
     if (elapsedRatio > 1.0) {
       extraClasses = 'critical pulse';
@@ -109,7 +121,7 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady, busyOrde
       } else {
         next.add(itemId);
       }
-      setPickupChecked(next);
+      setPickupState({ key: pickupKey, checked: next });
       if ((order.items || []).length > 0 && next.size >= (order.items || []).length) {
         onStatusUpdate?.(order._id, 'COMPLETED');
       }
@@ -172,7 +184,7 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady, busyOrde
         </span>
         {etaTarget && ['QUEUED', 'PREPARING'].includes(status) && (
           <span className="eta-text">
-            {Math.max(1, Math.round((new Date(etaTarget).getTime() - Date.now()) / 60000))} min ETA
+            {Math.max(1, Math.round((new Date(etaTarget).getTime() - now) / 60000))} min ETA
           </span>
         )}
       </div>
@@ -180,7 +192,7 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady, busyOrde
       <div className="card-items">
         {(order.items || []).map((it, idx) => {
           const itemName = it.menuItem?.name || it.name || 'Item';
-          const imageUrl = it.menuItem?.imageUrl || it.imageUrl || getFallbackThumb(itemName);
+          const imageUrl = getImageUrl(it.menuItem?.imageUrl || it.imageUrl) || getFallbackThumb(itemName);
           const itemQty = Number(it.quantity || 0);
           const readyQty = (isOrderCompleted || isOrderReady)
             ? itemQty
@@ -198,7 +210,7 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady, busyOrde
           return (
             <div key={itemId} className="item-row">
               <div className="item-thumb-wrap">
-                <img className="item-thumb" src={imageUrl} alt={itemName} loading="lazy" />
+                <img className="item-thumb" src={imageUrl} alt={itemName} loading="lazy" decoding="async" />
               </div>
               <div className="item-main">
                 <div className="item-title">
@@ -245,4 +257,4 @@ const OrderCard = ({ order, dishFilterKey, onStatusUpdate, onItemReady, busyOrde
   );
 };
 
-export default OrderCard;
+export default React.memo(OrderCard);

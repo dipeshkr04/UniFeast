@@ -92,7 +92,6 @@ export const useKitchenOrders = () => {
     };
 
     const onReconnect = async () => {
-      console.log('[socket] reconnected - re-fetching live orders');
       setReconnecting(false);
       await fetchLiveOrders();
       await refreshSummary();
@@ -347,10 +346,12 @@ export const useKitchenOrders = () => {
     ].filter(Boolean).join(' ').toLowerCase();
   }, []);
 
+  const orderList = useMemo(() => Array.from(orders.values()), [orders]);
+
   const dishOptions = useMemo(() => {
     const stats = new Map();
 
-    Array.from(orders.values()).forEach((order) => {
+    orderList.forEach((order) => {
       const orderDishKeys = new Set();
 
       (order.items || []).forEach((item) => {
@@ -378,14 +379,14 @@ export const useKitchenOrders = () => {
     return Array.from(stats.values()).sort((a, b) =>
       b.quantity - a.quantity || a.name.localeCompare(b.name)
     );
-  }, [orders, getItemName, normalizeDishName]);
+  }, [orderList, getItemName, normalizeDishName]);
 
   const selectedDish = useMemo(() => (
     dishOptions.find((dish) => dish.key === dishFilter) || null
   ), [dishFilter, dishOptions]);
 
   const filteredOrders = useMemo(() => {
-    let arr = Array.from(orders.values());
+    let arr = orderList;
     if (activeFilter === 'ACTIVE') {
       arr = arr.filter((o) => !['completed', 'cancelled'].includes((o.status || '').toLowerCase()));
     } else {
@@ -403,8 +404,8 @@ export const useKitchenOrders = () => {
       arr = arr.filter((order) => getOrderSearchText(order).includes(query));
     }
 
-    return arr.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
-  }, [orders, activeFilter, dishFilter, searchQuery, getItemName, getOrderSearchText, normalizeDishName]);
+    return [...arr].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+  }, [orderList, activeFilter, dishFilter, searchQuery, getItemName, getOrderSearchText, normalizeDishName]);
 
   const isOverloaded = Boolean(summary?.queueStats?.isOverloaded);
 

@@ -8,6 +8,8 @@ const {
   reserveDailyStock,
   releaseDailyStock,
 } = require('../utils/dailyStock');
+const { buildUserSnapshot } = require('../utils/userSnapshot');
+const { normalizeImageUrl } = require('../utils/imageUrl');
 
 // @desc    Get active pools
 // @route   GET /api/pools
@@ -74,10 +76,12 @@ exports.joinOrCreatePool = async (req, res) => {
     const etaResult = await calculateETA(menuItem.prepTime);
     const order = await Order.create({
       user: req.user.id,
+      userSnapshot: buildUserSnapshot(req.user),
       items: [{
         menuItem: menuItem._id,
         name: menuItem.name,
         price: menuItem.price,
+        imageUrl: normalizeImageUrl(menuItem.imageUrl),
         quantity,
         poolId: pool._id,
       }],

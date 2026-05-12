@@ -4,6 +4,7 @@ const {
   resetExpiredDailyStocks,
   setDailyStock,
 } = require('../utils/dailyStock');
+const { getUploadedFileUrl, normalizeImageUrl } = require('../utils/imageUrl');
 
 function parseBoolean(value, fallback = true) {
   if (value === undefined || value === null || value === '') return fallback;
@@ -23,12 +24,17 @@ function buildMenuPayload(body, imageUrl) {
     description: '',
     price: body.price,
     category: body.category,
-    imageUrl: imageUrl || '',
+    imageUrl: normalizeImageUrl(imageUrl),
     prepTime: body.prepTime,
     maxOrder: parseMaxOrder(body.maxOrder, 15),
     isAvailable: parseBoolean(body.isAvailable, true),
     tags: [],
   };
+}
+
+function serializeMenuItem(item) {
+  const data = item?.toObject ? item.toObject() : item;
+  return data ? { ...data, imageUrl: normalizeImageUrl(data.imageUrl) } : data;
 }
 
 function isNutritionEmpty(nutrition = {}) {
@@ -66,8 +72,9 @@ exports.getMenuItems = async (req, res) => {
     if (available !== undefined) filter.isAvailable = available === 'true';
     if (search) filter.name = { $regex: search, $options: 'i' };
 
-    const items = await MenuItem.find(filter).sort({ category: 1, name: 1 });
-    res.json({ success: true, count: items.length, data: items });
+    const items = await MenuItem.find(filter).sort({ category: 1, name: 1 }).lean();
+    const data = items.map(serializeMenuItem);
+    res.json({ success: true, count: data.length, data });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -78,11 +85,11 @@ exports.getMenuItems = async (req, res) => {
 exports.getMenuItem = async (req, res) => {
   try {
     await resetExpiredDailyStocks();
-    const item = await MenuItem.findById(req.params.id);
+    const item = await MenuItem.findById(req.params.id).lean();
     if (!item) {
       return res.status(404).json({ success: false, message: 'Menu item not found' });
     }
-    res.json({ success: true, data: item });
+    res.json({ success: true, data: serializeMenuItem(item) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -100,7 +107,7 @@ exports.updateMenuStock = async (req, res) => {
     }
 
     notifyMenuStockChanged(req, item);
-    res.json({ success: true, data: item });
+    res.json({ success: true, data: serializeMenuItem(item) });
   } catch (error) {
     res.status(400).json({ success: false, message: error.message });
   }
@@ -110,7 +117,7 @@ exports.updateMenuStock = async (req, res) => {
 // @route   POST /api/menu/analyze-nutrition
 exports.analyzeMenuNutrition = async (req, res) => {
   try {
-    const imageUrl = req.file?.path || req.body.imageUrl || '';
+    const imageUrl = getUploadedFileUrl(req.file) || normalizeImageUrl(req.body.imageUrl);
     const { analysis, nutrition } = await resolveMenuNutrition(req.body.name, imageUrl);
 
     res.json({
@@ -129,13 +136,13 @@ exports.analyzeMenuNutrition = async (req, res) => {
 // @route   POST /api/menu
 exports.createMenuItem = async (req, res) => {
   try {
-    const imageUrl = req.file?.path || '';
+    const imageUrl = getUploadedFileUrl(req.file);
     const payload = buildMenuPayload(req.body, imageUrl);
     const { nutrition } = await resolveMenuNutrition(payload.name, payload.imageUrl);
     payload.nutrition = nutrition;
 
     const item = await MenuItem.create(payload);
-    res.status(201).json({ success: true, data: item });
+    res.status(201).json({ success: true, data: serializeMenuItem(item) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -150,7 +157,7 @@ exports.updateMenuItem = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Menu item not found' });
     }
 
-    const imageUrl = req.file?.path || existingItem.imageUrl || '';
+    const imageUrl = getUploadedFileUrl(req.file) || normalizeImageUrl(existingItem.imageUrl);
     const payload = buildMenuPayload({
       name: req.body.name ?? existingItem.name,
       price: req.body.price ?? existingItem.price,
@@ -176,7 +183,7 @@ exports.updateMenuItem = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Menu item not found' });
     }
 
-    res.json({ success: true, data: item });
+    res.json({ success: true, data: serializeMenuItem(item) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -206,7 +213,7 @@ exports.toggleAvailability = async (req, res) => {
     }
     item.isAvailable = !item.isAvailable;
     await item.save();
-    res.json({ success: true, data: item });
+    res.json({ success: true, data: serializeMenuItem(item) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

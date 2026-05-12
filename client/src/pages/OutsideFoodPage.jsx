@@ -239,7 +239,9 @@ function PoolCard({ pool, onAction, onEnter }) {
   const progress = Math.min(100, Number(pool.progressPercent || 0));
   const locked = pool.status === 'LOCKED';
   const categoryLabel = categoryOptions.find((item) => item.value === pool.category)?.label || 'Others';
-  const joined = Boolean(pool.viewer?.isParticipant || pool.viewer?.isBroadcaster);
+  const created = Boolean(pool.viewer?.isBroadcaster);
+  const joined = Boolean(pool.viewer?.isParticipant);
+  const hasPoolAccess = created || joined;
 
   return (
     <MotionArticle
@@ -279,9 +281,14 @@ function PoolCard({ pool, onAction, onEnter }) {
           </div>
         </div>
 
-        {joined ? (
-          <button type="button" className="outside-food-primary-btn pool-joined-btn" onClick={() => onEnter(pool)} title="Open pool room">
-            Joined
+        {hasPoolAccess ? (
+          <button
+            type="button"
+            className={`outside-food-primary-btn ${created ? 'pool-created-btn' : 'pool-joined-btn'}`}
+            onClick={() => onEnter(pool)}
+            title="Open pool room"
+          >
+            {created ? 'Created' : 'Joined'}
           </button>
         ) : pool.viewer?.pendingRequest ? (
           <button type="button" className="outside-food-secondary-btn outside-food-full-btn" disabled>

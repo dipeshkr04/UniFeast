@@ -66,6 +66,8 @@ function RestaurantThumb({ restaurant }) {
     <img
       src={restaurant.image}
       alt={restaurant.name}
+      loading="lazy"
+      decoding="async"
       onError={() => setFailed(true)}
     />
   );

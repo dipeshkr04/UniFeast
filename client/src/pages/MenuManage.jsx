@@ -3,6 +3,7 @@ import { menuAPI } from '../api';
 import { HiPlus, HiOutlinePencil, HiOutlineTrash, HiOutlineSearch } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { useSocket } from '../contexts/SocketContext';
+import { getImageUrl } from '../utils/imageUrl';
 
 const emptyForm = {
   name: '',
@@ -224,7 +225,7 @@ export default function MenuManage() {
       nutrition: { ...emptyForm.nutrition, ...item.nutrition },
     });
     setImageFile(null);
-    setImagePreview(item.imageUrl || '');
+    setImagePreview(getImageUrl(item.imageUrl));
     setNutritionFetched(true);
     setShowForm(true);
   };
@@ -331,7 +332,7 @@ export default function MenuManage() {
                 <label className="text-surface-300">Image</label>
                 <div className="menu-image-input-row">
                   <input type="file" accept="image/*" onChange={e => handleImageChange(e.target.files[0])} className="input-field" disabled={savingItem || analyzingNutrition} />
-                  {imagePreview && <img src={imagePreview} alt={form.name || 'Menu item preview'} className="menu-image-preview" />}
+                  {imagePreview && <img src={getImageUrl(imagePreview)} alt={form.name || 'Menu item preview'} className="menu-image-preview" decoding="async" />}
                 </div>
               </div>
             </div>

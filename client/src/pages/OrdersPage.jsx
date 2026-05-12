@@ -32,16 +32,14 @@ export default function OrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      const params = {};
-      if (filter) params.status = filter;
-      const { data } = await orderAPI.getMy(params);
+      const { data } = await orderAPI.getMy();
       setOrders(data.data || []);
     } catch {
       toast.error('Failed to load orders');
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, []);
 
   useEffect(() => {
     fetchOrders();
@@ -57,19 +55,26 @@ export default function OrdersPage() {
           current?.order?._id === (data.order?._id || data.orderId) ? null : current
         ));
       }
-      setOrders((prev) => prev.map((o) => {
-        if (data.order?._id === o._id) {
-          return { ...o, ...data.order };
+      setOrders((prev) => {
+        const incomingOrder = data.order;
+        if (incomingOrder?._id) {
+          const exists = prev.some((order) => order._id === incomingOrder._id);
+          return exists
+            ? prev.map((order) => order._id === incomingOrder._id ? { ...order, ...incomingOrder } : order)
+            : [incomingOrder, ...prev];
         }
-        return o._id === data.orderId
-          ? {
-            ...o,
-            status: nextStatus || o.status,
-            estimatedTime: data.estimatedTime ?? o.estimatedTime,
-            estimatedReadyAt: data.estimatedReadyAt ?? o.estimatedReadyAt,
-          }
-          : o;
-      }));
+
+        return prev.map((order) => (
+          order._id === data.orderId
+            ? {
+              ...order,
+              status: nextStatus || order.status,
+              estimatedTime: data.estimatedTime ?? order.estimatedTime,
+              estimatedReadyAt: data.estimatedReadyAt ?? order.estimatedReadyAt,
+            }
+            : order
+        ));
+      });
       const cfg = statusConfig[nextStatus];
       const toastKey = `${data.orderId}:${nextStatus}:${data.notification || ''}`;
       const now = Date.now();
@@ -154,9 +159,12 @@ export default function OrdersPage() {
     return localDate.toISOString().slice(0, 10);
   };
 
-  const visibleOrders = dateFilter
-    ? orders.filter((order) => toDateInputValue(order.createdAt) === dateFilter)
+  const statusFilteredOrders = filter
+    ? orders.filter((order) => String(order.status || '').toLowerCase() === filter)
     : orders;
+  const visibleOrders = dateFilter
+    ? statusFilteredOrders.filter((order) => toDateInputValue(order.createdAt) === dateFilter)
+    : statusFilteredOrders;
   const selectedDateExpense = visibleOrders.reduce((sum, order) => sum + Number(order.totalAmount || 0), 0);
   const formatCurrency = (value) => new Intl.NumberFormat('en-IN', {
     style: 'currency',

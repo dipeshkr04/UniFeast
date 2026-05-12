@@ -1,15 +1,17 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { leaderboardAPI, nutritionAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { HiOutlineFire, HiOutlineChevronLeft, HiOutlineChevronRight, HiPlus, HiMinus, HiOutlineTrash, HiOutlineCog, HiOutlineSparkles, HiOutlineLockClosed, HiOutlineX } from 'react-icons/hi';
+import { HiOutlineFire, HiOutlineChevronLeft, HiOutlineChevronRight, HiPlus, HiMinus, HiOutlineTrash, HiOutlineCog, HiOutlineSparkles, HiOutlineLockClosed, HiOutlineX, HiOutlineMenuAlt2, HiOutlineCalendar, HiOutlineChartBar, HiOutlineStar } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import LeaderboardWidget from '../components/nutrition/LeaderboardWidget';
-import LeaderboardModal from '../components/nutrition/LeaderboardModal';
 import RankProgressSummary from '../components/nutrition/RankProgressSummary';
 import { NUTRITION_BADGES } from '../constants/nutritionBadges';
+import { getImageUrl } from '../utils/imageUrl';
 
 const COLORS = ['#e06449', '#facc15', '#3b82f6', '#10b981'];
+const LeaderboardModal = lazy(() => import('../components/nutrition/LeaderboardModal'));
 const DEFAULT_LOG_FORM = {
   customName: '',
   calories: '',
@@ -21,7 +23,96 @@ const DEFAULT_LOG_FORM = {
   mealType: 'snack',
   imageFile: null,
   imageUrl: '',
+  uploadedImageUrl: '',
 };
+
+const nutritionViews = [
+  { id: 'daily', label: 'Daily Updates' },
+  { id: 'analysis', label: 'Analysis' },
+  { id: 'leaderboard', label: 'Leaderboard' },
+  { id: 'instructions', label: 'Instructions' },
+];
+
+const rankingInstructionGroups = [
+  {
+    title: 'Core Terms',
+    icon: HiOutlineStar,
+    items: [
+      {
+        question: 'What is consistency?',
+        answer: 'A day is consistent only when meal data exists and that day reaches at least 50% adherence.',
+      },
+      {
+        question: 'What is XP?',
+        answer: 'XP is earned from logging meals, strong adherence, macro targets, fiber goals, and calorie accuracy.',
+      },
+      {
+        question: 'What is adherence?',
+        answer: 'Adherence shows how closely calories, protein, fiber, carbs, and fat match the user’s personal goals.',
+      },
+    ],
+  },
+  {
+    title: 'Adherence',
+    icon: HiOutlineCalendar,
+    items: [
+      {
+        question: 'How is daily adherence calculated?',
+        answer: 'Calories 35%, protein 25%, fiber 15%, carbs 15%, and fat 10%. Each logged day gets a 0-100% score.',
+      },
+      {
+        question: 'Which adherence is used for badges?',
+        answer: 'Badges and rankings use average adherence across all logged days that contain meal data.',
+      },
+    ],
+  },
+  {
+    title: 'XP',
+    icon: HiOutlineFire,
+    items: [
+      {
+        question: 'How does a day earn XP?',
+        answer: 'Meal logged +20, meaningful log +30, 70% adherence +40, 85% adherence +70, protein +20, fiber +20, calories within 10% +20.',
+      },
+      {
+        question: 'Is there a daily XP limit?',
+        answer: 'Yes. Daily XP is capped at 200 XP, and total XP is the sum of all logged days.',
+      },
+    ],
+  },
+  {
+    title: 'Badges',
+    icon: HiOutlineChartBar,
+    items: [
+      {
+        question: 'How does a badge unlock?',
+        answer: 'A badge unlocks only when consistent days, total XP, and average adherence all meet that badge’s threshold.',
+      },
+      {
+        question: 'What are the badge thresholds?',
+        answer: 'Build: 14 days, 1K XP, 60%. Balance: 28, 2.5K, 65%. Steady: 50, 5K, 70%. Aligned: 100, 12K, 75%. Sustain: 200, 28K, 80%. Thrive: 365, 60K, 85%.',
+      },
+    ],
+  },
+  {
+    title: 'Ranking',
+    icon: HiOutlineChartBar,
+    items: [
+      {
+        question: 'How is leaderboard rank decided?',
+        answer: 'Ranking order is highest badge tier, higher total XP, more consistent days, then higher average adherence.',
+      },
+      {
+        question: 'What is Progress Score?',
+        answer: 'Progress Score is a 0-100 next-badge progress indicator: consistency 40%, adherence 35%, and XP 25%. It does not directly decide rank.',
+      },
+      {
+        question: 'How is current streak counted?',
+        answer: 'The app checks consecutive valid days from today, or from yesterday when today is not valid yet.',
+      },
+    ],
+  },
+];
 
 function getDetectedQuantity(result, fallback = '1') {
   const value = result?.quantity ?? result?.detectedItems?.[0]?.quantity;
@@ -30,15 +121,37 @@ function getDetectedQuantity(result, fallback = '1') {
   return String(Math.max(1, Math.min(20, Math.round(parsed * 10) / 10)));
 }
 
+function formatDateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function dateKeyToLocalDate(dateKey) {
+  const [year, month, day] = String(dateKey).split('-').map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
+
+function addDaysToDateKey(dateKey, delta) {
+  const next = dateKeyToLocalDate(dateKey);
+  next.setDate(next.getDate() + delta);
+  return formatDateKey(next);
+}
+
 export default function NutritionPage() {
   const { user, updateUser } = useAuth();
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const todayKey = formatDateKey();
+  const [date, setDate] = useState(todayKey);
   const [daily, setDaily] = useState(null);
   const [weekly, setWeekly] = useState([]);
   const [monthly, setMonthly] = useState([]);
   const [showLogForm, setShowLogForm] = useState(false);
   const [showGoalsModal, setShowGoalsModal] = useState(false);
   const [showFullLeaderboard, setShowFullLeaderboard] = useState(false);
+  const [activeView, setActiveView] = useState('daily');
+  const [showMobileSections, setShowMobileSections] = useState(false);
   const [chartView, setChartView] = useState('weekly');
   const [rankProgress, setRankProgress] = useState(null);
   const [rankBadgeTiers, setRankBadgeTiers] = useState(NUTRITION_BADGES);
@@ -58,6 +171,11 @@ export default function NutritionPage() {
   const [aiResult, setAiResult] = useState(null);
 
   const fetchData = useCallback(async () => {
+    if (date > todayKey) {
+      setDate(todayKey);
+      return;
+    }
+
     setLoading(true);
     try {
       const [dailyRes, weeklyRes, monthlyRes, leaderboardRes] = await Promise.all([
@@ -76,7 +194,7 @@ export default function NutritionPage() {
     } finally {
       setLoading(false);
     }
-  }, [date]);
+  }, [date, todayKey]);
 
   useEffect(() => {
     fetchData();
@@ -86,7 +204,7 @@ export default function NutritionPage() {
     const file = e.target.files[0];
     if (!file) return;
 
-    setLogForm({ ...logForm, imageFile: file, imageUrl: URL.createObjectURL(file) });
+    setLogForm(prev => ({ ...prev, imageFile: file, imageUrl: URL.createObjectURL(file), uploadedImageUrl: '' }));
     setAnalyzingImage(true);
     setAiResult(null);
 
@@ -109,6 +227,9 @@ export default function NutritionPage() {
           carbs: nutrition?.carbs || prev.carbs,
           fat: nutrition?.fat || prev.fat,
           fiber: nutrition?.fiber || prev.fiber,
+          imageFile: data.data.imageUrl ? null : prev.imageFile,
+          imageUrl: data.data.imageUrl || prev.imageUrl,
+          uploadedImageUrl: data.data.imageUrl || '',
         }));
         
         toast.success(`Detected: ${foodName}`, { icon: '🎯' });
@@ -126,8 +247,9 @@ export default function NutritionPage() {
     try {
       const formData = new FormData();
       Object.entries(logForm).forEach(([key, val]) => {
-        if (key === 'imageFile' && val) formData.append('image', val);
-        else if (key !== 'imageFile' && key !== 'imageUrl') formData.append(key, val);
+        if (key === 'imageFile' && val && !logForm.uploadedImageUrl) formData.append('image', val);
+        else if (key === 'uploadedImageUrl' && val) formData.append('imageUrl', val);
+        else if (!['imageFile', 'imageUrl', 'uploadedImageUrl'].includes(key)) formData.append(key, val);
       });
       
       await nutritionAPI.logMeal(formData);
@@ -176,9 +298,22 @@ export default function NutritionPage() {
   };
 
   const changeDate = (delta) => {
-    const d = new Date(date);
-    d.setDate(d.getDate() + delta);
-    setDate(d.toISOString().split('T')[0]);
+    const nextDate = addDaysToDateKey(date, delta);
+    if (nextDate > todayKey) return;
+    setDate(nextDate);
+  };
+
+  const selectView = (viewId) => {
+    setActiveView(viewId);
+    setShowMobileSections(false);
+  };
+
+  const openLogForm = () => {
+    const shouldToggle = activeView === 'daily';
+    if (date !== todayKey) setDate(todayKey);
+    setActiveView('daily');
+    setShowMobileSections(false);
+    setShowLogForm(prev => shouldToggle ? !prev : true);
   };
 
   const totals = daily?.dailyTotals || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
@@ -217,34 +352,99 @@ export default function NutritionPage() {
           </h1>
           <p className="text-surface-400 mt-1 capitalize text-[14px] md:text-base">Track, analyze, and conquer your goals automatically.</p>
         </div>
+      </div>
+
+      <div className="nutrition-subnav glass-card-static">
+        <button
+          type="button"
+          onClick={() => setShowMobileSections(true)}
+          className="nutrition-section-menu-btn"
+          aria-label="Open nutrition sections"
+        >
+          <HiOutlineMenuAlt2 className="w-5 h-5" />
+        </button>
+
+        <div className="nutrition-view-tabs" aria-label="Nutrition sections">
+          {nutritionViews.map((view) => (
+            <button
+              key={view.id}
+              type="button"
+              onClick={() => selectView(view.id)}
+              className={`nutrition-view-tab ${activeView === view.id ? 'is-active' : ''}`}
+            >
+              {view.label}
+            </button>
+          ))}
+        </div>
+
         <div className="nutrition-actions">
           <button onClick={() => setShowGoalsModal(true)} className="btn-secondary flex items-center justify-center gap-2 px-4 py-2 text-[14px] bg-surface-800/80 hover:bg-surface-700/80 text-surface-200 border border-surface-700/50 rounded-xl transition-all min-h-[44px]">
             <HiOutlineCog className="w-4 h-4" /> Goals
           </button>
-          <button onClick={() => setShowLogForm(!showLogForm)} className="btn-primary flex items-center justify-center gap-2 px-6 py-2 shadow-[0_0_15px_rgba(255,71,20,0.3)] hover:shadow-[0_0_25px_rgba(255,71,20,0.5)] transition-shadow min-h-[48px]">
-            <HiPlus className="w-4 h-4" /> {daily?.meals?.length > 0 ? "Add Another Meal" : "Log Meal"}
+          <button onClick={openLogForm} className="btn-primary flex items-center justify-center gap-2 px-5 py-2 shadow-[0_0_15px_rgba(255,71,20,0.3)] hover:shadow-[0_0_25px_rgba(255,71,20,0.5)] transition-shadow min-h-[44px]">
+            <HiPlus className="w-4 h-4" /> {daily?.meals?.length > 0 ? "Add Meal" : "Log Meal"}
           </button>
         </div>
       </div>
 
-      {/* Date Navigation */}
-      <div className="nutrition-date-nav glass-card-static rounded-2xl flex items-center justify-between shadow-lg border border-surface-800/50">
-        <button onClick={() => changeDate(-1)} className="p-3 bg-surface-800/50 rounded-xl hover:bg-surface-700 transition-colors text-surface-300 hover:text-white">
-          <HiOutlineChevronLeft className="w-5 h-5" />
-        </button>
-        <div className="text-center">
-          <p className="font-bold text-surface-100 text-[15px]">{new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}</p>
-          {date === new Date().toISOString().split('T')[0] && (
-             <p className="text-xs font-semibold text-primary-400 uppercase tracking-widest mt-0.5 shadow-primary-400/20">Today</p>
-          )}
+      {showMobileSections && (
+        <div className="nutrition-mobile-menu-layer" onClick={() => setShowMobileSections(false)}>
+          <div className="nutrition-mobile-menu glass-card-static" onClick={(event) => event.stopPropagation()}>
+            <div className="nutrition-mobile-menu-head">
+              <div>
+                <p className="text-xs font-bold text-primary-400 uppercase tracking-widest">Nutrition</p>
+                <h2 className="text-lg font-black text-white">Sections</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMobileSections(false)}
+                className="nutrition-mobile-menu-close"
+                aria-label="Close nutrition sections"
+              >
+                <HiOutlineX className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="nutrition-mobile-menu-list">
+              {nutritionViews.map((view) => (
+                <button
+                  key={view.id}
+                  type="button"
+                  onClick={() => selectView(view.id)}
+                  className={`nutrition-mobile-menu-item ${activeView === view.id ? 'is-active' : ''}`}
+                >
+                  {view.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
-        <button onClick={() => changeDate(1)} className="p-3 bg-surface-800/50 rounded-xl hover:bg-surface-700 transition-colors text-surface-300 hover:text-white">
-          <HiOutlineChevronRight className="w-5 h-5" />
-        </button>
-      </div>
+      )}
 
-      {/* AI Log Form Section */}
-      {showLogForm && (
+      {activeView === 'daily' && (
+        <>
+          {/* Date Navigation */}
+          <div className="nutrition-date-nav glass-card-static rounded-2xl flex items-center justify-between shadow-lg border border-surface-800/50">
+            <button onClick={() => changeDate(-1)} className="p-3 bg-surface-800/50 rounded-xl hover:bg-surface-700 transition-colors text-surface-300 hover:text-white">
+              <HiOutlineChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="text-center">
+              <p className="font-bold text-surface-100 text-[15px]">{dateKeyToLocalDate(date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short' })}</p>
+              {date === todayKey && (
+                 <p className="text-xs font-semibold text-primary-400 uppercase tracking-widest mt-0.5 shadow-primary-400/20">Today</p>
+              )}
+            </div>
+            <button
+              onClick={() => changeDate(1)}
+              disabled={date >= todayKey}
+              className="p-3 bg-surface-800/50 rounded-xl hover:bg-surface-700 transition-colors text-surface-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-surface-800/50"
+              aria-label="Next nutrition day"
+            >
+              <HiOutlineChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* AI Log Form Section */}
+          {showLogForm && (
         <div className="nutrition-card glass-card-static animate-slideDown border border-primary-500/20 shadow-[0_0_30px_rgba(255,71,20,0.05)]">
           <div className="nutrition-card-header">
             <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary-500 to-accent-600 shadow-lg">
@@ -265,7 +465,7 @@ export default function NutritionPage() {
               >
                 {logForm.imageUrl ? (
                   <>
-                    <img src={logForm.imageUrl} alt="Food preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                    <img src={logForm.imageUrl} alt="Food preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" decoding="async" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <span className="text-white font-medium text-sm backdrop-blur-md px-3 py-1.5 rounded-full bg-white/10">Change Image</span>
                     </div>
@@ -360,10 +560,10 @@ export default function NutritionPage() {
             </div>
           </div>
         </div>
-      )}
+          )}
 
-      {/* Main Dashboard Grid */}
-      <div className="nutrition-summary-grid">
+          {/* Main Dashboard Grid */}
+          <div className="nutrition-summary-grid">
         
         {/* Calorie Ring summary */}
         <div className="nutrition-card nutrition-stat-card glass-card-static items-center justify-center relative overflow-hidden group">
@@ -453,10 +653,10 @@ export default function NutritionPage() {
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: COLORS[2] }} /> Fat</span>
           </div>
         </div>
-      </div>
+          </div>
 
-      {/* Today's Meals List */}
-      <div className="nutrition-card glass-card-static overflow-hidden p-0">
+          {/* Today's Meals List */}
+          <div className="nutrition-card glass-card-static overflow-hidden p-0">
         <div className="nutrition-meals-header border-b border-surface-800 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-surface-400 uppercase tracking-wider">Meals Logged ({daily?.meals?.length || 0})</h3>
         </div>
@@ -469,7 +669,7 @@ export default function NutritionPage() {
                 <div key={meal._id || i} className="nutrition-meal-row hover:bg-surface-800/30 transition-colors group">
                   <div className="nutrition-meal-main">
                     {meal.imageUrl ? (
-                      <img src={meal.imageUrl.startsWith('/') || meal.imageUrl.startsWith('http') ? meal.imageUrl : `/${meal.imageUrl}`} alt={meal.customName} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                      <img src={getImageUrl(meal.imageUrl)} alt={meal.customName} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" loading="lazy" decoding="async" />
                     ) : (
                       <div className="w-12 h-12 rounded-lg bg-surface-800 flex items-center justify-center text-xl flex-shrink-0">
                         {meal.mealType === 'breakfast' ? '🌅' : meal.mealType === 'lunch' ? '☀️' : meal.mealType === 'dinner' ? '🌙' : '🍿'}
@@ -517,10 +717,12 @@ export default function NutritionPage() {
           </div>
         )}
 
-      </div>
+          </div>
+        </>
+      )}
 
-      {/* Analysis Panel */}
-      <div className="nutrition-card nutrition-analysis-panel glass-card-static">
+      {activeView === 'analysis' && (
+        <div className="nutrition-card nutrition-analysis-panel glass-card-static">
         <div className="nutrition-analysis-top">
           <div className="nutrition-analysis-title">
             <p className="text-xs font-bold text-primary-400 uppercase tracking-widest mb-1">Analysis</p>
@@ -534,13 +736,13 @@ export default function NutritionPage() {
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-surface-400 uppercase tracking-wider">Calorie Trend</h3>
           </div>
-          <div className="bg-surface-800 rounded-lg p-1 flex w-full md:w-auto justify-center">
-            <button onClick={() => setChartView('weekly')}
-              className={`min-h-[44px] flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-md transition-colors ${chartView === 'weekly' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-200'}`}>
+          <div className="nutrition-chart-toggle">
+            <button type="button" onClick={() => setChartView('weekly')}
+              className={`nutrition-chart-toggle-btn ${chartView === 'weekly' ? 'is-active' : ''}`}>
               Weekly
             </button>
-            <button onClick={() => setChartView('monthly')}
-              className={`min-h-[44px] flex-1 md:flex-none px-4 py-2 text-xs font-semibold rounded-md transition-colors ${chartView === 'monthly' ? 'bg-primary-500 text-white' : 'text-surface-400 hover:text-surface-200'}`}>
+            <button type="button" onClick={() => setChartView('monthly')}
+              className={`nutrition-chart-toggle-btn ${chartView === 'monthly' ? 'is-active' : ''}`}>
               Monthly
             </button>
           </div>
@@ -550,10 +752,16 @@ export default function NutritionPage() {
           weekly.length > 0 ? (
             <div className="nutrition-chart-frame">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={weekly}>
+                <BarChart data={weekly} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
                   <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={d => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'short' })} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis
+                    width={30}
+                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    domain={[0, 'dataMax + 50']}
+                  />
                   <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 12, color: '#f1f5f9' }} />
                   <Bar dataKey="calories" fill="#e06449" radius={[4, 4, 0, 0]} barSize={30} />
                 </BarChart>
@@ -564,10 +772,16 @@ export default function NutritionPage() {
           monthly.length > 0 ? (
             <div className="nutrition-chart-frame">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthly}>
+                <LineChart data={monthly} margin={{ top: 8, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.1)" vertical={false} />
                   <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} tickFormatter={d => new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} tickLine={false} axisLine={false} />
+                  <YAxis
+                    width={30}
+                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    tickLine={false}
+                    axisLine={false}
+                    domain={[0, 'dataMax + 50']}
+                  />
                   <Tooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ background: '#1e293b', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 12, color: '#f1f5f9' }} />
                   <Line type="monotone" dataKey="calories" stroke="#e06449" strokeWidth={3} dot={false} activeDot={{ r: 6, fill: '#e06449', stroke: '#fff', strokeWidth: 2 }} />
                 </LineChart>
@@ -575,15 +789,57 @@ export default function NutritionPage() {
             </div>
           ) : <p className="text-surface-500 text-center py-10">No monthly data</p>
         )}
-      </div>
+        </div>
+      )}
 
-      {/* Leaderboard Widget */}
-      <div className="nutrition-leaderboard">
-        <LeaderboardWidget onOpenFull={() => setShowFullLeaderboard(true)} />
-      </div>
+      {activeView === 'leaderboard' && (
+        <div className="nutrition-leaderboard">
+          <LeaderboardWidget onOpenFull={() => setShowFullLeaderboard(true)} />
+        </div>
+      )}
+
+      {activeView === 'instructions' && (
+        <section className="nutrition-instructions-page animate-fadeIn">
+          <section className="faq-hero nutrition-instructions-hero glass-card-static">
+            <div>
+              <p className="faq-kicker">Ranking Guide</p>
+              <h1>How Nutrition Rank Works</h1>
+              <p>Short answers for consistency, XP, adherence, badges, progress score, and leaderboard order.</p>
+            </div>
+            <div className="faq-hero-icon gradient-primary">
+              <HiOutlineStar className="text-white" />
+            </div>
+          </section>
+
+          <section className="faq-grid nutrition-instructions-grid">
+            {rankingInstructionGroups.map((group) => {
+              const Icon = group.icon;
+              return (
+                <article className="faq-group nutrition-instructions-group glass-card-static" key={group.title}>
+                  <div className="faq-group-head">
+                    <span>
+                      <Icon className="w-5 h-5" />
+                    </span>
+                    <h2>{group.title}</h2>
+                  </div>
+
+                  <div className="faq-list">
+                    {group.items.map((item) => (
+                      <details className="faq-item nutrition-instructions-item" key={item.question}>
+                        <summary>{item.question}</summary>
+                        <p>{item.answer}</p>
+                      </details>
+                    ))}
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+        </section>
+      )}
 
       {/* Goals Editor Modal */}
-      {showGoalsModal && (
+      {showGoalsModal && createPortal(
         <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
           <div className="goals-modal-panel glass-card-static animate-slideUp border border-surface-700 z-[2001]">
             <div className="goals-modal-header border-b border-surface-800">
@@ -602,7 +858,7 @@ export default function NutritionPage() {
             </div>
             
             <div className="goals-modal-body">
-              {isGoalsLocked ? (
+              {isGoalsLocked && (
                 <div className="goals-lock-alert bg-orange-900/20 border border-orange-500/20 text-orange-200">
                   <HiOutlineLockClosed className="w-5 h-5 flex-shrink-0 text-orange-400" />
                   <div>
@@ -610,8 +866,6 @@ export default function NutritionPage() {
                     <p className="text-[14px] mt-1">You have already logged a meal, so goals can be adjusted tomorrow morning before eating to keep leaderboard scoring fair.</p>
                   </div>
                 </div>
-              ) : (
-                <p className="text-surface-400 text-[14px]">Changes update your charts and leaderboard normalization immediately.</p>
               )}
 
               <form onSubmit={handleSaveGoals} className="goals-form">
@@ -624,13 +878,13 @@ export default function NutritionPage() {
                     <label className="text-surface-300">Fiber (g)</label>
                     <input type="number" className="input-field" value={goalsForm.dailyFiberGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyFiberGoal: e.target.value })} required disabled={isGoalsLocked} />
                   </div>
-                </div>
-
-                <div className="goals-field-grid goals-field-grid-macros">
                   <div className="goals-field">
                     <label className="text-surface-300">Protein (g)</label>
                     <input type="number" className="input-field" value={goalsForm.dailyProteinGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyProteinGoal: e.target.value })} required disabled={isGoalsLocked} />
                   </div>
+                </div>
+
+                <div className="goals-field-grid goals-field-grid-macros">
                   <div className="goals-field">
                     <label className="text-surface-300">Carbs (g)</label>
                     <input type="number" className="input-field" value={goalsForm.dailyCarbGoal} onChange={e => setGoalsForm({ ...goalsForm, dailyCarbGoal: e.target.value })} required disabled={isGoalsLocked} />
@@ -650,11 +904,16 @@ export default function NutritionPage() {
               </form>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Full Leaderboard Modal */}
-      {showFullLeaderboard && <LeaderboardModal onClose={() => setShowFullLeaderboard(false)} />}
+      {showFullLeaderboard && (
+        <Suspense fallback={null}>
+          <LeaderboardModal onClose={() => setShowFullLeaderboard(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -1,15 +1,71 @@
 const NutritionLog = require('../models/NutritionLog');
 const User = require('../models/User');
 const { analyzeFoodComplete } = require('../utils/foodAnalyzer');
+const { getUploadedFileUrl, normalizeImageUrl } = require('../utils/imageUrl');
 const { invalidateLeaderboardCache } = require('../utils/leaderboardEngine');
+
+const APP_TIME_ZONE = process.env.APP_TIME_ZONE || 'Asia/Kolkata';
+
+function getLocalDateString(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: APP_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value).reduce((acc, part) => {
+    if (part.type !== 'literal') acc[part.type] = part.value;
+    return acc;
+  }, {});
+
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function isDateKey(value = '') {
+  const text = String(value);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) return false;
+
+  const [year, month, day] = text.split('-').map(Number);
+  const parsed = new Date(Date.UTC(year, month - 1, day));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day
+  );
+}
+
+function addDaysToDateKey(dateKey, days) {
+  const date = new Date(`${dateKey}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().split('T')[0];
+}
+
+function getDateRangeKeys(endDateKey, daysBack) {
+  const startDateKey = addDaysToDateKey(endDateKey, -daysBack);
+  const dates = [];
+  for (let dateKey = startDateKey; dateKey <= endDateKey; dateKey = addDaysToDateKey(dateKey, 1)) {
+    dates.push(dateKey);
+  }
+  return { startDateKey, endDateKey, dates };
+}
 
 // @desc    Get daily nutrition log
 // @route   GET /api/nutrition/daily/:date
 exports.getDailyLog = async (req, res) => {
   try {
     const date = req.params.date; // YYYY-MM-DD
+    const todayStr = getLocalDateString();
+
+    if (!isDateKey(date)) {
+      return res.status(400).json({ success: false, message: 'Invalid nutrition date' });
+    }
+
+    if (date > todayStr) {
+      return res.status(400).json({ success: false, message: 'Future nutrition updates are not available' });
+    }
+
     let log = await NutritionLog.findOne({ user: req.user.id, date })
-      .populate('meals.menuItem', 'name imageUrl');
+      .populate('meals.menuItem', 'name imageUrl')
+      .lean();
 
     if (!log) {
       log = { date, meals: [], dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 } };
@@ -25,27 +81,24 @@ exports.getDailyLog = async (req, res) => {
 // @route   GET /api/nutrition/weekly
 exports.getWeeklyReport = async (req, res) => {
   try {
-    const today = new Date();
-    const weekAgo = new Date(today);
-    weekAgo.setDate(weekAgo.getDate() - 6); // 7 days including today
+    const todayStr = getLocalDateString();
+    const { startDateKey, endDateKey, dates } = getDateRangeKeys(todayStr, 6); // 7 days including today
 
     const logs = await NutritionLog.find({
       user: req.user.id,
       date: {
-        $gte: weekAgo.toISOString().split('T')[0],
-        $lte: today.toISOString().split('T')[0],
+        $gte: startDateKey,
+        $lte: endDateKey,
       },
-    }).sort({ date: 1 });
+    }).sort({ date: 1 }).lean();
 
-    const report = [];
-    for (let d = new Date(weekAgo); d <= today; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
+    const report = dates.map((dateStr) => {
       const log = logs.find(l => l.date === dateStr);
-      report.push({
+      return {
         date: dateStr,
         ...(log ? log.dailyTotals : { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }),
-      });
-    }
+      };
+    });
 
     res.json({ success: true, data: report });
   } catch (error) {
@@ -57,27 +110,24 @@ exports.getWeeklyReport = async (req, res) => {
 // @route   GET /api/nutrition/monthly
 exports.getMonthlyReport = async (req, res) => {
   try {
-    const today = new Date();
-    const monthAgo = new Date(today);
-    monthAgo.setDate(monthAgo.getDate() - 29); // 30 days including today
+    const todayStr = getLocalDateString();
+    const { startDateKey, endDateKey, dates } = getDateRangeKeys(todayStr, 29); // 30 days including today
 
     const logs = await NutritionLog.find({
       user: req.user.id,
       date: {
-        $gte: monthAgo.toISOString().split('T')[0],
-        $lte: today.toISOString().split('T')[0],
+        $gte: startDateKey,
+        $lte: endDateKey,
       },
-    }).sort({ date: 1 });
+    }).sort({ date: 1 }).lean();
 
-    const report = [];
-    for (let d = new Date(monthAgo); d <= today; d.setDate(d.getDate() + 1)) {
-      const dateStr = d.toISOString().split('T')[0];
+    const report = dates.map((dateStr) => {
       const log = logs.find(l => l.date === dateStr);
-      report.push({
+      return {
         date: dateStr,
         ...(log ? log.dailyTotals : { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 }),
-      });
-    }
+      };
+    });
 
     res.json({ success: true, data: report });
   } catch (error) {
@@ -89,7 +139,7 @@ exports.getMonthlyReport = async (req, res) => {
 // @route   PUT /api/nutrition/goals
 exports.updateNutritionGoals = async (req, res) => {
   try {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getLocalDateString();
     const todaysLog = await NutritionLog.findOne({ user: req.user.id, date: todayStr });
     
     if (todaysLog && todaysLog.meals.length > 0) {
@@ -125,8 +175,7 @@ exports.analyzeFood = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Please upload an image' });
     }
 
-    // Since Cloudinary is used, req.file.path contains the uploaded URL
-    const imageUrl = req.file.path;
+    const imageUrl = getUploadedFileUrl(req.file);
     const result = await analyzeFoodComplete(imageUrl);
 
     let message = 'Food analyzed successfully';
@@ -134,7 +183,7 @@ exports.analyzeFood = async (req, res) => {
       message = 'Low confidence prediction. Please verify the food details.';
     }
 
-    res.json({ success: true, message, data: result });
+    res.json({ success: true, message, data: { ...result, imageUrl } });
   } catch (error) {
     console.error('Analyze Food Error:', error.message);
     if (error.message === "LOW_CONFIDENCE") {
@@ -149,7 +198,7 @@ exports.analyzeFood = async (req, res) => {
 exports.logManualMeal = async (req, res) => {
   try {
     const { customName, calories, protein, carbs, fat, fiber, mealType, quantity } = req.body;
-    const dateStr = new Date().toISOString().split('T')[0];
+    const dateStr = getLocalDateString();
 
     let log = await NutritionLog.findOne({ user: req.user.id, date: dateStr });
     if (!log) {
@@ -169,9 +218,9 @@ exports.logManualMeal = async (req, res) => {
     };
 
     if (req.file) {
-      mealEntry.imageUrl = req.file.path;
+      mealEntry.imageUrl = getUploadedFileUrl(req.file);
     } else if (req.body.imageUrl) {
-      mealEntry.imageUrl = req.body.imageUrl;
+      mealEntry.imageUrl = normalizeImageUrl(req.body.imageUrl);
     }
 
     log.meals.push(mealEntry);
@@ -181,9 +230,7 @@ exports.logManualMeal = async (req, res) => {
     // Streak logic update
     const user = await User.findById(req.user.id);
     if (user.lastLoggedDate !== dateStr) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
+      const yesterdayStr = addDaysToDateKey(dateStr, -1);
 
       if (user.lastLoggedDate === yesterdayStr) {
         user.nutritionStreak = (user.nutritionStreak || 0) + 1;

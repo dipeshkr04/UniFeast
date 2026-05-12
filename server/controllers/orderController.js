@@ -17,6 +17,8 @@ const {
   validateOrderStockWithCartReservations,
   consumeCartReservations,
 } = require('../utils/cartReservations');
+const { buildUserSnapshot } = require('../utils/userSnapshot');
+const { normalizeImageUrl } = require('../utils/imageUrl');
 
 const ACTIVE_QR_STATUSES = ['pending', 'queued', 'preparing', 'ready'];
 const QR_PAYLOAD_PREFIX = 'UF_ORDER_QR:';
@@ -309,7 +311,7 @@ exports.createOrder = async (req, res) => {
         menuItem: menuItem._id,
         name: menuItem.name,
         price: menuItem.price,
-        imageUrl: menuItem.imageUrl || '',
+        imageUrl: normalizeImageUrl(menuItem.imageUrl),
         category: menuItem.category || '',
         quantity,
         assignedReadyQty: 0,
@@ -328,6 +330,7 @@ exports.createOrder = async (req, res) => {
 
     const order = await Order.create({
       user: req.user.id,
+      userSnapshot: buildUserSnapshot(req.user),
       items: orderItems,
       totalAmount,
       razorpayPaymentId,
@@ -410,14 +413,15 @@ exports.getMyOrders = async (req, res) => {
     const { status, limit } = req.query;
     const filter = { user: req.user.id };
     if (status) {
-      filter.status = status;
+      filter.status = String(status).toLowerCase();
     } else {
       filter.status = { $ne: 'cancelled' };
     }
 
     const query = Order.find(filter)
       .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     if (limit) {
       query.limit(parseInt(limit));
@@ -454,7 +458,8 @@ exports.getAllOrders = async (req, res) => {
       .populate('items.menuItem', 'name price imageUrl prepTime')
       .populate('user', 'name email phone')
       .sort({ createdAt: -1 })
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {

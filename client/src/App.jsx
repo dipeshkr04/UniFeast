@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { Toaster, toast } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -7,24 +7,25 @@ import { orderAPI } from './api';
 import { SocketProvider } from './contexts/SocketContext';
 import { CartProvider } from './contexts/CartContext';
 import Layout from './components/common/Layout';
-import LandingPage from './pages/LandingPage';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import MenuPage from './pages/MenuPage';
-import CartPage from './pages/CartPage';
-import OrdersPage from './pages/OrdersPage';
-import NutritionPage from './pages/NutritionPage';
-import LiveQueuePage from './pages/LiveQueuePage';
-import OutsideFoodPage from './pages/OutsideFoodPage';
-import OutsideFoodPoolPage from './pages/OutsideFoodPoolPage';
-import FindFeastPage from './pages/FindFeastPage';
-import KitchenDashboard from './pages/KitchenDashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import MenuManage from './pages/MenuManage';
-import AdminOutsideFoodPage from './pages/AdminOutsideFoodPage';
-import AboutPage from './pages/AboutPage';
-import FAQPage from './pages/FAQPage';
-import NotFoundPage from './pages/NotFoundPage';
+
+const LandingPage = lazy(() => import('./pages/LandingPage'));
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const MenuPage = lazy(() => import('./pages/MenuPage'));
+const CartPage = lazy(() => import('./pages/CartPage'));
+const OrdersPage = lazy(() => import('./pages/OrdersPage'));
+const NutritionPage = lazy(() => import('./pages/NutritionPage'));
+const LiveQueuePage = lazy(() => import('./pages/LiveQueuePage'));
+const OutsideFoodPage = lazy(() => import('./pages/OutsideFoodPage'));
+const OutsideFoodPoolPage = lazy(() => import('./pages/OutsideFoodPoolPage'));
+const FindFeastPage = lazy(() => import('./pages/FindFeastPage'));
+const KitchenDashboard = lazy(() => import('./pages/KitchenDashboard'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const MenuManage = lazy(() => import('./pages/MenuManage'));
+const AdminOutsideFoodPage = lazy(() => import('./pages/AdminOutsideFoodPage'));
+const AboutPage = lazy(() => import('./pages/AboutPage'));
+const FAQPage = lazy(() => import('./pages/FAQPage'));
+const NotFoundPage = lazy(() => import('./pages/NotFoundPage'));
 
 const PENDING_ORDER_KEY = 'unifeast_pending_order';
 
@@ -43,6 +44,17 @@ function ProtectedRoute({ children, roles }) {
   if (!user) return <Navigate to="/" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
+}
+
+function AppLoadingScreen() {
+  return (
+    <div className="app-loading-screen min-h-screen flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-surface-400 font-bold uppercase tracking-widest text-xs">Loading...</p>
+      </div>
+    </div>
+  );
 }
 
 function PendingOrderBanner() {
@@ -150,14 +162,7 @@ function AppRoutes() {
   const { user, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="app-loading-screen min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-surface-400 font-bold uppercase tracking-widest text-xs">Loading...</p>
-        </div>
-      </div>
-    );
+    return <AppLoadingScreen />;
   }
 
   // Determine home page based on role
@@ -172,54 +177,58 @@ function AppRoutes() {
   // If user is NOT logged in, show Public routes (Landing Page, Login, Register)
   if (!user) {
     return (
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      <Suspense fallback={<AppLoadingScreen />}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </Suspense>
     );
   }
 
   // If user IS logged in, show Protected App Routes
   return (
-    <Routes>
-      <Route path="/login" element={<Navigate to="/" replace />} />
-      <Route path="/register" element={<Navigate to="/" replace />} />
+    <Suspense fallback={<AppLoadingScreen />}>
+      <Routes>
+        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/register" element={<Navigate to="/" replace />} />
 
-      <Route path="/" element={<Layout />}>
-        <Route index element={getHomePage()} />
-        <Route path="about" element={<AboutPage />} />
+        <Route path="/" element={<Layout />}>
+          <Route index element={getHomePage()} />
+          <Route path="about" element={<AboutPage />} />
 
-        {/* Student Routes */}
-        <Route path="cart" element={<ProtectedRoute roles={['student']}><CartPage /></ProtectedRoute>} />
-        <Route path="orders" element={<ProtectedRoute roles={['student']}><OrdersPage /></ProtectedRoute>} />
-        <Route path="live-queue" element={<ProtectedRoute roles={['student']}><LiveQueuePage /></ProtectedRoute>} />
-        <Route path="nutrition" element={<ProtectedRoute roles={['student']}><NutritionPage /></ProtectedRoute>} />
-        <Route path="faq" element={<ProtectedRoute roles={['student']}><FAQPage /></ProtectedRoute>} />
-        <Route path="pools" element={<ProtectedRoute roles={['student']}><OutsideFoodPage /></ProtectedRoute>} />
-        <Route path="pools/:poolId" element={<ProtectedRoute roles={['student']}><OutsideFoodPoolPage /></ProtectedRoute>} />
-        <Route path="outside-food" element={<Navigate to="/pools" replace />} />
-        <Route path="outside-food/pool/:poolId" element={<ProtectedRoute roles={['student']}><OutsideFoodPoolPage /></ProtectedRoute>} />
-        <Route path="find-feast" element={<ProtectedRoute roles={['student']}><FindFeastPage /></ProtectedRoute>} />
+          {/* Student Routes */}
+          <Route path="cart" element={<ProtectedRoute roles={['student']}><CartPage /></ProtectedRoute>} />
+          <Route path="orders" element={<ProtectedRoute roles={['student']}><OrdersPage /></ProtectedRoute>} />
+          <Route path="live-queue" element={<ProtectedRoute roles={['student']}><LiveQueuePage /></ProtectedRoute>} />
+          <Route path="nutrition" element={<ProtectedRoute roles={['student']}><NutritionPage /></ProtectedRoute>} />
+          <Route path="faq" element={<ProtectedRoute roles={['student']}><FAQPage /></ProtectedRoute>} />
+          <Route path="pools" element={<ProtectedRoute roles={['student']}><OutsideFoodPage /></ProtectedRoute>} />
+          <Route path="pools/:poolId" element={<ProtectedRoute roles={['student']}><OutsideFoodPoolPage /></ProtectedRoute>} />
+          <Route path="outside-food" element={<Navigate to="/pools" replace />} />
+          <Route path="outside-food/pool/:poolId" element={<ProtectedRoute roles={['student']}><OutsideFoodPoolPage /></ProtectedRoute>} />
+          <Route path="find-feast" element={<ProtectedRoute roles={['student']}><FindFeastPage /></ProtectedRoute>} />
 
-        {/* Kitchen Routes */}
-        <Route path="kitchen" element={<ProtectedRoute roles={['kitchen']}><KitchenDashboard /></ProtectedRoute>} />
-        <Route path="menu-manage" element={<ProtectedRoute roles={['kitchen']}><MenuManage /></ProtectedRoute>} />
-        <Route path="kitchen-analytics" element={<ProtectedRoute roles={['kitchen']}><AdminDashboard mode="analytics" /></ProtectedRoute>} />
+          {/* Kitchen Routes */}
+          <Route path="kitchen" element={<ProtectedRoute roles={['kitchen']}><KitchenDashboard /></ProtectedRoute>} />
+          <Route path="menu-manage" element={<ProtectedRoute roles={['kitchen']}><MenuManage /></ProtectedRoute>} />
+          <Route path="kitchen-analytics" element={<ProtectedRoute roles={['kitchen']}><AdminDashboard mode="analytics" /></ProtectedRoute>} />
 
-        {/* Admin Routes */}
-        <Route path="stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="analytics" /></ProtectedRoute>} />
-        <Route path="users" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="users" /></ProtectedRoute>} />
-        <Route path="admin/restaurants" element={<ProtectedRoute roles={['admin']}><AdminOutsideFoodPage /></ProtectedRoute>} />
-        <Route path="admin/outside-food" element={<Navigate to="/admin/restaurants" replace />} />
+          {/* Admin Routes */}
+          <Route path="stats" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="analytics" /></ProtectedRoute>} />
+          <Route path="users" element={<ProtectedRoute roles={['admin']}><AdminDashboard mode="users" /></ProtectedRoute>} />
+          <Route path="admin/restaurants" element={<ProtectedRoute roles={['admin']}><AdminOutsideFoodPage /></ProtectedRoute>} />
+          <Route path="admin/outside-food" element={<Navigate to="/admin/restaurants" replace />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+
+        {/* Catch all */}
         <Route path="*" element={<NotFoundPage />} />
-      </Route>
-
-      {/* Catch all */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+      </Routes>
+    </Suspense>
   );
 }
 

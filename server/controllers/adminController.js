@@ -5,6 +5,39 @@ const Settings = require('../models/Settings');
 const { isRoleEmailAllowed } = require('../services/email-validation.service');
 
 const RECOGNIZED_ORDER_MATCH = { status: { $ne: 'cancelled' } };
+const configuredStatsCacheTtl = Number(process.env.ADMIN_STATS_CACHE_TTL_MS);
+const STATS_CACHE_TTL_MS = Number.isFinite(configuredStatsCacheTtl)
+  ? Math.max(0, configuredStatsCacheTtl)
+  : 8000;
+const statsCache = new Map();
+
+function getStatsCacheKey(query = {}) {
+  return JSON.stringify({
+    preset: query.preset || 'month',
+    startDate: query.startDate || '',
+    endDate: query.endDate || '',
+  });
+}
+
+function getCachedStats(key) {
+  if (!STATS_CACHE_TTL_MS) return null;
+  const cached = statsCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.createdAt > STATS_CACHE_TTL_MS) {
+    statsCache.delete(key);
+    return null;
+  }
+  return cached.payload;
+}
+
+function setCachedStats(key, payload) {
+  if (!STATS_CACHE_TTL_MS) return;
+  statsCache.set(key, { createdAt: Date.now(), payload });
+}
+
+function clearStatsCache() {
+  statsCache.clear();
+}
 
 function startOfDay(date) {
   const next = new Date(date);
@@ -76,14 +109,17 @@ function getCohort(email = '') {
 
 function enrichStudent(row) {
   const email = row.email || '';
+  const derivedBtId = row.btId || getBtId(email);
   const orders = row.orders || 0;
   const totalSpent = row.totalSpent || 0;
   return {
     ...row,
-    name: row.name || 'Unknown student',
+    userId: row.userId || null,
+    name: row.name || email || derivedBtId,
     email,
-    btId: getBtId(email),
-    cohort: getCohort(email),
+    btId: derivedBtId,
+    displayLabel: derivedBtId || row.name || email,
+    cohort: getCohort(email || derivedBtId),
     totalSpent,
     orders,
     averageOrderValue: orders ? Math.round((totalSpent / orders) * 100) / 100 : 0,
@@ -126,6 +162,7 @@ async function aggregateStudentSpending(match) {
         _id: '$user',
         totalSpent: { $sum: '$totalAmount' },
         orders: { $sum: 1 },
+        userSnapshot: { $first: '$userSnapshot' },
       },
     },
     {
@@ -137,12 +174,14 @@ async function aggregateStudentSpending(match) {
       },
     },
     { $unwind: { path: '$student', preserveNullAndEmptyArrays: true } },
+    { $match: { 'student._id': { $exists: true }, 'student.role': 'student' } },
     {
       $project: {
         _id: 0,
         userId: '$_id',
-        name: '$student.name',
-        email: '$student.email',
+        name: { $ifNull: ['$student.name', '$userSnapshot.name'] },
+        email: { $ifNull: ['$student.email', '$userSnapshot.email'] },
+        btId: '$userSnapshot.btId',
         totalSpent: 1,
         orders: 1,
       },
@@ -174,6 +213,7 @@ async function aggregateNightSpending(match) {
         _id: '$user',
         totalSpent: { $sum: '$totalAmount' },
         orders: { $sum: 1 },
+        userSnapshot: { $first: '$userSnapshot' },
       },
     },
     {
@@ -185,11 +225,14 @@ async function aggregateNightSpending(match) {
       },
     },
     { $unwind: { path: '$student', preserveNullAndEmptyArrays: true } },
+    { $match: { 'student._id': { $exists: true }, 'student.role': 'student' } },
     {
       $project: {
         _id: 0,
-        name: '$student.name',
-        email: '$student.email',
+        userId: '$_id',
+        name: { $ifNull: ['$student.name', '$userSnapshot.name'] },
+        email: { $ifNull: ['$student.email', '$userSnapshot.email'] },
+        btId: '$userSnapshot.btId',
         totalSpent: 1,
         orders: 1,
       },
@@ -274,7 +317,7 @@ exports.getUsers = async (req, res) => {
       ];
     }
 
-    const users = await User.find(filter).select('-password').sort({ createdAt: -1 });
+    const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).lean();
     res.json({ success: true, count: users.length, data: users });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -305,6 +348,7 @@ exports.updateUserRole = async (req, res) => {
 
     user.role = role;
     await user.save();
+    clearStatsCache();
 
     res.json({ success: true, data: user });
   } catch (error) {
@@ -316,10 +360,19 @@ exports.updateUserRole = async (req, res) => {
 // @route   DELETE /api/admin/users/:id
 exports.deleteUser = async (req, res) => {
   try {
+    const orderCount = await Order.countDocuments({ user: req.params.id });
+    if (orderCount > 0) {
+      return res.status(409).json({
+        success: false,
+        message: 'This user has order history and cannot be deleted because analytics attribution would be lost.',
+      });
+    }
+
     const user = await User.findByIdAndDelete(req.params.id);
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    clearStatsCache();
     res.json({ success: true, message: 'User deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -330,6 +383,12 @@ exports.deleteUser = async (req, res) => {
 // @route   GET /api/admin/stats
 exports.getDashboardStats = async (req, res) => {
   try {
+    const cacheKey = getStatsCacheKey(req.query);
+    const cachedStats = getCachedStats(cacheKey);
+    if (cachedStats) {
+      return res.json(cachedStats);
+    }
+
     const { preset, start, end } = parseDateRange(req.query);
     const rangeMatch = withDateRange(RECOGNIZED_ORDER_MATCH, start, end);
 
@@ -405,7 +464,7 @@ exports.getDashboardStats = async (req, res) => {
     const repeatStudents = studentSpending.filter((student) => student.orders > 1).length;
     const activeStudents = studentSpending.length;
 
-    res.json({
+    const payload = {
       success: true,
       data: {
         totalUsers,
@@ -460,7 +519,10 @@ exports.getDashboardStats = async (req, res) => {
           nightCanteenLeader: nightSpending[0] || null,
         },
       },
-    });
+    };
+
+    setCachedStats(cacheKey, payload);
+    res.json(payload);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

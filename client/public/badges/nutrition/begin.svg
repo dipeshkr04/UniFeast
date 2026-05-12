@@ -1,0 +1,22 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" data-badge="begin">
+  <title>Begin nutrition badge</title>
+  <defs>
+    <linearGradient id="begin-bg" x1="32" y1="26" x2="224" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#193126"/>
+      <stop offset="1" stop-color="#0b1410"/>
+    </linearGradient>
+    <linearGradient id="begin-ring" x1="62" y1="42" x2="194" y2="178" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#88d190"/>
+      <stop offset="1" stop-color="#d7a957"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="52" fill="url(#begin-bg)"/>
+  <circle cx="128" cy="108" r="70" fill="#102019" stroke="url(#begin-ring)" stroke-width="10"/>
+  <circle cx="128" cy="108" r="46" fill="#f4f2df"/>
+  <path d="M128 136V96" stroke="#2f6f46" stroke-width="8" stroke-linecap="round"/>
+  <path d="M128 99c-18-4-31-18-34-35 20 0 36 12 41 31" fill="#6fc078"/>
+  <path d="M129 104c17-9 35-6 48 6-15 12-33 14-48-6z" fill="#9bd56e"/>
+  <path d="M128 134c-13-10-24-11-37-4 10 11 25 15 37 4z" fill="#d6b15f"/>
+  <text x="128" y="205" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="800" letter-spacing="2" fill="#f7f3dd">BEGIN</text>
+  <text x="128" y="226" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="3" fill="#94a99c">NUTRITION</text>
+</svg>

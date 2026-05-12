@@ -1,206 +1,195 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { leaderboardAPI } from '../../api';
-import { HiOutlineX, HiOutlineStar, HiOutlineFire, HiOutlineChartBar, HiOutlineCheckCircle } from 'react-icons/hi';
+import { getBadgeAsset } from '../../constants/nutritionBadges';
+import { HiOutlineCalendar, HiOutlineChartBar, HiOutlineFire, HiOutlineStar, HiOutlineX } from 'react-icons/hi';
+
+const formulaItems = [
+  {
+    label: 'Consistency Days',
+    requirement: '14 / 28 / 50 / 100 / 200 / 365',
+    detail: 'Badge upgrades require long-term valid logging days.',
+    icon: HiOutlineCalendar,
+  },
+  {
+    label: 'XP Requirement',
+    requirement: '1K to 60K XP',
+    detail: 'XP comes from logging, goal accuracy, macro targets, and streak bonuses.',
+    icon: HiOutlineFire,
+  },
+  {
+    label: 'Average Adherence',
+    requirement: '60% to 85%',
+    detail: 'Your average adherence must meet the badge threshold.',
+    icon: HiOutlineChartBar,
+  },
+];
+
+const rankOrder = ['Badge tier', 'Total XP', 'Consistent days', 'Average adherence'];
+
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString('en-IN');
+}
+
+function getInitial(name = 'U') {
+  return name.charAt(0).toUpperCase();
+}
+
+function getRankBadge(rank) {
+  if (rank === 1) return 'rank-medal rank-medal-gold';
+  if (rank === 2) return 'rank-medal rank-medal-silver';
+  if (rank === 3) return 'rank-medal rank-medal-bronze';
+  return 'rank-number';
+}
 
 export default function LeaderboardModal({ onClose }) {
-  const [data, setData] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [total, setTotal] = useState(0);
-  const [pages, setPages] = useState(1);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [category, setCategory] = useState('adherence');
-  const [period, setPeriod] = useState('weekly');
-  const [periodDays, setPeriodDays] = useState(7);
   const [loading, setLoading] = useState(true);
-
-  const categories = [
-    { id: 'adherence', name: 'Overall Adherence', icon: HiOutlineStar },
-    { id: 'protein', name: 'Protein Master', icon: HiOutlineFire },
-    { id: 'calories', name: 'Calorie Accuracy', icon: HiOutlineChartBar },
-    { id: 'consistency', name: 'Most Consistent', icon: HiOutlineCheckCircle },
-  ];
-  const periodOptions = [
-    { id: 'weekly', name: 'Weekly', description: 'Last 7 days' },
-    { id: 'monthly', name: 'Last 30 Days', description: 'Last 30 days' },
-  ];
 
   useEffect(() => {
     fetchData();
-  }, [category, currentPage, period]);
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await leaderboardAPI.getFull(category, currentPage, 20, period);
-      setData(res.data.data.data);
-      setTotal(res.data.data.total);
-      setPages(res.data.data.pages);
-      setPeriodDays(res.data.data.periodDays || (period === 'monthly' ? 30 : 7));
-    } catch (err) {
-      console.error(err);
+      const res = await leaderboardAPI.getFull('rank', 1, 5000, 'allTime');
+      const payload = res.data.data;
+      setRows(payload.data || []);
+      setCurrentUser(payload.currentUser || null);
+      setTotal(payload.total || 0);
+    } catch (error) {
+      console.error(error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getTierColor = (tier) => {
-    switch(tier) {
-      case 'Elite': return 'from-purple-500 to-indigo-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.3)]';
-      case 'Gold': return 'from-yellow-400 to-yellow-600 text-yellow-100 shadow-[0_0_10px_rgba(234,179,8,0.3)]';
-      case 'Silver': return 'from-gray-300 to-gray-500 text-gray-100';
-      case 'Bronze': return 'from-orange-700 to-orange-900 text-orange-200';
-      default: return 'from-surface-700 to-surface-800 text-surface-300';
-    }
-  };
-
-  const getScoreDisplay = (user) => {
-    switch (category) {
-      case 'protein': return `${user.proteinScore.toFixed(1)} pts`;
-      case 'calories': return `${user.calorieScore.toFixed(1)} pts`;
-      case 'consistency': return `${user.consistency}% logged`;
-      default: return `${user.score.toFixed(1)} pts`;
-    }
-  };
-  const getScoreLabel = (user) => {
-    if (category === 'consistency') return `${user.daysLogged}/${periodDays} days`;
-    if (category === 'adherence') return `${user.daysLogged} logged days`;
-    return `${user.daysLogged}/${periodDays} days`;
-  };
-  const displayTier = (tier) => tier || 'Bronze';
-
   return (
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fadeIn">
-      <div
-        className="glass-card-static w-full max-w-4xl max-h-[calc(100vh-32px)] h-[85vh] flex flex-col relative border border-surface-700/50 shadow-2xl overflow-hidden rounded-2xl lg:rounded-[20px] z-[2001]"
-      >
-        <button 
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-3 md:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
+      <div className="leaderboard-modal-shell glass-card-static w-full max-w-7xl max-h-[calc(100vh-24px)] h-[92vh] flex flex-col relative border border-surface-700/50 shadow-2xl overflow-hidden rounded-2xl z-[2001]">
+        <button
           onClick={onClose}
-          className="absolute top-4 right-4 w-11 h-11 rounded-full bg-surface-800/50 hover:bg-surface-700 transition-colors text-surface-400 hover:text-white z-10 flex items-center justify-center"
+          className="absolute top-4 right-4 w-11 h-11 rounded-full bg-surface-900/80 hover:bg-surface-800 transition-colors text-surface-400 hover:text-white z-20 flex items-center justify-center border border-surface-700/70"
+          aria-label="Close leaderboard"
         >
           <HiOutlineX className="w-5 h-5" />
         </button>
 
-        <div className="p-4 md:p-6 pr-14 md:pr-16 border-b border-surface-800 bg-surface-900/40 shrink-0">
-          <h2 className="text-2xl font-black text-white mb-1"><span className="text-primary-500">Hall</span> of Fame</h2>
-          <p className="text-sm text-surface-400 mb-6">Compete based on discipline and adherence to your goals, not raw consumption.</p>
+        <div className="leaderboard-modal-body">
+          <section className="rank-formula-panel">
+            <div className="rank-formula-title">
+              <h2>How Our Badge Rank Works</h2>
+              <p>Begin starts by default. Every higher badge unlocks only when all three requirements are met.</p>
+              <p className="rank-formula-subcopy">Progress Score is bounded from 0-100 and measures movement toward the next badge.</p>
+            </div>
 
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap gap-2">
-              {categories.map(c => {
-                 const Icon = c.icon;
-                 const isActive = category === c.id;
-                 return (
-                   <button
-                     key={c.id}
-                     onClick={() => { setCategory(c.id); setCurrentPage(1); }}
-                     className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[14px] font-semibold transition-all duration-300 border min-h-[44px] ${isActive ? 'bg-primary-500 text-white border-primary-400 shadow-[0_0_15px_rgba(255,71,20,0.3)]' : 'bg-surface-800/50 text-surface-400 border-surface-700/50 hover:bg-surface-800 hover:text-surface-200'}`}
-                   >
-                     <Icon className="w-4 h-4" /> {c.name}
-                   </button>
-                 );
+            <div className="rank-formula-flow">
+              {formulaItems.map((item, index) => {
+                const Icon = item.icon;
+                return (
+                  <div className="rank-formula-step" key={item.label}>
+                    <div className="rank-formula-icon">
+                      <Icon className="w-7 h-7" />
+                    </div>
+                    <div>
+                      <p className="rank-formula-label">{item.label}</p>
+                      <p className="rank-formula-weight">{item.requirement}</p>
+                      <p className="rank-formula-copy">{item.detail}</p>
+                    </div>
+                    {index < formulaItems.length - 1 && <span className="rank-formula-plus">+</span>}
+                  </div>
+                );
               })}
+              <div className="rank-formula-result">
+                <span>=</span>
+                <div className="rank-formula-trophy">
+                  <HiOutlineStar className="w-10 h-10" />
+                </div>
+                <p>Highest Qualified Badge</p>
+              </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-surface-500">
-                Period
-                <select
-                  value={period}
-                  onChange={(e) => { setPeriod(e.target.value); setCurrentPage(1); }}
-                  className="input-field min-h-[44px] rounded-xl bg-surface-950/70 border-surface-800 text-surface-100 normal-case tracking-normal font-semibold px-4 py-2"
-                >
-                  {periodOptions.map(option => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <p className="text-xs text-surface-500 uppercase tracking-widest">
-                {periodOptions.find(option => option.id === period)?.description} - {total} students
-              </p>
+            <div className="rank-order-note">
+              <span>Leaderboard order</span>
+              {rankOrder.map((item, index) => (
+                <p key={item}>
+                  {index + 1}. {item}
+                </p>
+              ))}
             </div>
-          </div>
-        </div>
+          </section>
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-[#09090b]/60">
           {loading ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="leaderboard-loading">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div>
             </div>
           ) : (
-            <div className="full-rankings-list">
-              <div className="full-rankings-head text-surface-500">
-                <span>Rank / Student</span>
-                <span>Score</span>
-              </div>
-              {data.map((user) => (
-                <div key={user.userId} className="full-ranking-row glass-card border border-transparent hover:border-surface-700/50 transition-colors group">
-                  <div className="full-ranking-main">
-                    <div className="full-ranking-rank">
-                      <span className={`font-black ${user.rank === 1 ? 'text-yellow-400 drop-shadow-[0_0_5px_rgba(250,204,21,0.8)]' : user.rank === 2 ? 'text-gray-300' : user.rank === 3 ? 'text-orange-600' : 'text-surface-500'}`}>
-                        #{user.rank}
-                      </span>
-                    </div>
-                    
-                    <div className="full-ranking-student">
-                      {user.avatarUrl ? (
-                        <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full object-cover border-2 border-surface-700 group-hover:border-primary-500/50 transition-colors" />
-                      ) : (
-                        <div className="w-10 h-10 rounded-full bg-surface-800 flex items-center justify-center font-bold text-surface-300 border-2 border-surface-700">
-                          {user.name.charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="min-w-0">
-                        <p className="text-base font-bold text-surface-100 group-hover:text-primary-400 transition-colors truncate">{user.name}</p>
-                        <div className="flex flex-wrap items-center gap-3 mt-1">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wider bg-gradient-to-r ${getTierColor(user.tier)}`}>
-                            {displayTier(user.tier)}
-                          </span>
-                          {user.streak > 2 && (
-                            <span className="text-xs font-bold text-orange-400 flex items-center gap-1 bg-orange-900/20 px-2 py-0.5 rounded-full border border-orange-500/20">
-                              <HiOutlineFire className="w-3 h-3" /> {user.streak}
-                            </span>
-                          )}
+            <>
+              <section className="leaderboard-table-panel">
+                <div className="leaderboard-table-header">
+                  <div>
+                    <p className="section-kicker">Leaderboard</p>
+                    <h3>Nutrition Rank</h3>
+                  </div>
+                  <p>{total} students</p>
+                </div>
+
+                <div className="leaderboard-rank-table">
+                  <div className="leaderboard-rank-head">
+                    <span>Rank</span>
+                    <span>User</span>
+                    <span>Progress Score</span>
+                    <span>Consistency</span>
+                    <span>XP</span>
+                    <span>Adherence</span>
+                    <span>Badge</span>
+                  </div>
+
+                  {rows.map((user) => (
+                    <div
+                      key={user.userId}
+                      className={`leaderboard-rank-row ${currentUser?.userId === user.userId ? 'is-current-user' : ''}`}
+                    >
+                      <div className="leaderboard-rank-cell">
+                        <span className={getRankBadge(user.rank)}>{user.rank <= 3 ? user.rank : user.rank}</span>
+                      </div>
+
+                      <div className="leaderboard-user-cell">
+                        {user.avatarUrl ? (
+                          <img src={user.avatarUrl} alt={user.name} />
+                        ) : (
+                          <div className="leaderboard-avatar-fallback">{getInitial(user.name)}</div>
+                        )}
+                        <div className="min-w-0">
+                          <p>{user.name}</p>
+                          <span>{user.totalConsistentDays} consistent days</span>
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="full-ranking-score">
-                    <p className="text-lg font-black text-white">{getScoreDisplay(user)}</p>
-                    <p className="text-xs text-surface-500 uppercase tracking-widest mt-0.5">{getScoreLabel(user)}</p>
-                  </div>
+                      <strong className="leaderboard-score-cell">{formatNumber(user.rankScore)}</strong>
+                      <span>{user.consistency}%</span>
+                      <span>{formatNumber(user.totalXP)}</span>
+                      <span>{user.adherence}%</span>
+
+                      <div className="leaderboard-badge-cell">
+                        <img src={getBadgeAsset(user.badge)} alt={`${user.badge?.name || 'Badge'} badge`} />
+                        <span>{user.badge?.name || 'Begin'}</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {rows.length === 0 && (
+                    <div className="leaderboard-empty">No students are available yet.</div>
+                  )}
                 </div>
-              ))}
-              
-              {data.length === 0 && (
-                <div className="text-center py-20 text-surface-500">
-                  No data available for this category yet.
-                </div>
-              )}
-            </div>
+
+                <p className="leaderboard-footnote">Rankings use badge tier first. Progress Score is a bounded next-badge progress indicator, not a raw point total.</p>
+              </section>
+            </>
           )}
         </div>
-
-        {pages > 1 && (
-          <div className="p-4 border-t border-surface-800 bg-surface-900/80 shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <button 
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(prev => prev - 1)}
-              className="btn-secondary px-4 py-2 text-[14px] disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] w-full md:w-auto"
-            >
-              Previous
-            </button>
-            <span className="text-sm font-medium text-surface-400">Page <span className="text-white">{currentPage}</span> of {pages}</span>
-            <button 
-              disabled={currentPage === pages}
-              onClick={() => setCurrentPage(prev => prev + 1)}
-              className="btn-secondary px-4 py-2 text-[14px] disabled:opacity-50 disabled:cursor-not-allowed min-h-[44px] w-full md:w-auto"
-            >
-              Next
-            </button>
-          </div>
-        )}
       </div>
     </div>
   );

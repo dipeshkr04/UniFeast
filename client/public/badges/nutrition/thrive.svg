@@ -1,0 +1,24 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" data-badge="thrive">
+  <title>Thrive nutrition badge</title>
+  <defs>
+    <linearGradient id="thrive-bg" x1="30" y1="25" x2="226" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#29173b"/>
+      <stop offset="1" stop-color="#0f1119"/>
+    </linearGradient>
+    <linearGradient id="thrive-ring" x1="59" y1="36" x2="199" y2="182" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f0a8ff"/>
+      <stop offset="0.5" stop-color="#f4c96b"/>
+      <stop offset="1" stop-color="#73d68a"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="52" fill="url(#thrive-bg)"/>
+  <circle cx="128" cy="108" r="70" fill="#151423" stroke="url(#thrive-ring)" stroke-width="10"/>
+  <path d="M128 62v18M128 136v18M82 108h18M156 108h18M96 76l13 13M147 127l13 13M160 76l-13 13M109 127l-13 13" stroke="#f5d36c" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="128" cy="108" r="28" fill="#f7efd0"/>
+  <path d="M128 131V99" stroke="#35794f" stroke-width="8" stroke-linecap="round"/>
+  <path d="M128 101c-17-5-29-18-32-35 19 0 35 13 38 31" fill="#7bd486"/>
+  <path d="M130 107c17-10 35-8 49 4-15 14-34 17-49-4z" fill="#bd9cff"/>
+  <path d="M103 142c18 12 36 12 53 0" stroke="#72c985" stroke-width="8" stroke-linecap="round"/>
+  <text x="128" y="205" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="27" font-weight="800" letter-spacing="2" fill="#fff4d7">THRIVE</text>
+  <text x="128" y="226" text-anchor="middle" font-family="Inter, Arial, sans-serif" font-size="12" font-weight="700" letter-spacing="3" fill="#b9adc7">NUTRITION</text>
+</svg>

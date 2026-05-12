@@ -1,6 +1,7 @@
 const NutritionLog = require('../models/NutritionLog');
 const User = require('../models/User');
 const { analyzeFoodComplete } = require('../utils/foodAnalyzer');
+const { invalidateLeaderboardCache } = require('../utils/leaderboardEngine');
 
 // @desc    Get daily nutrition log
 // @route   GET /api/nutrition/daily/:date
@@ -109,6 +110,7 @@ exports.updateNutritionGoals = async (req, res) => {
       runValidators: true,
     });
 
+    invalidateLeaderboardCache();
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -192,6 +194,7 @@ exports.logManualMeal = async (req, res) => {
       await user.save();
     }
 
+    invalidateLeaderboardCache();
     res.status(201).json({ success: true, data: log });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -211,6 +214,7 @@ exports.deleteMealEntry = async (req, res) => {
     log.recalculateTotals();
     await log.save();
 
+    invalidateLeaderboardCache();
     res.json({ success: true, data: log });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -237,6 +241,7 @@ exports.updateMealQuantity = async (req, res) => {
     log.recalculateTotals();
     await log.save();
 
+    invalidateLeaderboardCache();
     res.json({ success: true, data: log });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

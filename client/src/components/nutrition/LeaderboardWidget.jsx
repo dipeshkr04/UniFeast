@@ -3,6 +3,12 @@ import { leaderboardAPI } from '../../api';
 import { HiOutlineStar, HiOutlineViewList, HiOutlineFire } from 'react-icons/hi';
 import { motion } from 'framer-motion';
 
+const MotionDiv = motion.div;
+
+function formatRankScore(value) {
+  return Number(value || 0).toLocaleString('en-IN');
+}
+
 export default function LeaderboardWidget({ onOpenFull }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,10 +30,13 @@ export default function LeaderboardWidget({ onOpenFull }) {
 
   const getTierColor = (tier) => {
     switch(tier) {
-      case 'Elite': return 'from-purple-500 to-indigo-500 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.4)] text-white';
-      case 'Gold': return 'from-yellow-400 to-yellow-600 border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.4)] text-yellow-100';
-      case 'Silver': return 'from-gray-300 to-gray-500 border-gray-400/50 text-gray-100';
-      case 'Bronze': return 'from-orange-700 to-orange-900 border-orange-800/50 text-orange-200';
+      case 'Sustain': return 'from-purple-500 to-indigo-500 border-purple-500/50 shadow-[0_0_15px_rgba(168,85,247,0.4)] text-white';
+      case 'Thrive': return 'from-fuchsia-500 to-rose-500 border-fuchsia-500/50 shadow-[0_0_15px_rgba(217,70,239,0.4)] text-white';
+      case 'Aligned': return 'from-indigo-300 to-violet-500 border-indigo-400/50 text-white';
+      case 'Steady': return 'from-cyan-300 to-blue-500 border-cyan-400/50 text-white';
+      case 'Balance': return 'from-yellow-400 to-yellow-600 border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.4)] text-yellow-100';
+      case 'Build': return 'from-gray-300 to-gray-500 border-gray-400/50 text-gray-100';
+      case 'Begin': return 'from-orange-700 to-orange-900 border-orange-800/50 text-orange-200';
       default: return 'from-surface-700 to-surface-800 border-surface-600 text-surface-300';
     }
   };
@@ -46,7 +55,7 @@ export default function LeaderboardWidget({ onOpenFull }) {
   if (!data || !data.top5) return null;
 
   const { top5, userStats } = data;
-  const displayTier = (tier) => tier || 'Bronze';
+  const displayTier = (tier) => tier || 'Begin';
 
   return (
     <div className="leaderboard-widget glass-card-static p-0 rounded-2xl overflow-hidden border border-surface-800/50 flex flex-col shadow-[0_4px_30px_rgba(0,0,0,0.1)]">
@@ -56,8 +65,8 @@ export default function LeaderboardWidget({ onOpenFull }) {
             <HiOutlineStar className="w-5 h-5 text-white" />
           </div>
           <div className="min-w-0">
-            <h3 className="font-bold text-surface-100 tracking-wider truncate">Top Adherence</h3>
-            <p className="text-[14px] text-surface-400 mt-1">Ranks students by how closely they meet their nutrition goals.</p>
+            <h3 className="font-bold text-surface-100 tracking-wider truncate">Nutrition Rank</h3>
+            <p className="text-[14px] text-surface-400 mt-1">Ranks students by consistency, XP, and adherence.</p>
           </div>
         </div>
         <button 
@@ -82,8 +91,8 @@ export default function LeaderboardWidget({ onOpenFull }) {
             </div>
 
             <div className="adherence-stat">
-              <p className="adherence-label text-surface-500">Adherence Score</p>
-              <p className="text-2xl font-black text-primary-500">{userStats.score.toFixed(1)} <span className="text-sm font-medium text-surface-400">pts</span></p>
+              <p className="adherence-label text-surface-500">Progress Score</p>
+              <p className="text-2xl font-black text-primary-500">{formatRankScore(userStats.score)} <span className="text-sm font-medium text-surface-400">pts</span></p>
             </div>
 
             <div className="adherence-stat">
@@ -108,7 +117,7 @@ export default function LeaderboardWidget({ onOpenFull }) {
           </div>
 
           {top5.map((user, i) => (
-            <motion.div 
+            <MotionDiv 
               initial={{ opacity: 0, x: -10 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.1 }}
@@ -145,10 +154,10 @@ export default function LeaderboardWidget({ onOpenFull }) {
               </div>
 
               <div className="adherence-score">
-                <p className="text-base font-black text-white">{user.score.toFixed(1)}</p>
+                <p className="text-base font-black text-white">{formatRankScore(user.score)}</p>
                 <p className="text-xs text-surface-500">pts</p>
               </div>
-            </motion.div>
+            </MotionDiv>
           ))}
         </div>
       </div>

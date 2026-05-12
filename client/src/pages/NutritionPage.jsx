@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { Suspense, lazy, useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { leaderboardAPI, nutritionAPI } from '../api';
 import { useAuth } from '../contexts/AuthContext';
@@ -6,12 +6,12 @@ import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Toolti
 import { HiOutlineFire, HiOutlineChevronLeft, HiOutlineChevronRight, HiPlus, HiMinus, HiOutlineTrash, HiOutlineCog, HiOutlineSparkles, HiOutlineLockClosed, HiOutlineX, HiOutlineMenuAlt2, HiOutlineCalendar, HiOutlineChartBar, HiOutlineStar } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import LeaderboardWidget from '../components/nutrition/LeaderboardWidget';
-import LeaderboardModal from '../components/nutrition/LeaderboardModal';
 import RankProgressSummary from '../components/nutrition/RankProgressSummary';
 import { NUTRITION_BADGES } from '../constants/nutritionBadges';
 import { getImageUrl } from '../utils/imageUrl';
 
 const COLORS = ['#e06449', '#facc15', '#3b82f6', '#10b981'];
+const LeaderboardModal = lazy(() => import('../components/nutrition/LeaderboardModal'));
 const DEFAULT_LOG_FORM = {
   customName: '',
   calories: '',
@@ -465,7 +465,7 @@ export default function NutritionPage() {
               >
                 {logForm.imageUrl ? (
                   <>
-                    <img src={logForm.imageUrl} alt="Food preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+                    <img src={logForm.imageUrl} alt="Food preview" className="w-full h-full object-cover transition-transform group-hover:scale-105" decoding="async" />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                       <span className="text-white font-medium text-sm backdrop-blur-md px-3 py-1.5 rounded-full bg-white/10">Change Image</span>
                     </div>
@@ -669,7 +669,7 @@ export default function NutritionPage() {
                 <div key={meal._id || i} className="nutrition-meal-row hover:bg-surface-800/30 transition-colors group">
                   <div className="nutrition-meal-main">
                     {meal.imageUrl ? (
-                      <img src={getImageUrl(meal.imageUrl)} alt={meal.customName} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" />
+                      <img src={getImageUrl(meal.imageUrl)} alt={meal.customName} className="w-12 h-12 rounded-lg object-cover flex-shrink-0" loading="lazy" decoding="async" />
                     ) : (
                       <div className="w-12 h-12 rounded-lg bg-surface-800 flex items-center justify-center text-xl flex-shrink-0">
                         {meal.mealType === 'breakfast' ? '🌅' : meal.mealType === 'lunch' ? '☀️' : meal.mealType === 'dinner' ? '🌙' : '🍿'}
@@ -909,7 +909,11 @@ export default function NutritionPage() {
       )}
 
       {/* Full Leaderboard Modal */}
-      {showFullLeaderboard && <LeaderboardModal onClose={() => setShowFullLeaderboard(false)} />}
+      {showFullLeaderboard && (
+        <Suspense fallback={null}>
+          <LeaderboardModal onClose={() => setShowFullLeaderboard(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

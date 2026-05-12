@@ -86,7 +86,7 @@ export default function LiveQueuePage() {
             {filteredItems.map((item) => (
               <article className="live-queue-page-row" key={item.menuItemId || item.name}>
                 <div className="live-queue-page-thumb">
-                  {item.imageUrl ? <img src={getImageUrl(item.imageUrl)} alt={item.name} /> : item.name?.charAt(0)}
+                  {item.imageUrl ? <img src={getImageUrl(item.imageUrl)} alt={item.name} loading="lazy" decoding="async" /> : item.name?.charAt(0)}
                 </div>
                 <div className="live-queue-page-main">
                   <h3>{item.name}</h3>

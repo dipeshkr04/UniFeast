@@ -72,7 +72,7 @@ exports.getMenuItems = async (req, res) => {
     if (available !== undefined) filter.isAvailable = available === 'true';
     if (search) filter.name = { $regex: search, $options: 'i' };
 
-    const items = await MenuItem.find(filter).sort({ category: 1, name: 1 });
+    const items = await MenuItem.find(filter).sort({ category: 1, name: 1 }).lean();
     const data = items.map(serializeMenuItem);
     res.json({ success: true, count: data.length, data });
   } catch (error) {
@@ -85,7 +85,7 @@ exports.getMenuItems = async (req, res) => {
 exports.getMenuItem = async (req, res) => {
   try {
     await resetExpiredDailyStocks();
-    const item = await MenuItem.findById(req.params.id);
+    const item = await MenuItem.findById(req.params.id).lean();
     if (!item) {
       return res.status(404).json({ success: false, message: 'Menu item not found' });
     }

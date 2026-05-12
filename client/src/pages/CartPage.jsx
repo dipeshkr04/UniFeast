@@ -249,7 +249,7 @@ export default function CartPage() {
                 >
                   <div className="cart-item-media">
                     {menuItem.imageUrl ? (
-                      <img src={getImageUrl(menuItem.imageUrl)} alt={menuItem.name} className="cart-item-image" />
+                      <img src={getImageUrl(menuItem.imageUrl)} alt={menuItem.name} className="cart-item-image" loading="lazy" decoding="async" />
                     ) : (
                       menuItem.category === 'snacks' ? '🥟' :
                       menuItem.category === 'meals' ? '🍛' :

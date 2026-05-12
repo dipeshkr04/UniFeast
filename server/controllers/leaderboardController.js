@@ -19,7 +19,7 @@ exports.getFullLeaderboard = async (req, res) => {
     const category = req.query.category || 'rank';
     const period = req.query.period || 'allTime';
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 200;
+    const limit = parseInt(req.query.limit) || 100;
 
     const data = await getSortedLeaderboard(category, limit, page, period, req.user.id);
     res.json({ success: true, data });

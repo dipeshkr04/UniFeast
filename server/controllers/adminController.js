@@ -5,6 +5,39 @@ const Settings = require('../models/Settings');
 const { isRoleEmailAllowed } = require('../services/email-validation.service');
 
 const RECOGNIZED_ORDER_MATCH = { status: { $ne: 'cancelled' } };
+const configuredStatsCacheTtl = Number(process.env.ADMIN_STATS_CACHE_TTL_MS);
+const STATS_CACHE_TTL_MS = Number.isFinite(configuredStatsCacheTtl)
+  ? Math.max(0, configuredStatsCacheTtl)
+  : 8000;
+const statsCache = new Map();
+
+function getStatsCacheKey(query = {}) {
+  return JSON.stringify({
+    preset: query.preset || 'month',
+    startDate: query.startDate || '',
+    endDate: query.endDate || '',
+  });
+}
+
+function getCachedStats(key) {
+  if (!STATS_CACHE_TTL_MS) return null;
+  const cached = statsCache.get(key);
+  if (!cached) return null;
+  if (Date.now() - cached.createdAt > STATS_CACHE_TTL_MS) {
+    statsCache.delete(key);
+    return null;
+  }
+  return cached.payload;
+}
+
+function setCachedStats(key, payload) {
+  if (!STATS_CACHE_TTL_MS) return;
+  statsCache.set(key, { createdAt: Date.now(), payload });
+}
+
+function clearStatsCache() {
+  statsCache.clear();
+}
 
 function startOfDay(date) {
   const next = new Date(date);
@@ -284,7 +317,7 @@ exports.getUsers = async (req, res) => {
       ];
     }
 
-    const users = await User.find(filter).select('-password').sort({ createdAt: -1 });
+    const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).lean();
     res.json({ success: true, count: users.length, data: users });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -315,6 +348,7 @@ exports.updateUserRole = async (req, res) => {
 
     user.role = role;
     await user.save();
+    clearStatsCache();
 
     res.json({ success: true, data: user });
   } catch (error) {
@@ -338,6 +372,7 @@ exports.deleteUser = async (req, res) => {
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
+    clearStatsCache();
     res.json({ success: true, message: 'User deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -348,6 +383,12 @@ exports.deleteUser = async (req, res) => {
 // @route   GET /api/admin/stats
 exports.getDashboardStats = async (req, res) => {
   try {
+    const cacheKey = getStatsCacheKey(req.query);
+    const cachedStats = getCachedStats(cacheKey);
+    if (cachedStats) {
+      return res.json(cachedStats);
+    }
+
     const { preset, start, end } = parseDateRange(req.query);
     const rangeMatch = withDateRange(RECOGNIZED_ORDER_MATCH, start, end);
 
@@ -423,7 +464,7 @@ exports.getDashboardStats = async (req, res) => {
     const repeatStudents = studentSpending.filter((student) => student.orders > 1).length;
     const activeStudents = studentSpending.length;
 
-    res.json({
+    const payload = {
       success: true,
       data: {
         totalUsers,
@@ -478,7 +519,10 @@ exports.getDashboardStats = async (req, res) => {
           nightCanteenLeader: nightSpending[0] || null,
         },
       },
-    });
+    };
+
+    setCachedStats(cacheKey, payload);
+    res.json(payload);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

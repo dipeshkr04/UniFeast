@@ -332,7 +332,7 @@ export default function MenuManage() {
                 <label className="text-surface-300">Image</label>
                 <div className="menu-image-input-row">
                   <input type="file" accept="image/*" onChange={e => handleImageChange(e.target.files[0])} className="input-field" disabled={savingItem || analyzingNutrition} />
-                  {imagePreview && <img src={getImageUrl(imagePreview)} alt={form.name || 'Menu item preview'} className="menu-image-preview" />}
+                  {imagePreview && <img src={getImageUrl(imagePreview)} alt={form.name || 'Menu item preview'} className="menu-image-preview" decoding="async" />}
                 </div>
               </div>
             </div>

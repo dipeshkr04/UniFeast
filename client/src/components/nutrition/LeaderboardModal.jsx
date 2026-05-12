@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { leaderboardAPI } from '../../api';
 import { getBadgeAsset } from '../../constants/nutritionBadges';
@@ -19,30 +19,57 @@ function getRankBadge(rank) {
   return 'rank-number';
 }
 
+const PAGE_SIZE = 50;
+
 export default function LeaderboardModal({ onClose }) {
   const [rows, setRows] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const modalBodyRef = useRef(null);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  const fetchPage = useCallback(async (nextPage = 1, replace = false) => {
+    if (replace) setLoading(true);
+    else setLoadingMore(true);
 
-  const fetchData = async () => {
-    setLoading(true);
     try {
-      const res = await leaderboardAPI.getFull('rank', 1, 5000, 'allTime');
+      const res = await leaderboardAPI.getFull('rank', nextPage, PAGE_SIZE, 'allTime');
       const payload = res.data.data;
-      setRows(payload.data || []);
+      const nextRows = payload.data || [];
+
+      setRows((prev) => {
+        if (replace) return nextRows;
+        const seen = new Set(prev.map((item) => String(item.userId)));
+        return [...prev, ...nextRows.filter((item) => !seen.has(String(item.userId)))];
+      });
       setCurrentUser(payload.currentUser || null);
       setTotal(payload.total || 0);
+      setPage(nextPage);
+      setHasMore(nextPage < (payload.pages || 1));
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchPage(1, true);
+  }, [fetchPage]);
+
+  const handleBodyScroll = useCallback((event) => {
+    const node = event.currentTarget;
+    if (!node || loading || loadingMore || !hasMore) return;
+
+    const distanceFromBottom = node.scrollHeight - node.scrollTop - node.clientHeight;
+    if (distanceFromBottom < 360) {
+      fetchPage(page + 1);
+    }
+  }, [fetchPage, hasMore, loading, loadingMore, page]);
 
   const modal = (
     <div className="leaderboard-modal-overlay fixed inset-0 z-[2000] flex items-center justify-center p-3 md:p-4 bg-black/85 backdrop-blur-md animate-fadeIn">
@@ -55,7 +82,7 @@ export default function LeaderboardModal({ onClose }) {
           <HiOutlineX className="w-5 h-5" />
         </button>
 
-        <div className="leaderboard-modal-body">
+        <div className="leaderboard-modal-body" ref={modalBodyRef} onScroll={handleBodyScroll}>
           {loading ? (
             <div className="leaderboard-loading">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary-500"></div>
@@ -92,7 +119,7 @@ export default function LeaderboardModal({ onClose }) {
 
                       <div className="leaderboard-user-cell">
                         {user.avatarUrl ? (
-                          <img src={user.avatarUrl} alt={user.name} />
+                          <img src={user.avatarUrl} alt={user.name} loading="lazy" decoding="async" />
                         ) : (
                           <div className="leaderboard-avatar-fallback">{getInitial(user.name)}</div>
                         )}
@@ -118,6 +145,12 @@ export default function LeaderboardModal({ onClose }) {
 
                   {rows.length === 0 && (
                     <div className="leaderboard-empty">No students are available yet.</div>
+                  )}
+
+                  {hasMore && (
+                    <div className="leaderboard-load-more" aria-live="polite">
+                      {loadingMore ? 'Loading more rankings...' : 'Scroll for more rankings'}
+                    </div>
                   )}
                 </div>
 

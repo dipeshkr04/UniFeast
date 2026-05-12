@@ -143,7 +143,7 @@ export default function FindFeastPage() {
             <article key={restaurant._id} className="outside-food-pool-card feast-card">
               <div className="outside-food-card-media feast-card-media">
                 {restaurant.image ? (
-                  <img src={restaurant.image} alt={restaurant.name} />
+                  <img src={restaurant.image} alt={restaurant.name} loading="lazy" decoding="async" />
                 ) : (
                   <div className="outside-food-card-fallback">
                     <MdOutlineRestaurant />

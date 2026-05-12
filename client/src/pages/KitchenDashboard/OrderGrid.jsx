@@ -10,7 +10,7 @@ const emptyMessages = {
   COMPLETED: "No completed orders today."
 };
 
-const OrderGrid = ({ orders, activeFilter, dishFilterLabel, dishFilterKey, onStatusUpdate, onItemReady, busyOrderIds, busyItemIds }) => {
+const OrderGrid = ({ orders, activeFilter, dishFilterLabel, onStatusUpdate, onItemReady, busyOrderIds, busyItemIds }) => {
   if (!orders || orders.length === 0) {
     return (
       <div className="empty-state">
@@ -26,7 +26,6 @@ const OrderGrid = ({ orders, activeFilter, dishFilterLabel, dishFilterKey, onSta
         <OrderCard
           key={order._id}
           order={order}
-          dishFilterKey={dishFilterKey}
           onStatusUpdate={onStatusUpdate}
           onItemReady={onItemReady}
           busyOrderIds={busyOrderIds}
@@ -37,4 +36,4 @@ const OrderGrid = ({ orders, activeFilter, dishFilterLabel, dishFilterKey, onSta
   );
 };
 
-export default OrderGrid;
+export default React.memo(OrderGrid);

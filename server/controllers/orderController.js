@@ -420,7 +420,8 @@ exports.getMyOrders = async (req, res) => {
 
     const query = Order.find(filter)
       .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
 
     if (limit) {
       query.limit(parseInt(limit));
@@ -457,7 +458,8 @@ exports.getAllOrders = async (req, res) => {
       .populate('items.menuItem', 'name price imageUrl prepTime')
       .populate('user', 'name email phone')
       .sort({ createdAt: -1 })
-      .limit(parseInt(limit));
+      .limit(parseInt(limit))
+      .lean();
 
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {

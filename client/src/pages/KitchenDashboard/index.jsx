@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
 import KitchenSidebar from './KitchenSidebar';
 import KitchenStatusNav from './KitchenStatusNav';
 import OrderGrid from './OrderGrid';
@@ -9,7 +8,6 @@ import { useKitchenOrders } from './useKitchenOrders';
 import { orderAPI } from '../../api';
 import { HiOutlineSearch, HiX } from 'react-icons/hi';
 import { MdQrCodeScanner } from 'react-icons/md';
-import jsQR from 'jsqr';
 import './KitchenDashboard.css';
 
 const QRScannerModal = ({ open, onClose, onStatusUpdate, onItemReady, busyOrderIds, busyItemIds }) => {
@@ -17,6 +15,7 @@ const QRScannerModal = ({ open, onClose, onStatusUpdate, onItemReady, busyOrderI
   const streamRef = useRef(null);
   const scanLockRef = useRef(false);
   const canvasRef = useRef(null);
+  const qrReaderRef = useRef(null);
   const [manualCode, setManualCode] = useState('');
   const [scanState, setScanState] = useState('idle');
   const [scanError, setScanError] = useState('');
@@ -93,6 +92,15 @@ const QRScannerModal = ({ open, onClose, onStatusUpdate, onItemReady, busyOrderI
           await videoRef.current.play();
         }
 
+        if (!qrReaderRef.current) {
+          const qrModule = await import('jsqr');
+          qrReaderRef.current = qrModule.default || qrModule;
+        }
+        if (cancelled) {
+          stream.getTracks?.().forEach((track) => track.stop());
+          return;
+        }
+
         setScanState('scanning');
         setScanError('');
         const canvas = canvasRef.current || document.createElement('canvas');
@@ -114,7 +122,7 @@ const QRScannerModal = ({ open, onClose, onStatusUpdate, onItemReady, busyOrderI
           canvas.height = video.videoHeight;
           context.drawImage(video, 0, 0, canvas.width, canvas.height);
           const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          const code = qrReaderRef.current(imageData.data, imageData.width, imageData.height, {
             inversionAttempts: 'attemptBoth',
           });
 
@@ -271,7 +279,6 @@ const QRScannerModal = ({ open, onClose, onStatusUpdate, onItemReady, busyOrderI
 const KitchenDashboardContent = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
-  const { canteenLive } = useOutletContext() || {};
   
   const {
     filteredOrders,
@@ -380,7 +387,6 @@ const KitchenDashboardContent = () => {
             orders={filteredOrders}
             activeFilter={activeFilter}
             dishFilterLabel={selectedDish?.name}
-            dishFilterKey={dishFilter}
             onStatusUpdate={updateOrderStatus}
             onItemReady={markItemReady}
             busyOrderIds={busyOrderIds}

@@ -64,7 +64,8 @@ exports.getDailyLog = async (req, res) => {
     }
 
     let log = await NutritionLog.findOne({ user: req.user.id, date })
-      .populate('meals.menuItem', 'name imageUrl');
+      .populate('meals.menuItem', 'name imageUrl')
+      .lean();
 
     if (!log) {
       log = { date, meals: [], dailyTotals: { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 } };
@@ -89,7 +90,7 @@ exports.getWeeklyReport = async (req, res) => {
         $gte: startDateKey,
         $lte: endDateKey,
       },
-    }).sort({ date: 1 });
+    }).sort({ date: 1 }).lean();
 
     const report = dates.map((dateStr) => {
       const log = logs.find(l => l.date === dateStr);
@@ -118,7 +119,7 @@ exports.getMonthlyReport = async (req, res) => {
         $gte: startDateKey,
         $lte: endDateKey,
       },
-    }).sort({ date: 1 });
+    }).sort({ date: 1 }).lean();
 
     const report = dates.map((dateStr) => {
       const log = logs.find(l => l.date === dateStr);

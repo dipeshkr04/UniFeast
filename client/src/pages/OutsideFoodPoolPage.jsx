@@ -494,9 +494,6 @@ export default function OutsideFoodPoolPage() {
             <h2>Pool Chat</h2>
             <p>{canChat ? 'Coordinate order details here.' : 'Join this pool to chat with members.'}</p>
           </div>
-          <div className="outside-food-tags">
-            <span>{pool.status}</span>
-          </div>
         </div>
 
         <div className="outside-food-message-list">

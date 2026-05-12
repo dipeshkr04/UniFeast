@@ -22,7 +22,7 @@ const formatCurrency = (value = 0) => `₹${Number(value || 0).toLocaleString('e
 const formatNumber = (value = 0) => Number(value || 0).toLocaleString('en-IN');
 const chartColors = ['#ff4714', '#3b82f6', '#10b981', '#f59e0b', '#a1a1aa', '#71717a'];
 
-function normalizeStudentAnalyticsRow(student = {}, index = 0) {
+function normalizeStudentAnalyticsRow(student = {}) {
   const fallbackId = student.userId ? `USER-${String(student.userId).slice(-6).toUpperCase()}` : '';
   const btId = student.btId || student.displayLabel || fallbackId;
   const name = student.name || student.email || btId || fallbackId;
@@ -263,20 +263,40 @@ export default function AdminDashboard({ mode = 'analytics' }) {
   });
   const [chartStats, setChartStats] = useState({});
 
-  const fetchData = useCallback(async () => {
+  const fetchAnalyticsData = useCallback(async () => {
     try {
-      const params = { preset: analyticsFilters.preset };
-      if (analyticsFilters.preset === 'custom') {
-        params.startDate = analyticsFilters.startDate;
-        params.endDate = analyticsFilters.endDate;
-      }
-      const { data } = await adminAPI.getStats(params);
-      setStats(data.data);
+      const requests = new Map();
+      const getStats = (params) => {
+        const requestKey = JSON.stringify(params);
+        if (!requests.has(requestKey)) {
+          requests.set(requestKey, adminAPI.getStats(params));
+        }
+        return requests.get(requestKey);
+      };
+
+      const analyticsParams = {
+        preset: analyticsFilters.preset,
+        ...(analyticsFilters.preset === 'custom'
+          ? { startDate: analyticsFilters.startDate, endDate: analyticsFilters.endDate }
+          : {}),
+      };
+
+      const analyticsRequest = getStats(analyticsParams);
+      const chartEntriesRequest = Promise.all(
+        Object.entries(chartFilters).map(async ([key, filter]) => {
+          const { data } = await getStats(buildStatsParams(filter));
+          return [key, data.data];
+        })
+      );
+
+      const [{ data: analyticsData }, entries] = await Promise.all([analyticsRequest, chartEntriesRequest]);
+      setStats(analyticsData.data);
+      setChartStats(Object.fromEntries(entries));
     } catch (err) {
-      // Silently fail — stats are supplementary, don't block the UI
-      console.warn('Stats fetch failed:', err.message);
+      console.warn('Analytics fetch failed:', err.message);
+      toast.error('Failed to refresh chart analytics');
     }
-  }, [analyticsFilters]);
+  }, [analyticsFilters, chartFilters]);
 
   const fetchUsers = useCallback(async () => {
     try {
@@ -289,34 +309,9 @@ export default function AdminDashboard({ mode = 'analytics' }) {
     }
   }, [userFilter]);
 
-  const fetchChartStats = useCallback(async () => {
-    try {
-      const requests = new Map();
-      const entries = await Promise.all(
-        Object.entries(chartFilters).map(async ([key, filter]) => {
-          const params = buildStatsParams(filter);
-          const requestKey = JSON.stringify(params);
-          if (!requests.has(requestKey)) {
-            requests.set(requestKey, adminAPI.getStats(params));
-          }
-          const { data } = await requests.get(requestKey);
-          return [key, data.data];
-        })
-      );
-      setChartStats(Object.fromEntries(entries));
-    } catch (err) {
-      console.warn('Chart analytics fetch failed:', err.message);
-      toast.error('Failed to refresh chart analytics');
-    }
-  }, [chartFilters]);
-
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    if (!isUsersMode) fetchChartStats();
-  }, [isUsersMode, fetchChartStats]);
+    if (!isUsersMode) fetchAnalyticsData();
+  }, [isUsersMode, fetchAnalyticsData]);
 
   useEffect(() => {
     if (isUsersMode && isAdmin) fetchUsers();
@@ -327,7 +322,6 @@ export default function AdminDashboard({ mode = 'analytics' }) {
       await adminAPI.updateRole(userId, role);
       toast.success('Role updated');
       fetchUsers();
-      fetchData();
     } catch {
       toast.error('Failed to update role');
     }
@@ -339,7 +333,6 @@ export default function AdminDashboard({ mode = 'analytics' }) {
       await adminAPI.deleteUser(userId);
       toast.success('User deleted');
       fetchUsers();
-      fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete user');
     }

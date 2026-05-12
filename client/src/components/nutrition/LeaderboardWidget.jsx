@@ -137,7 +137,7 @@ export default function LeaderboardWidget({ onOpenFull }) {
 
               <div className="adherence-student">
                 {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full object-cover border border-surface-700" />
+                  <img src={user.avatarUrl} alt={user.name} className="w-10 h-10 rounded-full object-cover border border-surface-700" loading="lazy" decoding="async" />
                 ) : (
                   <div className="w-10 h-10 rounded-full bg-surface-800 flex items-center justify-center text-sm font-bold text-surface-400 border border-surface-700">
                     {user.name.charAt(0).toUpperCase()}

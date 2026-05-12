@@ -19,12 +19,37 @@ export default function Layout() {
   const isRestaurantAdminPage = user?.role === 'admin' && pathname === '/admin/restaurants';
   const isPoolRoomPage = user?.role === 'student'
     && (pathname.startsWith('/pools/') || pathname.startsWith('/outside-food/pool/'));
+  const isInfoPage = pathname === '/about' || pathname === '/faq';
+  const appRoutePatterns = [
+    /^\/$/,
+    /^\/about$/,
+    /^\/faq$/,
+    /^\/cart$/,
+    /^\/orders$/,
+    /^\/live-queue$/,
+    /^\/nutrition$/,
+    /^\/pools$/,
+    /^\/pools\/[^/]+$/,
+    /^\/outside-food$/,
+    /^\/outside-food\/pool\/[^/]+$/,
+    /^\/find-feast$/,
+    /^\/kitchen$/,
+    /^\/menu-manage$/,
+    /^\/kitchen-analytics$/,
+    /^\/stats$/,
+    /^\/users$/,
+    /^\/admin\/restaurants$/,
+    /^\/admin\/outside-food$/,
+  ];
+  const isNotFoundPage = !appRoutePatterns.some((pattern) => pattern.test(pathname));
   const isUnframedPage = pathname === '/menu-manage'
     || isKitchenDashboardPage
     || isPoolsListPage
     || isPoolRoomPage
     || isFindFeastPage
-    || isRestaurantAdminPage;
+    || isRestaurantAdminPage
+    || isInfoPage
+    || isNotFoundPage;
 
   // Fetch canteen status on mount
   useEffect(() => {
@@ -94,4 +119,3 @@ export default function Layout() {
     </div>
   );
 }
-

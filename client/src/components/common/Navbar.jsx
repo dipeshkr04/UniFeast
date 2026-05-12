@@ -16,18 +16,22 @@ const studentLinks = [
   { to: '/pools', label: 'Pools' },
   { to: '/find-feast', label: 'Find Your Feast' },
   { to: '/nutrition', label: 'Nutrition' },
+  { to: '/faq', label: 'FAQ' },
+  { to: '/about', label: 'About' },
 ];
 
 const kitchenLinks = [
   { to: '/', label: 'Live Orders' },
   { to: '/menu-manage', label: 'Menu' },
   { to: '/kitchen-analytics', label: 'Analytics' },
+  { to: '/about', label: 'About' },
 ];
 
 const adminLinks = [
   { to: '/', label: 'Dashboard' },
   { to: '/users', label: 'Users' },
   { to: '/admin/restaurants', label: 'Restaurants' },
+  { to: '/about', label: 'About' },
 ];
 
 export default function Navbar({ onToggleSidebar, canteenLive, setCanteenLive }) {

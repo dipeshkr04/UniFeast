@@ -11,6 +11,7 @@ import { NUTRITION_BADGES } from '../constants/nutritionBadges';
 import { getImageUrl } from '../utils/imageUrl';
 
 const COLORS = ['#e06449', '#facc15', '#3b82f6', '#10b981'];
+const NUTRITION_KEYS = ['calories', 'protein', 'carbs', 'fat', 'fiber'];
 const LeaderboardModal = lazy(() => import('../components/nutrition/LeaderboardModal'));
 const DEFAULT_LOG_FORM = {
   customName: '',
@@ -121,6 +122,23 @@ function getDetectedQuantity(result, fallback = '1') {
   return String(Math.max(1, Math.min(20, Math.round(parsed * 10) / 10)));
 }
 
+function formatNutritionNumber(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.round(parsed * 10) / 10;
+}
+
+function getRemainingNutrition(goals = {}, totals = {}) {
+  return NUTRITION_KEYS.reduce((acc, key) => {
+    acc[key] = Math.max(0, Number(goals[key] || 0) - Number(totals[key] || 0));
+    return acc;
+  }, {});
+}
+
+function hasMetDailyGoal(goals = {}, totals = {}) {
+  return NUTRITION_KEYS.every((key) => Number(totals[key] || 0) >= Number(goals[key] || 0));
+}
+
 function formatDateKey(value = new Date()) {
   const date = value instanceof Date ? value : new Date(value);
   const year = date.getFullYear();
@@ -169,6 +187,9 @@ export default function NutritionPage() {
   const [loading, setLoading] = useState(true);
   const [analyzingImage, setAnalyzingImage] = useState(false);
   const [aiResult, setAiResult] = useState(null);
+  const [dietPreference, setDietPreference] = useState('veg');
+  const [foodRecommendation, setFoodRecommendation] = useState(null);
+  const [recommendationLoading, setRecommendationLoading] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (date > todayKey) {
@@ -189,6 +210,7 @@ export default function NutritionPage() {
       setMonthly(monthlyRes.data.data);
       setRankProgress(leaderboardRes?.data?.data?.userStats || null);
       setRankBadgeTiers(leaderboardRes?.data?.data?.badgeTiers || NUTRITION_BADGES);
+      setFoodRecommendation(null);
     } catch {
       toast.error('Failed to load nutrition data');
     } finally {
@@ -308,6 +330,49 @@ export default function NutritionPage() {
     setShowMobileSections(false);
   };
 
+  const handleDietPreferenceChange = (nextPreference) => {
+    setDietPreference(nextPreference);
+    setFoodRecommendation(null);
+  };
+
+  const fetchFoodRecommendation = useCallback(async () => {
+    const currentTotals = daily?.dailyTotals || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+    const currentGoals = {
+      calories: user?.dailyCalorieGoal || 2200,
+      protein: user?.dailyProteinGoal || 55,
+      carbs: user?.dailyCarbGoal || 275,
+      fat: user?.dailyFatGoal || 70,
+      fiber: user?.dailyFiberGoal || 30,
+    };
+
+    if (hasMetDailyGoal(currentGoals, currentTotals)) {
+      setFoodRecommendation({
+        mode: 'goal_complete',
+        title: 'Daily Goal Complete',
+        summary: 'Yay! You have already met your daily nutrition goal. No extra food recommendation is needed right now.',
+        dietPreference,
+        remaining: getRemainingNutrition(currentGoals, currentTotals),
+        recommendations: [],
+        notes: ['Drink water and keep the streak steady.'],
+        source: 'goal_complete',
+      });
+      toast.success('Yay! Daily goal already achieved.');
+      return;
+    }
+
+    setRecommendationLoading(true);
+    try {
+      const { data } = await nutritionAPI.getRecommendations({ date, dietPreference });
+      if (data.success && data.data) {
+        setFoodRecommendation(data.data);
+      }
+    } catch {
+      toast.error('Failed to generate food recommendations');
+    } finally {
+      setRecommendationLoading(false);
+    }
+  }, [daily, date, dietPreference, user]);
+
   const openLogForm = () => {
     const shouldToggle = activeView === 'daily';
     if (date !== todayKey) setDate(todayKey);
@@ -325,6 +390,8 @@ export default function NutritionPage() {
     fiber: user?.dailyFiberGoal || 30,
   };
   const isGoalsLocked = daily?.meals?.length > 0;
+  const remainingGoals = getRemainingNutrition(goals, totals);
+  const dailyGoalAchieved = hasMetDailyGoal(goals, totals);
 
   const macroData = [
     { name: 'Protein', value: Math.round((totals.protein || 0) * 100) / 100, goal: goals.protein, unit: 'g', color: COLORS[0] },
@@ -489,7 +556,7 @@ export default function NutritionPage() {
                      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce" style={{ animationDelay: '150ms' }} />
                      <span className="w-2 h-2 rounded-full bg-primary-400 animate-bounce" style={{ animationDelay: '300ms' }} />
                    </div>
-                   <p className="text-xs font-semibold text-primary-400">Ollama scanning image...</p>
+                   <p className="text-xs font-semibold text-primary-400">Hugging Face scanning image...</p>
                 </div>
               )}
             </div>
@@ -653,6 +720,122 @@ export default function NutritionPage() {
             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full" style={{ background: COLORS[2] }} /> Fat</span>
           </div>
         </div>
+          </div>
+
+          <div className="nutrition-card nutrition-recommendation-card glass-card-static">
+            <div className="nutrition-recommendation-head">
+              <div className="nutrition-recommendation-title">
+                <p className="text-xs font-bold text-primary-400 uppercase">Food Recommendation</p>
+                <h3 className="text-lg font-bold text-white">
+                  {daily?.meals?.length > 0 ? 'Complete Remaining Goals' : 'Suggested Diet For Today'}
+                </h3>
+              </div>
+
+              <div className="nutrition-preference-controls" aria-label="Diet preference">
+                {[
+                  { value: 'veg', label: 'Veg' },
+                  { value: 'non-veg', label: 'Non-Veg' },
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleDietPreferenceChange(option.value)}
+                    className={`nutrition-preference-btn ${dietPreference === option.value ? 'is-active' : ''}`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="nutrition-recommendation-body">
+              <div className="nutrition-recommendation-metrics">
+                {[
+                  { key: 'calories', label: 'Kcal', unit: '' },
+                  { key: 'protein', label: 'Protein', unit: 'g' },
+                  { key: 'carbs', label: 'Carbs', unit: 'g' },
+                  { key: 'fat', label: 'Fat', unit: 'g' },
+                  { key: 'fiber', label: 'Fiber', unit: 'g' },
+                ].map((metric) => {
+                  return (
+                    <div className="nutrition-recommendation-metric" key={metric.key}>
+                      <span>{metric.label}</span>
+                      <strong>{formatNutritionNumber(remainingGoals[metric.key])}{metric.unit}</strong>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {foodRecommendation?.summary && (
+                <p className="nutrition-recommendation-summary">{foodRecommendation.summary}</p>
+              )}
+
+              {foodRecommendation?.currentMealWindow && foodRecommendation.mode !== 'day_plan' && foodRecommendation.mode !== 'goal_complete' && (
+                <p className="nutrition-recommendation-source">
+                  Local window: {foodRecommendation.currentMealWindow.label} {foodRecommendation.currentMealWindow.startsAt}-{foodRecommendation.currentMealWindow.endsAt}
+                </p>
+              )}
+
+              {recommendationLoading ? (
+                <div className="nutrition-recommendation-loading">
+                  <span />
+                  <span />
+                  <span />
+                  <p>Generating recommendations...</p>
+                </div>
+              ) : foodRecommendation?.recommendations?.length > 0 ? (
+                <div className="nutrition-recommendation-list">
+                  {foodRecommendation.recommendations.map((item, index) => (
+                    <article className="nutrition-recommendation-item" key={`${item.itemName}-${index}`}>
+                      <div className="nutrition-recommendation-main">
+                        <div>
+                          <p className="nutrition-recommendation-name">{item.itemName}</p>
+                          <p className="nutrition-recommendation-reason">{item.reason}</p>
+                        </div>
+                        <div className="nutrition-recommendation-tags">
+                          <span>{item.mealType}</span>
+                          <span>{item.quantity}x</span>
+                          {item.fromMenu && <span>Menu</span>}
+                        </div>
+                      </div>
+                      <div className="nutrition-recommendation-macros">
+                        <span>{formatNutritionNumber(item.estimatedNutrition?.calories)} kcal</span>
+                        <span>P {formatNutritionNumber(item.estimatedNutrition?.protein)}g</span>
+                        <span>C {formatNutritionNumber(item.estimatedNutrition?.carbs)}g</span>
+                        <span>F {formatNutritionNumber(item.estimatedNutrition?.fat)}g</span>
+                        <span>Fi {formatNutritionNumber(item.estimatedNutrition?.fiber)}g</span>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="nutrition-recommendation-empty">
+                  <p>
+                    {foodRecommendation?.mode === 'goal_complete'
+                      ? 'You are done for today. Keep it light unless you genuinely need another meal.'
+                      : daily?.meals?.length > 0 ? 'Find the best items for the remaining macro gaps.' : 'Generate a balanced plan before your first meal.'}
+                  </p>
+                </div>
+              )}
+
+              <div className="nutrition-recommendation-actions">
+                <button
+                  type="button"
+                  onClick={fetchFoodRecommendation}
+                  className="btn-primary min-h-[44px] px-5"
+                  disabled={recommendationLoading}
+                >
+                  {dailyGoalAchieved || foodRecommendation?.mode === 'goal_complete'
+                    ? 'Goal Achieved'
+                    : foodRecommendation ? 'Refresh Recommendation' : 'Get Recommendation'}
+                </button>
+                {foodRecommendation?.source && (
+                  <span className="nutrition-recommendation-source">
+                    {foodRecommendation.source === 'goal_complete' ? 'No API call' : foodRecommendation.source === 'huggingface' ? 'Hugging Face' : 'Fallback'}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Today's Meals List */}

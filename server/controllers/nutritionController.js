@@ -1,8 +1,16 @@
 const NutritionLog = require('../models/NutritionLog');
 const User = require('../models/User');
+const MenuItem = require('../models/MenuItem');
 const { analyzeFoodComplete } = require('../utils/foodAnalyzer');
 const { getUploadedFileUrl, normalizeImageUrl } = require('../utils/imageUrl');
 const { invalidateLeaderboardCache } = require('../utils/leaderboardEngine');
+const {
+  calculateRemaining,
+  generateFoodRecommendations,
+  getCurrentMealWindow,
+  isDailyGoalAchieved,
+  normalizeDietPreference,
+} = require('../utils/nutritionRecommender');
 
 const APP_TIME_ZONE = process.env.APP_TIME_ZONE || 'Asia/Kolkata';
 
@@ -190,6 +198,80 @@ exports.analyzeFood = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Model has low confidence. Please enter the values manually.' });
     }
     res.status(500).json({ success: false, message: 'AI Analysis failed or no food detected' });
+  }
+};
+
+// @desc    Recommend food to complete goals or plan the day
+// @route   POST /api/nutrition/recommendations
+exports.getFoodRecommendations = async (req, res) => {
+  try {
+    const date = req.body.date || getLocalDateString();
+    const todayStr = getLocalDateString();
+
+    if (!isDateKey(date)) {
+      return res.status(400).json({ success: false, message: 'Invalid nutrition date' });
+    }
+
+    if (date > todayStr) {
+      return res.status(400).json({ success: false, message: 'Future nutrition recommendations are not available' });
+    }
+
+    const dietPreference = normalizeDietPreference(req.body.dietPreference);
+    const log = await NutritionLog.findOne({ user: req.user.id, date }).lean();
+    const menuItems = await MenuItem.find({ isAvailable: true })
+      .select('name category price nutrition tags')
+      .sort({ category: 1, name: 1 })
+      .lean();
+    const goals = {
+      calories: req.user.dailyCalorieGoal || 2200,
+      protein: req.user.dailyProteinGoal || 55,
+      carbs: req.user.dailyCarbGoal || 275,
+      fat: req.user.dailyFatGoal || 70,
+      fiber: req.user.dailyFiberGoal || 30,
+    };
+    const totals = log?.dailyTotals || { calories: 0, protein: 0, carbs: 0, fat: 0, fiber: 0 };
+
+    if (isDailyGoalAchieved(goals, totals)) {
+      return res.json({
+        success: true,
+        data: {
+          date,
+          goals,
+          totals,
+          mode: 'goal_complete',
+          title: 'Daily Goal Complete',
+          summary: 'Yay! You have already met your daily nutrition goal. No extra food recommendation is needed right now.',
+          dietPreference,
+          remaining: calculateRemaining(goals, totals),
+          currentMealWindow: getCurrentMealWindow(),
+          recommendations: [],
+          notes: ['Drink water, keep the streak going, and avoid adding food just to chase the button.'],
+          source: 'goal_complete',
+          model: null,
+        },
+      });
+    }
+
+    const recommendation = await generateFoodRecommendations({
+      goals,
+      totals,
+      meals: log?.meals || [],
+      menuItems,
+      dietPreference,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        date,
+        goals,
+        totals,
+        ...recommendation,
+      },
+    });
+  } catch (error) {
+    console.error('Food Recommendation Error:', error.message);
+    res.status(500).json({ success: false, message: 'Food recommendation failed' });
   }
 };
 

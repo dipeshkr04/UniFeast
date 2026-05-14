@@ -369,7 +369,7 @@ export default function MenuManage() {
               <div className="menu-nutrition-heading">
                 <p className="text-xs text-surface-500 uppercase tracking-wider font-semibold">Nutrition per serving</p>
                 <span className={`menu-ai-status ${nutritionFetched ? 'is-ready' : ''}`}>
-                  {analyzingNutrition ? 'Analyzing with Ollama...' : nutritionFetched ? 'AI locked' : 'Auto fetched'}
+                  {analyzingNutrition ? 'Analyzing with Hugging Face...' : nutritionFetched ? 'AI locked' : 'Auto fetched'}
                 </span>
               </div>
               <div className="menu-nutrition-grid">

@@ -6,6 +6,7 @@ const {
   getMonthlyReport,
   updateNutritionGoals,
   analyzeFood,
+  getFoodRecommendations,
   logManualMeal,
   deleteMealEntry,
   updateMealQuantity,
@@ -17,6 +18,7 @@ router.get('/daily/:date', protect, getDailyLog);
 router.get('/weekly', protect, getWeeklyReport);
 router.get('/monthly', protect, getMonthlyReport);
 router.put('/goals', protect, updateNutritionGoals);
+router.post('/recommendations', protect, getFoodRecommendations);
 router.post('/analyze', protect, upload.single('image'), analyzeFood);
 router.post('/log', protect, upload.single('image'), logManualMeal);
 router.delete('/meal/:logId/:mealId', protect, deleteMealEntry);

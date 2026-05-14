@@ -6176,6 +6176,11 @@ input[type="radio"] {
   50% { box-shadow: 0 0 30px rgba(255, 71, 20, 0.6); }
 }
 
+@keyframes nutrition-recommendation-bounce {
+  0%, 80%, 100% { transform: translateY(0); opacity: 0.65; }
+  40% { transform: translateY(-5px); opacity: 1; }
+}
+
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
@@ -6541,6 +6546,210 @@ input[type="radio"] {
   min-height: 260px;
   display: flex;
   flex-direction: column;
+}
+
+.nutrition-recommendation-card {
+  display: grid;
+  gap: 18px;
+}
+
+.nutrition-recommendation-head {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: center;
+}
+
+.nutrition-recommendation-title {
+  min-width: 0;
+}
+
+.nutrition-preference-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface-900) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-surface-700) 70%, transparent);
+}
+
+.nutrition-preference-btn {
+  min-height: 40px;
+  border-radius: 9px;
+  color: var(--color-surface-400);
+  font-size: 13px;
+  font-weight: 850;
+  line-height: 1;
+  transition: color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.nutrition-preference-btn:hover {
+  color: var(--color-surface-100);
+}
+
+.nutrition-preference-btn.is-active {
+  color: white;
+  background: var(--color-primary-500);
+  box-shadow: 0 10px 24px rgba(255, 71, 20, 0.2);
+}
+
+.nutrition-recommendation-body {
+  display: grid;
+  gap: 16px;
+}
+
+.nutrition-recommendation-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.nutrition-recommendation-metric {
+  min-height: 68px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface-900) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-surface-800) 84%, transparent);
+}
+
+.nutrition-recommendation-metric span,
+.nutrition-recommendation-source {
+  color: var(--color-surface-500);
+  font-size: 11px;
+  font-weight: 850;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.nutrition-recommendation-metric strong {
+  color: var(--color-surface-100);
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.nutrition-recommendation-summary,
+.nutrition-recommendation-empty p {
+  color: var(--color-surface-300);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.nutrition-recommendation-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid color-mix(in srgb, var(--color-surface-800) 84%, transparent);
+}
+
+.nutrition-recommendation-item {
+  display: grid;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-surface-800) 84%, transparent);
+}
+
+.nutrition-recommendation-main {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.nutrition-recommendation-name {
+  color: var(--color-surface-100);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.nutrition-recommendation-reason {
+  margin-top: 4px;
+  color: var(--color-surface-400);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.nutrition-recommendation-tags,
+.nutrition-recommendation-macros {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nutrition-recommendation-tags span,
+.nutrition-recommendation-macros span {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.nutrition-recommendation-tags span {
+  color: var(--color-primary-200);
+  background: rgba(255, 71, 20, 0.12);
+}
+
+.nutrition-recommendation-macros span {
+  color: var(--color-surface-300);
+  background: color-mix(in srgb, var(--color-surface-800) 76%, transparent);
+}
+
+.nutrition-recommendation-loading {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--color-primary-300);
+}
+
+.nutrition-recommendation-loading span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-primary-400);
+  animation: nutrition-recommendation-bounce 1s infinite;
+}
+
+.nutrition-recommendation-loading span:nth-child(2) {
+  animation-delay: 120ms;
+}
+
+.nutrition-recommendation-loading span:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.nutrition-recommendation-loading p {
+  margin-left: 6px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.nutrition-recommendation-empty {
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--color-surface-900) 72%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--color-surface-700) 78%, transparent);
+}
+
+.nutrition-recommendation-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
 }
 
 .nutrition-form-grid {
@@ -10261,6 +10470,28 @@ input[type="radio"] {
 
   .nutrition-progress-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .nutrition-recommendation-head {
+    grid-template-columns: minmax(0, 1fr) 220px;
+  }
+
+  .nutrition-recommendation-metrics {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+
+  .nutrition-recommendation-main {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: flex-start;
+  }
+
+  .nutrition-recommendation-tags {
+    justify-content: flex-end;
+  }
+
+  .nutrition-recommendation-actions {
+    flex-direction: row;
+    align-items: center;
   }
 
   .leaderboard-modal-body {

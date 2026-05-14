@@ -2,9 +2,11 @@ const axios = require('axios');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
-const LOW_CONFIDENCE_THRESHOLD = Number(getEnv('OLLAMA_NUTRITION_CONFIDENCE_THRESHOLD') || 0.65);
-const MAX_IMAGE_BYTES = Number(getEnv('OLLAMA_MAX_IMAGE_BYTES') || 8 * 1024 * 1024);
-const OLLAMA_TIMEOUT_MS = Number(getEnv('OLLAMA_TIMEOUT_MS') || 60000);
+const LOW_CONFIDENCE_THRESHOLD = Number(getEnv('HF_NUTRITION_CONFIDENCE_THRESHOLD', 'OLLAMA_NUTRITION_CONFIDENCE_THRESHOLD') || 0.65);
+const MAX_IMAGE_BYTES = Number(getEnv('HF_MAX_IMAGE_BYTES', 'OLLAMA_MAX_IMAGE_BYTES') || 8 * 1024 * 1024);
+const HF_TIMEOUT_MS = Number(getEnv('HF_TIMEOUT_MS', 'OLLAMA_TIMEOUT_MS') || 60000);
+const HF_DEFAULT_MODEL = 'google/gemma-4-31B-it:together';
+const HF_DEFAULT_BASE_URL = 'https://router.huggingface.co/v1';
 
 function getEnv(...names) {
   for (const name of names) {
@@ -16,16 +18,16 @@ function getEnv(...names) {
   return '';
 }
 
-function requireOllamaConfig() {
-  const model = getEnv('OLLAMA_MODEL', 'ollama_model');
-  if (!model) {
-    throw new Error('OLLAMA_MODEL is not configured');
+function requireHuggingFaceConfig() {
+  const apiKey = getEnv('HF_API_TOKEN', 'HF_TOKEN', 'hf_api_token', 'hf_token');
+  if (!apiKey) {
+    throw new Error('HF_API_TOKEN is not configured');
   }
 
   return {
-    apiKey: getEnv('OLLAMA_API_KEY', 'ollama_api_key'),
-    baseUrl: normalizeBaseUrl(getEnv('OLLAMA_BASE_URL', 'ollama_base_url') || 'http://localhost:11434'),
-    model,
+    apiKey,
+    baseUrl: normalizeBaseUrl(getEnv('HF_ROUTER_BASE_URL', 'HF_BASE_URL', 'hf_router_base_url', 'hf_base_url') || HF_DEFAULT_BASE_URL),
+    model: getEnv('HF_MODEL', 'hf_model') || HF_DEFAULT_MODEL,
   };
 }
 
@@ -33,53 +35,45 @@ function normalizeBaseUrl(baseUrl) {
   return String(baseUrl || '').trim().replace(/\/+$/, '');
 }
 
-function buildOllamaGenerateUrl(baseUrl) {
+function buildHuggingFaceChatUrl(baseUrl) {
   const normalized = normalizeBaseUrl(baseUrl);
-  if (normalized.endsWith('/api/generate')) return normalized;
-  if (normalized.endsWith('/api')) return `${normalized}/generate`;
-  return `${normalized}/api/generate`;
+  if (normalized.endsWith('/chat/completions')) return normalized;
+  return `${normalized}/chat/completions`;
 }
 
-function buildOllamaHeaders(apiKey) {
-  const headers = {
+function buildHuggingFaceHeaders(apiKey) {
+  return {
     'Content-Type': 'application/json',
+    Authorization: `Bearer ${apiKey}`,
   };
-
-  if (apiKey) {
-    headers.Authorization = `Bearer ${apiKey}`;
-    headers['X-API-Key'] = apiKey;
-  }
-
-  return headers;
 }
 
-async function requestOllamaJson(prompt, images = []) {
-  const { apiKey, baseUrl, model } = requireOllamaConfig();
+async function requestHuggingFaceJson(prompt, imageUrls = []) {
+  const { apiKey, baseUrl, model } = requireHuggingFaceConfig();
+  const content = [{ type: 'text', text: prompt }];
+  imageUrls.forEach((url) => {
+    content.push({
+      type: 'image_url',
+      image_url: { url },
+    });
+  });
+
   const payload = {
     model,
-    prompt,
-    stream: false,
-    format: 'json',
-    options: {
-      temperature: 0.1,
-      top_p: 0.8,
-      top_k: 32,
-      num_predict: 700,
-    },
+    messages: [{ role: 'user', content }],
+    temperature: 0.1,
+    top_p: 0.8,
+    max_tokens: 700,
   };
 
-  if (images.length) {
-    payload.images = images;
-  }
-
-  const response = await axios.post(buildOllamaGenerateUrl(baseUrl), payload, {
-    timeout: OLLAMA_TIMEOUT_MS,
-    headers: buildOllamaHeaders(apiKey),
+  const response = await axios.post(buildHuggingFaceChatUrl(baseUrl), payload, {
+    timeout: HF_TIMEOUT_MS,
+    headers: buildHuggingFaceHeaders(apiKey),
   });
 
   const text = extractText(response.data);
   return {
-    raw: parseOllamaJson(text),
+    raw: parseProviderJson(text),
     model,
   };
 }
@@ -124,6 +118,10 @@ async function downloadImageAsBase64(imageUrl) {
     timeout: 15000,
     maxContentLength: MAX_IMAGE_BYTES,
     maxBodyLength: MAX_IMAGE_BYTES,
+    headers: {
+      Accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      'User-Agent': 'UniFeast/1.0 nutrition-image-analyzer',
+    },
   });
 
   const buffer = Buffer.from(response.data);
@@ -137,7 +135,27 @@ async function downloadImageAsBase64(imageUrl) {
   };
 }
 
+function toImageDataUrl(image) {
+  if (!image?.data) {
+    throw new Error('Image data is required for nutrition analysis');
+  }
+
+  return `data:${image.mimeType || 'image/jpeg'};base64,${image.data}`;
+}
+
 function extractText(responseData) {
+  const choiceContent = responseData?.choices?.[0]?.message?.content;
+  if (typeof choiceContent === 'string') {
+    return choiceContent.trim();
+  }
+
+  if (Array.isArray(choiceContent)) {
+    return choiceContent
+      .map((part) => part.text || '')
+      .join('\n')
+      .trim();
+  }
+
   if (typeof responseData?.response === 'string') {
     return responseData.response.trim();
   }
@@ -156,7 +174,7 @@ function extractText(responseData) {
   return '';
 }
 
-function parseOllamaJson(text) {
+function parseProviderJson(text) {
   const cleaned = String(text || '')
     .replace(/^```(?:json)?/i, '')
     .replace(/```$/i, '')
@@ -166,7 +184,7 @@ function parseOllamaJson(text) {
     return JSON.parse(cleaned);
   } catch {
     const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Ollama response did not contain JSON');
+    if (!jsonMatch) throw new Error('AI response did not contain JSON');
     return JSON.parse(jsonMatch[0]);
   }
 }
@@ -214,7 +232,7 @@ function foodNamesMatch(enteredName, detectedName) {
   return overlap / Math.max(enteredTokens.size, detectedTokens.size) >= 0.6;
 }
 
-function normalizeOllamaResult(raw, modelName) {
+function normalizeProviderResult(raw, modelName) {
   const confidence = clampConfidence(raw.confidence);
   const detectedItems = Array.isArray(raw.detectedItems || raw.detected_items)
     ? (raw.detectedItems || raw.detected_items).map((item) => ({
@@ -253,7 +271,7 @@ function normalizeOllamaResult(raw, modelName) {
     servingSize: raw.servingSize || raw.serving_size || 'visible serving',
     detectedItems,
     notes: Array.isArray(raw.notes) ? raw.notes.map((note) => String(note)) : [],
-    source: 'ollama',
+    source: 'huggingface',
     model: modelName,
     isLowConfidenceWarning: confidence < LOW_CONFIDENCE_THRESHOLD,
   };
@@ -298,8 +316,8 @@ Please respond ONLY with a valid JSON object strictly following this structure. 
 
 async function analyzeFoodImage(imageUrl) {
   const image = await downloadImageAsBase64(imageUrl);
-  const { raw, model } = await requestOllamaJson(buildNutritionPrompt(), [image.data]);
-  return normalizeOllamaResult(raw, model);
+  const { raw, model } = await requestHuggingFaceJson(buildNutritionPrompt(), [toImageDataUrl(image)]);
+  return normalizeProviderResult(raw, model);
 }
 
 async function analyzeFoodName(foodName) {
@@ -308,13 +326,13 @@ async function analyzeFoodName(foodName) {
     throw new Error('Food name is required for nutrition analysis');
   }
 
-  const { raw, model } = await requestOllamaJson(buildNameNutritionPrompt(normalizedName));
-  const result = normalizeOllamaResult({ ...raw, quantity: 1, quantityUnit: raw.quantityUnit || 'serving' }, model);
+  const { raw, model } = await requestHuggingFaceJson(buildNameNutritionPrompt(normalizedName));
+  const result = normalizeProviderResult({ ...raw, quantity: 1, quantityUnit: raw.quantityUnit || 'serving' }, model);
   return {
     ...result,
     quantity: 1,
     quantityUnit: result.quantityUnit || 'serving',
-    source: 'ollama_name_lookup',
+    source: 'huggingface_name_lookup',
   };
 }
 
@@ -333,14 +351,14 @@ async function analyzeMenuItemNutrition({ name, imageUrl }) {
           ...imageResult,
           quantity: 1,
           quantityUnit: 'serving',
-          source: 'ollama_image_match',
+          source: 'huggingface_image_match',
           menuNameMatch: true,
           requestedName: menuName,
           imageDetectedFoodName: imageResult.foodName,
         };
       }
     } catch (error) {
-      console.warn('Ollama image nutrition lookup failed, falling back to name:', error.message);
+      console.warn('Hugging Face image nutrition lookup failed, falling back to name:', error.message);
     }
   }
 
@@ -350,7 +368,7 @@ async function analyzeMenuItemNutrition({ name, imageUrl }) {
     foodName: menuName,
     quantity: 1,
     quantityUnit: 'serving',
-    source: imageResult ? 'ollama_name_lookup_after_image_mismatch' : 'ollama_name_lookup',
+    source: imageResult ? 'huggingface_name_lookup_after_image_mismatch' : 'huggingface_name_lookup',
     menuNameMatch: !imageUrl,
     requestedName: menuName,
     imageDetectedFoodName: imageResult?.foodName || '',
@@ -362,8 +380,8 @@ async function analyzeFoodComplete(imageUrl) {
     return await analyzeFoodImage(imageUrl);
   } catch (error) {
     const detail = error.response?.data?.error || error.response?.data?.message || error.message;
-    console.error('Ollama nutrition analysis error:', detail);
-    throw new Error(detail || 'Ollama nutrition analysis failed');
+    console.error('Hugging Face nutrition analysis error:', detail);
+    throw new Error(detail || 'Hugging Face nutrition analysis failed');
   }
 }
 

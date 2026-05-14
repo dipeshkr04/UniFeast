@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "smoke:hf-nutrition": "node scripts/smokeHuggingFaceNutrition.js",
     "seed": "node seeds/seed.js"
   },
   "dependencies": {

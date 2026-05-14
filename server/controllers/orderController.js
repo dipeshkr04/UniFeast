@@ -456,7 +456,7 @@ exports.getAllOrders = async (req, res) => {
 
     const orders = await Order.find(filter)
       .populate('items.menuItem', 'name price imageUrl prepTime')
-      .populate('user', 'name email phone')
+      .populate('user', 'name email')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
       .lean();
@@ -645,7 +645,7 @@ exports.scanOrderQr = async (req, res) => {
         createdAt: { $gte: startOfDay },
       })
         .select('+qrTokenHash +qrTokenLookup')
-        .populate('user', 'name email phone _id btId');
+        .populate('user', 'name email _id btId');
 
       if (candidateOrder && await bcrypt.compare(token.secret, candidateOrder.qrTokenHash || '')) {
         scannedOrder = candidateOrder;
@@ -664,7 +664,7 @@ exports.scanOrderQr = async (req, res) => {
       status: { $in: ACTIVE_QR_STATUSES },
       createdAt: { $gte: startOfDay },
     })
-      .populate('user', 'name email phone _id btId')
+      .populate('user', 'name email _id btId')
       .populate('items.menuItem', 'name imageUrl')
       .sort({ createdAt: 1 });
 
@@ -701,7 +701,7 @@ exports.markOrderItemReady = async (req, res) => {
 
     const order = await Order.findById(id)
       .populate('items.menuItem', 'name imageUrl prepTime nutrition')
-      .populate('user', 'name email phone _id btId');
+      .populate('user', 'name email _id btId');
 
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
@@ -751,7 +751,7 @@ exports.markOrderItemReady = async (req, res) => {
 
     const populatedOrder = await Order.findById(order._id)
       .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
-      .populate('user', 'name email phone _id btId');
+      .populate('user', 'name email _id btId');
 
     const readyQty = getItemAssignedQty(
       populatedOrder.items.id(item._id) ||

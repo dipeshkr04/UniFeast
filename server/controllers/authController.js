@@ -41,7 +41,7 @@ function clearExpiredOtpAttempts() {
 async function requestRegisterOtp(req, res) {
     clearExpiredOtpAttempts();
 
-    const { name, email, password, phone } = req.body;
+    const { name, email, password } = req.body;
     
     const emailValidation = await validateRegistrationEmail(email);
     if (!emailValidation.acceptable) {
@@ -74,7 +74,6 @@ async function requestRegisterOtp(req, res) {
         email: normalizedEmail,
         password,
         role: 'student',
-        phone: phone || '',
         otpHash,
         expiresAt: Date.now() + OTP_EXPIRY_MS,
         attempts: 0
@@ -149,7 +148,6 @@ async function verifyRegisterOtp(req, res) {
             email: otpSession.email,
             password: otpSession.password, 
             role: otpSession.role,
-            phone: otpSession.phone,
             authProvider: 'local'
         });
 
@@ -354,7 +352,7 @@ async function logoutUser(req, res) {
 // @route   GET /api/auth/me
 const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
+    const user = await User.findById(req.user._id).select('-phone');
     res.json({ success: true, user });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -365,7 +363,7 @@ const getMe = async (req, res) => {
 // @route   PUT /api/auth/profile
 const updateProfile = async (req, res) => {
   try {
-    const fields = ['name', 'phone', 'dailyCalorieGoal', 'dailyProteinGoal', 'dailyCarbGoal', 'dailyFatGoal'];
+    const fields = ['name', 'dailyCalorieGoal', 'dailyProteinGoal', 'dailyCarbGoal', 'dailyFatGoal'];
     const updates = {};
     fields.forEach(f => {
       if (req.body[f] !== undefined) updates[f] = req.body[f];
@@ -374,7 +372,7 @@ const updateProfile = async (req, res) => {
     const user = await User.findByIdAndUpdate(req.user._id, updates, {
       new: true,
       runValidators: true,
-    });
+    }).select('-phone');
 
     res.json({ success: true, user });
   } catch (error) {

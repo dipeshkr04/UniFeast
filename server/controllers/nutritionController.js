@@ -158,7 +158,7 @@ exports.updateNutritionGoals = async (req, res) => {
     const user = await User.findByIdAndUpdate(req.user.id, updates, {
       new: true,
       runValidators: true,
-    });
+    }).select('-phone');
 
     invalidateLeaderboardCache();
     res.json({ success: true, user });

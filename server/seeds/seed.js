@@ -12,35 +12,30 @@ const users = [
     email: 'student@iiitn.ac.in',
     password: 'password123',
     role: 'student',
-    phone: '9876543210',
   },
   {
     name: 'Kitchen Staff',
     email: 'kitchen@iiitn.ac.in',
     password: 'password123',
     role: 'kitchen',
-    phone: '9876543211',
   },
   {
     name: 'Admin User',
     email: 'admin@iiitn.ac.in',
     password: 'password123',
     role: 'admin',
-    phone: '9876543212',
   },
   {
     name: 'Rahul Sharma',
     email: 'rahul@iiitn.ac.in',
     password: 'password123',
     role: 'student',
-    phone: '9876543213',
   },
   {
     name: 'Priya Patel',
     email: 'priya@iiitn.ac.in',
     password: 'password123',
     role: 'student',
-    phone: '9876543214',
   },
 ];
 

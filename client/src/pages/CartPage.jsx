@@ -86,7 +86,6 @@ export default function CartPage() {
         prefill: {
           name: user?.name || '',
           email: user?.email || '',
-          contact: user?.phone || '',
         },
         theme: {
           color: '#ff4714',

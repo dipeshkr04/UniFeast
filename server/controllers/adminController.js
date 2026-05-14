@@ -317,7 +317,7 @@ exports.getUsers = async (req, res) => {
       ];
     }
 
-    const users = await User.find(filter).select('-password').sort({ createdAt: -1 }).lean();
+    const users = await User.find(filter).select('-password -phone').sort({ createdAt: -1 }).lean();
     res.json({ success: true, count: users.length, data: users });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -333,7 +333,7 @@ exports.updateUserRole = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid role' });
     }
 
-    const user = await User.findById(req.params.id).select('-password');
+    const user = await User.findById(req.params.id).select('-password -phone');
 
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });

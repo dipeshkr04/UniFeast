@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useContext, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
+import { orderAPI } from '../../api';
 import { KitchenLocalContext } from './KitchenSocketProvider';
 
 export const useKitchenOrders = () => {
@@ -43,17 +44,10 @@ export const useKitchenOrders = () => {
 
   const fetchLiveOrders = useCallback(async () => {
     try {
-      const res = await fetch('/api/orders/kitchen/live', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('unifeast_token')}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const map = new Map();
-        data.forEach((o) => map.set(o._id, o));
-        setOrders(map);
-      } else {
-        toast.error('Failed to load live kitchen orders');
-      }
+      const { data } = await orderAPI.getKitchenLive();
+      const map = new Map();
+      data.forEach((o) => map.set(o._id, o));
+      setOrders(map);
     } catch (err) {
       console.error('Failed to fetch live orders', err);
       toast.error('Failed to load live kitchen orders');
@@ -62,12 +56,8 @@ export const useKitchenOrders = () => {
 
   const refreshSummary = useCallback(async () => {
     try {
-      const res = await fetch('/api/orders/kitchen/summary', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('unifeast_token')}` }
-      });
-      if (res.ok) {
-        setSummary(await res.json());
-      }
+      const { data } = await orderAPI.getKitchenSummary();
+      setSummary(data);
     } catch (err) {
       console.error('Failed to fetch summary', err);
     }
@@ -237,26 +227,7 @@ export const useKitchenOrders = () => {
 
     try {
       const idempotencyKey = `${orderId}-${nextStatus}`;
-      const res = await fetch(`/api/orders/${orderId}/status`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('unifeast_token')}`,
-        },
-        body: JSON.stringify({ newStatus: nextStatus, idempotencyKey })
-      });
-
-      if (!res.ok) {
-        if (res.status === 409) {
-          toast.error('Order was updated elsewhere - refreshing');
-          await fetchLiveOrders();
-          await refreshSummary();
-          return false;
-        }
-        throw new Error('Update failed');
-      }
-
-      const data = await res.json().catch(() => ({}));
+      const { data = {} } = await orderAPI.updateStatus(orderId, nextStatus, idempotencyKey);
       if (data.order?._id) {
         const nextOrder = nextStatus === 'completed'
           ? markEveryItemReady(data.order)
@@ -267,6 +238,12 @@ export const useKitchenOrders = () => {
       return true;
     } catch (err) {
       console.error(err);
+      if (err.response?.status === 409) {
+        toast.error('Order was updated elsewhere - refreshing');
+        await fetchLiveOrders();
+        await refreshSummary();
+        return false;
+      }
       setOrders(previousMap);
       toast.error('Failed to update status. Please retry.');
       return false;
@@ -295,18 +272,7 @@ export const useKitchenOrders = () => {
     });
 
     try {
-      const res = await fetch(`/api/orders/${orderId}/items/${itemId}/ready`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('unifeast_token')}`,
-        },
-      });
-
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        throw new Error(data.message || data.error || 'Failed to mark item ready');
-      }
+      const { data = {} } = await orderAPI.markItemReady(orderId, itemId);
 
       if (data.order?._id) {
         setOrders((prev) => new Map(prev).set(data.order._id, data.order));
@@ -316,7 +282,7 @@ export const useKitchenOrders = () => {
       return data.order || true;
     } catch (err) {
       setOrders(previousMap);
-      toast.error(err.message || 'Failed to mark item ready');
+      toast.error(err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to mark item ready');
       return null;
     } finally {
       setBusyItem(itemKey, false);

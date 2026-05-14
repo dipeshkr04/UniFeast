@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { orderAPI } from '../api';
 import { useSocket } from '../contexts/SocketContext';
 import { HiOutlineCalendar, HiOutlineClock, HiOutlineRefresh, HiX } from 'react-icons/hi';
@@ -193,29 +194,22 @@ export default function OrdersPage() {
   const getQrModalAnchor = (trigger) => {
     if (!trigger || typeof window === 'undefined') return null;
 
-    const rect = trigger.getBoundingClientRect();
     const gutter = 14;
-    const modalWidth = Math.min(380, window.innerWidth - gutter * 2);
-    const modalHeight = Math.min(460, window.innerHeight - gutter * 2);
-    const maxLeft = Math.max(gutter, window.innerWidth - modalWidth - gutter);
-    const preferredLeft = rect.right - modalWidth;
-    const left = Math.min(Math.max(gutter, preferredLeft), maxLeft);
-    const lowerTop = rect.bottom + 10;
-    const upperTop = rect.top - modalHeight - 10;
-    const preferredTop = lowerTop + modalHeight <= window.innerHeight - gutter ? lowerTop : upperTop;
-    const maxTop = Math.max(gutter, window.innerHeight - modalHeight - gutter);
-    const top = Math.min(Math.max(gutter, preferredTop), maxTop);
+    const modalWidth = Math.min(440, window.innerWidth - gutter * 2);
+    const left = Math.max(gutter, (window.innerWidth - modalWidth) / 2);
+    const top = Math.max(gutter, Math.min(72, window.innerHeight * 0.1));
 
     return { top, left };
   };
 
   const openQrModal = async (order, event) => {
     const anchor = getQrModalAnchor(event?.currentTarget);
+    setQrModal({ order, anchor });
     setQrLoading(true);
     try {
       const { data } = await orderAPI.getQr(order._id);
       const qrImage = await QRCode.toDataURL(data.data.qrPayload, {
-        width: 280,
+        width: 400,
         margin: 2,
         color: {
           dark: '#050505',
@@ -229,11 +223,14 @@ export default function OrdersPage() {
         anchor,
       });
     } catch (err) {
+      setQrModal(null);
       toast.error(err.response?.data?.message || 'Unable to generate QR for this order');
     } finally {
       setQrLoading(false);
     }
   };
+
+  const closeQrModal = () => setQrModal(null);
 
   return (
     <div className="student-orders-page animate-fadeIn">
@@ -421,6 +418,7 @@ export default function OrdersPage() {
         </div>
       )}
 
+      {createPortal(
       <AnimatePresence>
         {qrModal && (
           <Motion.div
@@ -428,7 +426,7 @@ export default function OrdersPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setQrModal(null)}
+            onClick={closeQrModal}
           >
             <Motion.div
               className="order-qr-modal glass-card-static"
@@ -438,7 +436,7 @@ export default function OrdersPage() {
               exit={{ scale: 0.94, y: 18 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <button className="order-qr-close" onClick={() => setQrModal(null)} aria-label="Close QR">
+              <button className="order-qr-close" onClick={closeQrModal} aria-label="Close QR">
                 <HiX />
               </button>
               <div className="order-qr-heading">
@@ -446,8 +444,15 @@ export default function OrdersPage() {
                 <h3>Order #{qrModal.order._id.slice(-6).toUpperCase()}</h3>
                 <p>Show this at the counter. It expires automatically once pickup is confirmed.</p>
               </div>
-              <div className="order-qr-frame">
-                <img src={qrModal.qrImage} alt="Order pickup QR code" />
+              <div className={`order-qr-frame ${qrModal.qrImage ? '' : 'is-loading'}`}>
+                {qrModal.qrImage ? (
+                  <img src={qrModal.qrImage} alt="Order pickup QR code" />
+                ) : (
+                  <div className="order-qr-loading">
+                    <span />
+                    <strong>Generating QR</strong>
+                  </div>
+                )}
               </div>
               <div className="order-qr-meta">
                 <span>{new Date(qrModal.order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -456,7 +461,9 @@ export default function OrdersPage() {
             </Motion.div>
           </Motion.div>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
+      )}
     </div>
   );
 }

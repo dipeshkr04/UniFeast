@@ -147,7 +147,6 @@ const OrderCard = ({ order, onStatusUpdate, onItemReady, busyOrderIds, busyItemI
     order.btId ||
     order.user?.email ||
     order.student?.email ||
-    order.user?.phone ||
     `ID-${String(order.user?._id || '').slice(-4) || 'N/A'}`;
   const btId = String(rawBtId || '').split('@')[0];
   const createdTime = new Date(order.createdAt).toLocaleTimeString([], {

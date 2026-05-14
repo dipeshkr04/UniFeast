@@ -139,10 +139,12 @@ const MenuItemCard = memo(function MenuItemCard({
 
         <div className="student-menu-card-overlay" />
 
-        <div className="student-menu-prep-badge text-white">
-          <HiOutlineClock className="w-4 h-4 text-primary-400" />
-          <span>{item.prepTime}m</span>
-        </div>
+        {!isSoldOut && (
+          <div className="student-menu-prep-badge text-white">
+            <HiOutlineClock className="w-4 h-4 text-primary-400" />
+            <span>{item.prepTime}m</span>
+          </div>
+        )}
 
         <div className={`student-menu-stock-badge ${isSoldOut ? 'is-empty' : ''}`}>
           {isSoldOut ? 'Currently unavailable' : `${stockLeft} Left`}

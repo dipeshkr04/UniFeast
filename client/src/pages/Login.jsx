@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { MdRestaurantMenu } from 'react-icons/md';
+import { HiEye, HiEyeOff } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { GoogleLogin } from '@react-oauth/google';
 import { motion as Motion } from 'framer-motion';
@@ -16,6 +17,7 @@ function isAllowedInstituteEmail(value) {
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const { login, googleLogin } = useAuth();
@@ -40,11 +42,6 @@ export default function Login() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const quickLogin = (email) => {
-    setEmail(email);
-    setPassword('password123');
   };
 
   return (
@@ -123,7 +120,7 @@ export default function Login() {
 
           <div className="mb-7 text-center w-full">
             <h2 className="text-[22px] font-bold mb-1 text-white tracking-normal">Welcome Back</h2>
-            <p className="text-surface-400 font-medium text-[14px]">Please enter your details to sign in.</p>
+            <p className="text-surface-400 font-medium text-[14px]">Sign in with your IIIT Nagpur account.</p>
           </div>
 
           <div className="mb-6 auth-google-wrap">
@@ -145,7 +142,7 @@ export default function Login() {
               shape="pill"
               size="large"
               text="continue_with"
-              width="100%"
+              width="320"
             />
           </div>
           
@@ -170,14 +167,25 @@ export default function Login() {
               </div>
               <div className="text-left flex flex-col gap-2">
                 <label className="block text-[13px] font-medium text-surface-300">Password</label>
-                <input
-                  type="password"
+                <div className="auth-password-field">
+                  <input
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center tracking-widest"
+                  className="input-field auth-password-input py-3 bg-[#121214] border-surface-800 text-[14px] text-center tracking-widest"
                   placeholder="••••••••"
                   required
-                />
+                  />
+                  <button
+                    type="button"
+                    className="auth-password-toggle"
+                    onClick={() => setShowPassword((value) => !value)}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    aria-pressed={showPassword}
+                  >
+                    {showPassword ? <HiEyeOff /> : <HiEye />}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -197,26 +205,6 @@ export default function Login() {
                 Create an account
               </Link>
             </p>
-          </div>
-
-          {/* Quick login */}
-          <div className="mt-6 pt-5 border-t border-white/5 w-full">
-            <p className="text-xs text-surface-500 text-center mb-4 uppercase tracking-[0.2em] font-black">Demo Access</p>
-            <div className="grid grid-cols-3 gap-3">
-              {[
-                { label: 'Student', email: 'student@iiitn.ac.in', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20 hover:border-blue-500/50' },
-                { label: 'Kitchen', email: 'kitchen@iiitn.ac.in', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20 hover:border-amber-500/50' },
-                { label: 'Admin', email: 'admin@iiitn.ac.in', color: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:border-emerald-500/50' },
-              ].map(({ label, email: e, color }) => (
-                <button
-                  key={label}
-                  onClick={() => quickLogin(e)}
-                  className={`py-3 px-3 rounded-xl border text-xs font-bold transition-all min-h-[44px] ${color}`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
           </div>
           </div>
           

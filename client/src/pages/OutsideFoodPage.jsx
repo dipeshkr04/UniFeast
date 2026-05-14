@@ -469,11 +469,19 @@ export default function OutsideFoodPage() {
           {[1, 2, 3].map((item) => <div key={item} className="outside-food-skeleton" />)}
         </div>
       ) : visiblePools.length === 0 ? (
-        <section className="outside-food-empty">
-          <MdOutlineGroups />
+        <section className="outside-food-empty outside-food-pool-empty">
+          <div className="outside-food-empty-icon">
+            <MdOutlineGroups />
+          </div>
+          <span className="outside-food-empty-kicker">Start together</span>
           <h2>No active pools yet</h2>
-          <p>Start one for snacks, rides, print runs, or anything that needs a shared target.</p>
-          <button type="button" className="outside-food-primary-btn outside-food-create-btn" onClick={() => setCreateOpen(true)}>
+          <p>Start a shared pool for snacks, rides, shopping, BigBasket orders, or anything the group can split.</p>
+          <div className="outside-food-empty-tags" aria-hidden="true">
+            <span>Snacks</span>
+            <span>Travel</span>
+            <span>BigBasket</span>
+          </div>
+          <button type="button" className="outside-food-primary-btn outside-food-empty-action" onClick={() => setCreateOpen(true)}>
             <HiOutlinePlus />
             Create Pool
           </button>

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { MdRestaurantMenu, MdArrowBack } from 'react-icons/md';
+import { HiEye, HiEyeOff } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 
@@ -12,11 +13,13 @@ function isAllowedInstituteEmail(value) {
 }
 
 export default function Register() {
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '', phone: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
   const [step, setStep] = useState(1);
   const [attemptToken, setAttemptToken] = useState('');
   const [otp, setOtp] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { requestRegisterOtp, verifyRegisterOtp } = useAuth();
   const navigate = useNavigate();
@@ -44,8 +47,7 @@ export default function Register() {
         const data = await requestRegisterOtp({ 
             name: form.name, 
             email: form.email, 
-            password: form.password, 
-            phone: form.phone 
+            password: form.password,
         });
 
         setAttemptToken(data.attemptToken);
@@ -174,25 +176,41 @@ export default function Register() {
                         <input name="name" value={form.name} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center" placeholder="John Doe" required />
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="text-left flex flex-col gap-2">
-                          <label className="block text-[13px] font-medium text-surface-300">Email Address</label>
-                          <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center" placeholder="bt23xxx@iiitn.ac.in" required />
-                        </div>
-                        <div className="text-left flex flex-col gap-2">
-                          <label className="block text-[13px] font-medium text-surface-300">Phone</label>
-                          <input name="phone" type="tel" value={form.phone} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center" placeholder="9876543210" />
-                        </div>
+                      <div className="text-left flex flex-col gap-2">
+                        <label className="block text-[13px] font-medium text-surface-300">Email Address</label>
+                        <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center" placeholder="bt23xxx@iiitn.ac.in" required />
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="text-left flex flex-col gap-2">
                           <label className="block text-[13px] font-medium text-surface-300">Password</label>
-                          <input name="password" type="password" value={form.password} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center tracking-widest" placeholder="••••••••" required minLength={6} />
+                          <div className="auth-password-field">
+                            <input name="password" type={showPassword ? 'text' : 'password'} value={form.password} onChange={handleChange} className="input-field auth-password-input py-3 bg-[#121214] border-surface-800 text-[14px] text-center tracking-widest" placeholder="Password" required minLength={6} />
+                            <button
+                              type="button"
+                              className="auth-password-toggle"
+                              onClick={() => setShowPassword((value) => !value)}
+                              aria-label={showPassword ? 'Hide password' : 'Show password'}
+                              aria-pressed={showPassword}
+                            >
+                              {showPassword ? <HiEyeOff /> : <HiEye />}
+                            </button>
+                          </div>
                         </div>
                         <div className="text-left flex flex-col gap-2">
                           <label className="block text-[13px] font-medium text-surface-300">Confirm Password</label>
-                          <input name="confirmPassword" type="password" value={form.confirmPassword} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center tracking-widest" placeholder="••••••••" required />
+                          <div className="auth-password-field">
+                            <input name="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} value={form.confirmPassword} onChange={handleChange} className="input-field auth-password-input py-3 bg-[#121214] border-surface-800 text-[14px] text-center tracking-widest" placeholder="Confirm password" required />
+                            <button
+                              type="button"
+                              className="auth-password-toggle"
+                              onClick={() => setShowConfirmPassword((value) => !value)}
+                              aria-label={showConfirmPassword ? 'Hide confirm password' : 'Show confirm password'}
+                              aria-pressed={showConfirmPassword}
+                            >
+                              {showConfirmPassword ? <HiEyeOff /> : <HiEye />}
+                            </button>
+                          </div>
                         </div>
                       </div>
                   </Motion.div>

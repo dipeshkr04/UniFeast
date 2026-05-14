@@ -38,7 +38,7 @@ router.get('/kitchen/live', protect, authorize('admin', 'kitchen'), async (req, 
       createdAt: { $gte: startOfDay },
       status: { $ne: 'cancelled' },
     })
-      .populate('user', 'name email phone _id btId')
+      .populate('user', 'name email _id btId')
       .populate('items.menuItem', 'name imageUrl')
       .sort({ createdAt: 1 });
 

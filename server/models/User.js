@@ -35,10 +35,6 @@ const userSchema = new mongoose.Schema({
     enum: ['student', 'kitchen', 'admin'],
     default: 'student',
   },
-  phone: {
-    type: String,
-    default: '',
-  },
   avatarUrl: {
     type: String,
     default: '',

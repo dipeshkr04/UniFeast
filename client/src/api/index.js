@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = import.meta.env.VITE_API_URL || import.meta.env.VITE_BACKEND_URL || '';
 
 const api = axios.create({
   baseURL: `${API_BASE}/api`,
@@ -72,7 +72,10 @@ export const orderAPI = {
   getOne: (id) => api.get(`/orders/${id}`),
   getQr: (id) => api.get(`/orders/${id}/qr`),
   scanQr: (qrPayload) => api.post('/orders/kitchen/qr/scan', { qrPayload }),
-  updateStatus: (id, status) => api.patch(`/orders/${id}/status`, { newStatus: status }),
+  updateStatus: (id, status, idempotencyKey) => api.patch(`/orders/${id}/status`, { newStatus: status, idempotencyKey }),
+  markItemReady: (orderId, itemId) => api.patch(`/orders/${orderId}/items/${itemId}/ready`),
+  getKitchenLive: () => api.get('/orders/kitchen/live'),
+  getKitchenSummary: () => api.get('/orders/kitchen/summary'),
   getLiveQueue: () => api.get('/orders/live-queue'),
   getStats: () => api.get('/orders/stats/summary'),
   getKitchenStock: () => api.get('/orders/kitchen/stock'),

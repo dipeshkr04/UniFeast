@@ -23,6 +23,7 @@ const leaderboardRoutes = require('./routes/leaderboard');
 const paymentRoutes = require('./routes/payment');
 const cartRoutes = require('./routes/cart');
 const outsideFoodRoutes = require('./routes/outsideFood');
+const debugRoutes = require('./routes/debug');
 const app = express();
 const server = http.createServer(app);
 
@@ -62,6 +63,7 @@ app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/payments',paymentRoutes);
 app.use('/api/cart', cartRoutes);
 app.use('/api/outside-food', outsideFoodRoutes);
+app.use('/api/debug', debugRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

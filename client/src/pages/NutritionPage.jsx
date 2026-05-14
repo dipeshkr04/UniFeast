@@ -829,11 +829,6 @@ export default function NutritionPage() {
                     ? 'Goal Achieved'
                     : foodRecommendation ? 'Refresh Recommendation' : 'Get Recommendation'}
                 </button>
-                {foodRecommendation?.source && (
-                  <span className="nutrition-recommendation-source">
-                    {foodRecommendation.source === 'goal_complete' ? 'No API call' : foodRecommendation.source === 'huggingface' ? 'Hugging Face' : 'Fallback'}
-                  </span>
-                )}
               </div>
             </div>
           </div>

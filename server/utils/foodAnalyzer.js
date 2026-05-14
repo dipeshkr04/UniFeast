@@ -4,7 +4,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const LOW_CONFIDENCE_THRESHOLD = Number(getEnv('HF_NUTRITION_CONFIDENCE_THRESHOLD', 'OLLAMA_NUTRITION_CONFIDENCE_THRESHOLD') || 0.65);
 const MAX_IMAGE_BYTES = Number(getEnv('HF_MAX_IMAGE_BYTES', 'OLLAMA_MAX_IMAGE_BYTES') || 8 * 1024 * 1024);
-const HF_TIMEOUT_MS = Number(getEnv('HF_TIMEOUT_MS', 'OLLAMA_TIMEOUT_MS') || 60000);
+const HF_TIMEOUT_MS = Number(getEnv('HF_TIMEOUT_MS', 'OLLAMA_TIMEOUT_MS') || 120000);
 const HF_DEFAULT_MODEL = 'google/gemma-4-31B-it:together';
 const HF_DEFAULT_BASE_URL = 'https://router.huggingface.co/v1';
 

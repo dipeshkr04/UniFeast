@@ -144,6 +144,7 @@ export const nutritionAPI = {
   getWeekly: () => api.get('/nutrition/weekly'),
   getMonthly: () => api.get('/nutrition/monthly'),
   updateGoals: (data) => api.put('/nutrition/goals', data),
+  getRecommendations: (data) => api.post('/nutrition/recommendations', data),
   analyzeImage: (formData) => api.post('/nutrition/analyze', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   }),

@@ -113,7 +113,7 @@ exports.updateMenuStock = async (req, res) => {
   }
 };
 
-// @desc    Analyze menu item nutrition via Ollama
+// @desc    Analyze menu item nutrition via Hugging Face
 // @route   POST /api/menu/analyze-nutrition
 exports.analyzeMenuNutrition = async (req, res) => {
   try {

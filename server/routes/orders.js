@@ -39,7 +39,7 @@ router.get('/kitchen/live', protect, authorize('admin', 'kitchen'), async (req, 
       status: { $ne: 'cancelled' },
     })
       .populate('user', 'name email _id btId')
-      .populate('items.menuItem', 'name imageUrl')
+      .populate('items.menuItem', 'name imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes')
       .sort({ createdAt: 1 });
 
     res.json(orders);

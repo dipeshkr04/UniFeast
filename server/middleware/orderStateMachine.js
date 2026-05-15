@@ -1,7 +1,7 @@
 ﻿const VALID_TRANSITIONS = {
   pending: ['queued', 'cancelled'],
-  queued: ['preparing', 'completed', 'cancelled'],
-  preparing: ['ready', 'completed'],
+  queued: ['preparing', 'cancelled'],
+  preparing: ['ready'],
   ready: ['completed'],
   completed: [],
   cancelled: [],

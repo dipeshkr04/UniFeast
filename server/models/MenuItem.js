@@ -31,6 +31,23 @@ const menuItemSchema = new mongoose.Schema({
     required: [true, 'Please provide preparation time in minutes'],
     min: [1, 'Prep time must be at least 1 minute'],
   },
+  batchCapacity: {
+    type: Number,
+    default: 1,
+    min: [1, 'Batch capacity must be at least 1'],
+    max: [999, 'Batch capacity is too high'],
+  },
+  batchPrepTime: {
+    type: Number,
+    default: null,
+    min: [1, 'Batch prep time must be at least 1 minute'],
+  },
+  batchBufferMinutes: {
+    type: Number,
+    default: 0,
+    min: [0, 'Batch buffer cannot be negative'],
+    max: [60, 'Batch buffer is too high'],
+  },
   maxOrder: {
     type: Number,
     default: 15,

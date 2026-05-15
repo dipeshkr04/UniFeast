@@ -1,163 +1,342 @@
-# Kitchen Order Workflow System: Technical Architecture & Mathematical Model
+# UniFeast Kitchen Queue Logic
 
-## 1. Define the System as a State Machine
+This document is the final kitchen queue model used by the backend.
 
-The kitchen order workflow is a strict Directed Acyclic Graph (DAG) for forward progress, with specific abort paths.
+The system intentionally keeps ETA calculation simple, explainable, and controlled by only three kitchen-entered variables per menu item.
 
-### 1.1 State Definitions
-* **`PENDING`**: Payment initiated, pool open, but order not yet finalized/committed to kitchen.
-* **`QUEUED`**: Order finalized, payment secured. Logged in the system awaiting kitchen capacity.
-* **`PREPARING`**: Assigned to a prep station/chef. Ingredients are being utilized.
-* **`READY`**: Cooking complete. Waiting for student pickup/delivery.
-* **`COMPLETED`**: Handed off to the student. Terminal state.
-* **`CANCELLED`**: Aborted. Can only happen before `PREPARING`.
+In the UI these are shown as Bucket capacity, Bucket prep, and Bucket buffer. In the database/API they are stored as:
 
-### 1.2 Valid & Invalid Transitions
-**Valid Transitions:**
-* `PENDING` → `QUEUED` (Checkout success / Pool closes)
-* `PENDING` → `CANCELLED` (Payment failed / timeout)
-* `QUEUED` → `PREPARING` (Chef capacity frees up)
-* `QUEUED` → `CANCELLED` (Admin/Student cancels before prep)
-* `PREPARING` → `READY` (Chef marks food as cooked)
-* `READY` → `COMPLETED` (Student picks up food)
+1. `batchCapacity`
+2. `batchPrepTime`
+3. `batchBufferMinutes`
 
-**Invalid Transitions (Must be strictly prevented):**
-* `PREPARING` → `CANCELLED`: Food is already cooking, resources consumed. (Requires manual admin overwrite and inventory reconciliation).
-* `QUEUED` → `READY`: Skips preparation constraints and ETA calculations.
-* `COMPLETED` → *Any*: Terminal state immutability.
+No ML timing model, no hidden item profiles, and no Erlang-C ETA math are used for the student-facing queue time. The novelty is practical kitchen batching: the system understands that some quantities can be prepared together instead of multiplying prep time item-by-item.
 
 ---
 
-## 2. End-to-End Order Lifecycle
+## 1. Order State Machine
 
-1. **Placement (`PENDING`)**: Student adds item to cart. If joining a pool, lock is acquired. Once timer expires or checkout completes, move to `QUEUED`.
-2. **Ingestion (`QUEUED`)**: Order enters the global FIFO/Priority queue (e.g., Redis Sorted Set). ETA is calculated via Erlang-C and broadcast via Socket.io.
-3. **Dispatch (`PREPARING`)**: A Chef node broadcasts availability. The Queue Engine pops the highest priority order. Status updates in DB. Socket emits `status_preparing`.
-4. **Cooking (`PREPARING` progress)**: Time elapses (T_prep).
-5. **Quality/Completion (`READY`)**: Chef hits "Done." Socket emits `status_ready` to student's app.
-6. **Handoff (`COMPLETED`)**: Student presents ID/Order #. Kitchen hits "Delivered." Analytics and `NutritionLog` are updated.
+### States
 
----
+| State | Meaning |
+|---|---|
+| `PENDING` | Payment/order creation started but not finalized for kitchen. |
+| `QUEUED` | Paid order is accepted and waiting in kitchen queue. |
+| `PREPARING` | Kitchen has started preparing the order. |
+| `READY` | Food is ready for pickup. |
+| `COMPLETED` | Student has collected the order. Terminal state. |
+| `CANCELLED` | Order cancelled before preparation, except admin override cases. |
 
-## 3. Mathematical Modeling of Flow
-
-The system runs on the M/M/c queueing model (Erlang-C) to dynamically predict ETAs.
-
-### 3.1 Variables
-* $O$ = Number of active orders
-* $c$ = Number of parallel kitchen stations / chefs
-* $T_{prep}$ = Average preparation time per order (service time, exponential distribution)
-* $\lambda$ (Lambda) = Order arrival rate (orders per minute)
-* $\mu$ (Mu) = Service rate per chef ($1 / T_{prep}$)
-* $\rho$ (Rho) = System utilization factor = $\frac{\lambda}{c \cdot \mu}$
-
-### 3.2 Constraints & Stability
-For the queue to remain stable and not grow infinitely: 
-$$\rho < 1 \implies \lambda < c \cdot \mu$$
-
-### 3.3 Delay & ETA Formulas (Erlang-C)
-**Probability of waiting in queue ($P_W$):**
-$$P_W = \frac{ \frac{(c \rho)^c}{c! (1 - \rho)} }{ \sum_{k=0}^{c-1} \frac{(c \rho)^k}{k!} + \frac{(c \rho)^c}{c! (1 - \rho)} }$$
-
-**Expected Waiting Time in Queue ($W_q$):**
-$$W_q = \frac{P_W \cdot T_{prep}}{c \cdot (1 - \rho)}$$
-
-**Total Time in System ($T_{sys}$ / Base ETA):**
-$$ETA = W_q + T_{prep}$$
-
-**Throughput Capability:**
-*Max Throughput* = $c \cdot \mu = \frac{c}{T_{prep}}$
-
----
-
-## 4. Transition Logic (Backend Rules)
-
-### 4.1 PENDING → QUEUED
-* **Trigger:** Payment Gateway Webhook / Pool Countdown reaches 0.
-* **Validation:** Verify payment integrity. Ensure items are in stock using a Redis Distributed Lock on inventory limits.
-
-### 4.2 QUEUED → PREPARING
-* **Trigger:** Kitchen Dashboard API call `PUT /api/orders/:id/status`.
-* **Condition:** Current active items in `PREPARING` must be strictly `< c` (Chef capacity). 
-* **Action:** Update status, emit socket event, capture `startedAt` timestamp.
-
-### 4.3 PREPARING → READY
-* **Trigger:** Chef button press.
-* **Validation:** Order must currently be in `PREPARING` state.
-* **Action:** Stamp `preparedAt` timestamp. Recalculate global queue expected times (since $T_{prep}$ actuals feed back into the $\mu$ average).
-
----
-
-## 5. Edge Case Handling (VERY IMPORTANT)
-
-1. **System Overload (Queue Overflow / $\rho \ge 1$):**
-   * *Trigger:* Sudden surge of students post-lecture.
-   * *Handling:* Dynamic surge pricing or temporary ordering pause for specific items. The ETA engine will natively reflect huge wait times, acting as a natural deterrent.
-2. **Race Conditions (Multiple Chefs claim same order):**
-   * *Handling:* Optimistic Concurrency Control (OCC) using MongoDB document `__v` versioning, OR Redis `SETNX` (Set if Not eXists) when moving from `QUEUED` to `PREPARING`. 
-3. **No Chef Available:**
-   * *Handling:* Order remains `QUEUED`. $W_q$ linearly increases. Socket.io pushes delayed ETAs to clients.
-4. **Order Cancellation at `PREPARING`:**
-   * *Handling:* UI hides standard cancel button. Only Kitchen Admin can override. Requires inventory waste logging logic.
-5. **Node Crash Mid-Prep:**
-   * *Handling:* "Zombie" orders. A Cron job sweeps `PREPARING` orders older than `Max_T_prep * 3`. Pushes alert to Kitchen Admin dashboard to verify if food was lost or just forgot to click "Ready".
-
----
-
-## 6. Concurrency & Synchronization
-
-* **Distributed Locking (Redis/Redlock):** Crucial when aggregating a "Pool" of identical orders into one large batch. Ensure two nodes don't simultaneously close the pool and create duplicate kitchen chits.
-* **Idempotent APIs:** Kitchen tablet might double-tap "Move to Preparing" due to bad WiFi. The payload must include an `idempotency_key` or strictly check `requires state == QUEUED`. The second request must return `200 OK` (no-op) or `409 Conflict`, NOT crash or duplicate.
-* **Atomic Updates:** MongoDB `$set` combined with conditional matching: `Order.updateOne({ _id: id, status: 'QUEUED' }, { $set: { status: 'PREPARING' } })` ensures state corruption cannot occur.
-
----
-
-## 7. Optimization Strategies
-
-1. **The Pooling Engine (Batching):** Instead of individual orders, group 5 "Burger" orders arriving within 2 minutes into 1 "Pool". This modifies the service rate ($\mu$). Making 5 burgers at once does not take $5 \cdot T_{prep}$, it takes $T_{prep} \cdot 1.5$. This dramatically lowers $\rho$ and increases throughput.
-2. **Priority Queueing:** Paid expedites, or pre-scheduled bulk orders bypass the standard FIFO, moving into a High-Priority `QUEUED` lane.
-3. **Dynamic $c$ Allocation:** As ML (Clarifai data/historical logs) realizes the grill is overloaded, it suggests shifting flexible staff ($c$) from prep to grill, locally adjusting the Erlang-C variables line-by-line.
-
----
-
-## 8. Data Structures & Backend Design
-
-**Data Structures:**
-* **Active Queue:** Redis Sorted Set (`ZADD kitchen:queue <timestamp/priority> <order_id>`). Allows $O(log N)$ extraction.
-* **Order Tracking:** Redis Hash (`HSET order:state...`) for lightning-fast socket retrievals, backed by MongoDB for persistent storage (`Models/Order.js`).
-
-**API Flow:**
-1. `POST /api/orders` -> Validates, creates DB entry (`PENDING`), creates checkout session.
-2. webhook `POST /api/payments/complete` -> Modifies DB (`QUEUED`), adds to Redis Sorted Set. Emits `queue_updated`.
-3. `PATCH /api/orders/:id/status` -> Kitchen client takes action. Validates OCC. Removes from Redis queue if `PREPARING`. Emits `status_changed`.
-
----
-
-## 9. Visualization
-
-### 9.1 State Transition DAG
+### Valid Transitions
 
 ```mermaid
 stateDiagram-v2
-    [*] --> PENDING : Student Checkouts
-    PENDING --> QUEUED : Payment Verified
-    PENDING --> CANCELLED : Payment Failed
-    QUEUED --> PREPARING : Chef Claims Order
-    QUEUED --> CANCELLED : Student/Admin Abort
-    PREPARING --> READY : Cooking Complete
-    READY --> COMPLETED : Picked Up
+    [*] --> PENDING : Checkout started
+    PENDING --> QUEUED : Payment verified
+    PENDING --> CANCELLED : Payment failed
+    QUEUED --> PREPARING : Kitchen starts order
+    QUEUED --> CANCELLED : Cancel before prep
+    PREPARING --> READY : Kitchen marks ready
+    READY --> COMPLETED : Pickup confirmed
     COMPLETED --> [*]
     CANCELLED --> [*]
 ```
 
-### 9.2 Queue Processing Model
-```mermaid
-graph TD
-    A[Incoming Orders] -->|λ Arrival Rate| B(Redis Sorted Set Queue)
-    B -->|Priority / FIFO| C{Kitchen Load Balancer}
-    C -->|Dispatch| D[Chef / Station 1]
-    C -->|Dispatch| E[Chef / Station 2]
-    D -->|μ Service Rate| F((READY))
-    E -->|μ Service Rate| F
-    F --> G[COMPLETED]
+Invalid transitions are blocked by backend validation:
+
+| Invalid Transition | Reason |
+|---|---|
+| `PREPARING` to `CANCELLED` | Food/resources may already be used. |
+| `QUEUED` to `READY` | Skips actual prep start. |
+| `COMPLETED` to any state | Completed orders are immutable. |
+
+---
+
+## 2. Kitchen Variables
+
+Every menu item stores the normal item metadata plus three queue variables.
+
+| DB Field | UI Label | Symbol | Meaning | Example |
+|---|---|---:|---|---|
+| `batchCapacity` | Bucket capacity | `B_i` | Maximum quantity that can be prepared together in one batch. | 10 cold coffees at once |
+| `batchPrepTime` | Bucket prep | `F_i` | Time to prepare one full or partial bucket. | 5 minutes |
+| `batchBufferMinutes` | Bucket buffer | `G_i` | Extra reset/plating/setup time between buckets. | 1 minute |
+
+Fallback behavior:
+
+| Missing Field | Fallback |
+|---|---|
+| `batchCapacity` | `1` |
+| `batchPrepTime` | item `prepTime` |
+| `batchBufferMinutes` | `0` |
+
+This keeps old or simple items working as classic one-by-one prep.
+
+---
+
+## 3. Core Formula
+
+For a single order line:
+
+| Variable | Meaning |
+|---|---|
+| `Q_i` | Remaining quantity for this item line |
+| `B_i` | Bucket capacity |
+| `F_i` | Bucket prep time |
+| `G_i` | Bucket buffer time |
+
+### Bucket Count
+
+```math
+Buckets_i = ceil(Q_i / B_i)
 ```
+
+### Line Work
+
+```math
+LineWork_i = (Buckets_i * F_i) + ((Buckets_i - 1) * G_i)
+```
+
+### Order Work
+
+```math
+OrderWork = sum(LineWork_i)
+```
+
+The order still uses simple addition like the original arithmetic model. The only change is that each item line is bucketized before addition.
+
+---
+
+## 4. ETA Formula
+
+Only active orders affect queue workload:
+
+```text
+ACTIVE = QUEUED + PREPARING
+```
+
+For a new incoming order:
+
+```math
+WorkAhead = sum(RemainingWork of active orders created before this order)
+```
+
+```math
+ETA_new = ceil(WorkAhead + OrderWork_new)
+```
+
+For a `PREPARING` order:
+
+```math
+RemainingWork = max(0.5, OrderWork - elapsedPrepMinutes)
+```
+
+For a `QUEUED` order:
+
+```math
+RemainingWork = OrderWork
+```
+
+Important behavior:
+
+- New orders do not change already promised ETAs immediately.
+- Existing ETAs are recalculated only when kitchen state changes, such as `PREPARING`, item ready, `READY`, `COMPLETED`, `CANCELLED`, or produced stock updates.
+- This preserves the student promise while still correcting the queue when real kitchen progress happens.
+
+---
+
+## 5. Example Calculations
+
+### Cold Coffee
+
+| Variable | Value |
+|---|---:|
+| `batchCapacity` | `10` |
+| `batchPrepTime` | `5` |
+| `batchBufferMinutes` | `1` |
+
+| Quantity | Buckets | Work |
+|---:|---:|---:|
+| 1 | 1 | 5 min |
+| 10 | 1 | 5 min |
+| 11 | 2 | 11 min |
+| 20 | 2 | 11 min |
+| 21 | 3 | 17 min |
+
+### Idli
+
+| Variable | Value |
+|---|---:|
+| `batchCapacity` | `4` |
+| `batchPrepTime` | `6` |
+| `batchBufferMinutes` | `1` |
+
+| Quantity | Buckets | Work |
+|---:|---:|---:|
+| 1 | 1 | 6 min |
+| 4 | 1 | 6 min |
+| 5 | 2 | 13 min |
+| 8 | 2 | 13 min |
+
+---
+
+## 6. Backend Data Contract
+
+### Menu Item
+
+The kitchen/admin enters:
+
+```text
+name
+price
+prepTime
+batchCapacity
+batchPrepTime
+batchBufferMinutes
+maxOrder
+isAvailable
+nutrition
+dailyStock
+```
+
+### Order Item Snapshot
+
+When an order is created, the backend copies the current kitchen timing values into the order item:
+
+```text
+menuItem
+name
+price
+imageUrl
+category
+quantity
+assignedReadyQty
+batchCapacity
+batchPrepTime
+batchBufferMinutes
+```
+
+This snapshot matters because later menu edits should not rewrite the promise for an already placed order.
+
+---
+
+## 7. Queue Calculation Flow
+
+```mermaid
+flowchart TD
+    A[Kitchen enters menu item] --> B[Store bucket fields]
+    B --> C[Student places order]
+    C --> D[Copy bucket fields into order item snapshot]
+    D --> E[Calculate each line bucket work]
+    E --> F[Sum line work into order work]
+    G[Active QUEUED and PREPARING orders] --> H[Calculate remaining work ahead]
+    F --> I[ETA = work ahead + new order work]
+    H --> I
+    I --> J[Save estimatedTime and estimatedReadyAt]
+```
+
+---
+
+## 8. Bucket Arithmetic Diagram
+
+```mermaid
+flowchart LR
+    Q[Item quantity Q] --> A{Q <= batchCapacity?}
+    A -->|yes| B[1 bucket]
+    A -->|no| C[ceil Q / batchCapacity buckets]
+    B --> D[Line work = batchPrepTime]
+    C --> E[Line work = buckets * batchPrepTime + buffers]
+    D --> F[Add to order work]
+    E --> F
+```
+
+---
+
+## 9. Queue Recalculation Flow
+
+```mermaid
+sequenceDiagram
+    participant Student
+    participant API
+    participant QueueEngine
+    participant DB
+    participant Kitchen
+    participant Socket
+
+    Student->>API: Place paid order
+    API->>DB: Read menu bucket fields
+    API->>QueueEngine: Calculate ETA for new order only
+    QueueEngine->>DB: Read active QUEUED/PREPARING orders
+    QueueEngine-->>API: ETA snapshot
+    API->>DB: Save order as QUEUED
+    API->>Socket: Notify kitchen and student
+
+    Kitchen->>API: Change status or mark item ready
+    API->>DB: Update order state
+    API->>QueueEngine: Recalculate active queue
+    QueueEngine->>DB: Save refreshed ETA values
+    QueueEngine-->>Socket: Broadcast ETA updates
+```
+
+---
+
+## 10. Module Dependency Map
+
+```mermaid
+flowchart TD
+    MenuItem[(MenuItem)] --> OrderItem[Order Item Snapshot]
+    Order[(Order)] --> OrderItem
+    OrderItem --> QueueEngine[queueEngine.js]
+    QueueEngine --> Order
+    QueueEngine --> QueueStats[Queue Stats]
+    QueueEngine --> SocketEvents[ETA Socket Events]
+    KitchenDashboard[Kitchen Dashboard] --> OrderStatusAPI[Order Status API]
+    OrderStatusAPI --> Order
+    OrderStatusAPI --> QueueEngine
+    StudentApp[Student App] --> OrderAPI[Order API]
+    OrderAPI --> MenuItem
+    OrderAPI --> QueueEngine
+    OrderAPI --> Order
+```
+
+---
+
+## 11. Why This Is Novel
+
+The normal simple queue model says:
+
+```text
+quantity * prepTime
+```
+
+That fails for canteens because many items are naturally prepared together.
+
+The UniFeast model says:
+
+```text
+ceil(quantity / batchCapacity) * batchPrepTime + buffer between buckets
+```
+
+This is still transparent arithmetic, but it models real kitchen batching:
+
+- 1 cold coffee and 10 cold coffees can take the same bucket prep time.
+- 1 idli serving and 4 idli servings can share the same steaming batch.
+- Large orders increase ETA only when they cross the next bucket threshold.
+- Kitchen staff can tune the system from the menu form without code changes.
+
+---
+
+## 12. Final Backend Rule
+
+Student-facing ETA must come only from:
+
+```text
+batchCapacity
+batchPrepTime
+batchBufferMinutes
+active order remaining quantities
+createdAt order sequence
+preparing elapsed time
+```
+
+It must not depend on hidden hard-coded item profiles, learned timing tables, or Erlang-C queue formulas.

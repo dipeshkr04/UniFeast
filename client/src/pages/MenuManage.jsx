@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Fragment, useState, useEffect, useCallback, useMemo } from 'react';
 import { menuAPI } from '../api';
 import { HiPlus, HiOutlinePencil, HiOutlineTrash, HiOutlineSearch } from 'react-icons/hi';
 import toast from 'react-hot-toast';
@@ -10,6 +10,9 @@ const emptyForm = {
   price: '',
   category: 'snacks',
   prepTime: '',
+  batchCapacity: '',
+  batchPrepTime: '',
+  batchBufferMinutes: '',
   maxOrder: '15',
   isAvailable: true,
   nutrition: { calories: '', protein: '', carbs: '', fat: '', fiber: '' },
@@ -34,6 +37,14 @@ function sortKitchenItems(list = []) {
     if (a.isAvailable !== b.isAvailable) return a.isAvailable ? -1 : 1;
     return (a.name || '').localeCompare(b.name || '');
   });
+}
+
+function hasCustomBucket(item) {
+  const prepTime = Number(item?.prepTime || 0);
+  const batchCapacity = Number(item?.batchCapacity || 1);
+  const batchPrepTime = Number(item?.batchPrepTime || prepTime);
+  const batchBufferMinutes = Number(item?.batchBufferMinutes || 0);
+  return batchCapacity > 1 || batchPrepTime !== prepTime || batchBufferMinutes > 0;
 }
 
 export default function MenuManage() {
@@ -193,6 +204,9 @@ export default function MenuManage() {
       fd.append('price', form.price);
       fd.append('category', form.category);
       fd.append('prepTime', form.prepTime);
+      fd.append('batchCapacity', form.batchCapacity);
+      fd.append('batchPrepTime', form.batchPrepTime);
+      fd.append('batchBufferMinutes', form.batchBufferMinutes);
       fd.append('maxOrder', form.maxOrder || '15');
       fd.append('isAvailable', form.isAvailable);
       if (imageFile) fd.append('image', imageFile);
@@ -214,12 +228,24 @@ export default function MenuManage() {
   };
 
   const handleEdit = (item) => {
+    if (showForm && editId === item._id) {
+      resetForm();
+      return;
+    }
+
+    const prepTime = Number(item.prepTime || 0);
+    const batchCapacity = Number(item.batchCapacity || 1);
+    const batchPrepTime = Number(item.batchPrepTime || prepTime);
+    const batchBufferMinutes = Number(item.batchBufferMinutes || 0);
     setEditId(item._id);
     setForm({
       name: item.name,
       price: item.price,
       category: item.category,
       prepTime: item.prepTime,
+      batchCapacity: batchCapacity > 1 ? String(batchCapacity) : '',
+      batchPrepTime: batchPrepTime !== prepTime ? String(batchPrepTime) : '',
+      batchBufferMinutes: batchBufferMinutes > 0 ? String(batchBufferMinutes) : '',
       maxOrder: item.maxOrder || 15,
       isAvailable: item.isAvailable,
       nutrition: { ...emptyForm.nutrition, ...item.nutrition },
@@ -268,6 +294,125 @@ export default function MenuManage() {
     setNutritionFetched(false);
   };
 
+  const handleAddClick = () => {
+    if (showForm && !editId) {
+      resetForm();
+      return;
+    }
+
+    resetForm();
+    setShowForm(true);
+  };
+
+  const renderMenuForm = () => (
+    <div
+      id={editId ? `edit-menu-form-${editId}` : 'add-menu-item-form'}
+      className="menu-form-card menu-form-inline glass-card-static animate-slideUp"
+    >
+      <div className="menu-form-header">
+        <div>
+          <h3 className="font-semibold text-lg">{editId ? 'Edit Menu Item' : 'Add Menu Item'}</h3>
+          <p className="text-[14px] text-surface-400 mt-1">Keep names short and use realistic prep times for better kitchen flow.</p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="menu-manage-form">
+        <div className="menu-form-grid menu-form-grid-two">
+          <div className="menu-field menu-name-field">
+            <label className="text-surface-300">Item name</label>
+            <input
+              value={form.name}
+              onChange={e => handleNameChange(e.target.value)}
+              onBlur={() => fetchNutrition()}
+              className="input-field"
+              placeholder="Paneer sandwich"
+              required
+              id="form-name"
+              disabled={savingItem}
+            />
+          </div>
+          <div className="menu-field menu-image-field">
+            <label className="text-surface-300">Image</label>
+            <div className="menu-image-input-row">
+              <input type="file" accept="image/*" onChange={e => handleImageChange(e.target.files[0])} className="input-field" disabled={savingItem || analyzingNutrition} />
+              {imagePreview && <img src={getImageUrl(imagePreview)} alt={form.name || 'Menu item preview'} className="menu-image-preview" decoding="async" />}
+            </div>
+          </div>
+        </div>
+
+        <div className="menu-form-grid menu-form-config-grid">
+          <div className="menu-field menu-config-category menu-config-third">
+            <label className="text-surface-300">Category</label>
+            <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="input-field" id="form-category" disabled={savingItem}>
+              <option value="snacks">Snacks</option>
+              <option value="meals">Meals</option>
+              <option value="beverages">Beverages</option>
+              <option value="desserts">Desserts</option>
+            </select>
+          </div>
+          <div className="menu-field menu-config-third">
+            <label className="text-surface-300">Price</label>
+            <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input-field" placeholder="Rs." required id="form-price" disabled={savingItem} />
+          </div>
+          <div className="menu-field menu-config-third">
+            <label className="text-surface-300">Prep time</label>
+            <input type="number" value={form.prepTime} onChange={e => setForm({ ...form, prepTime: e.target.value })} className="input-field" placeholder="Minutes" required id="form-prep" disabled={savingItem} />
+          </div>
+          <div className="menu-field menu-config-half">
+            <label className="text-surface-300">Bucket capacity <span className="text-surface-500">(optional)</span></label>
+            <input type="number" min="1" max="999" value={form.batchCapacity} onChange={e => setForm({ ...form, batchCapacity: e.target.value })} className="input-field" placeholder="Default 1" id="form-batch-capacity" disabled={savingItem} />
+          </div>
+          <div className="menu-field menu-config-half">
+            <label className="text-surface-300">Bucket prep <span className="text-surface-500">(optional)</span></label>
+            <input type="number" min="1" value={form.batchPrepTime} onChange={e => setForm({ ...form, batchPrepTime: e.target.value })} className="input-field" placeholder={`Default ${form.prepTime || 'prep'} min`} id="form-batch-prep" disabled={savingItem} />
+          </div>
+          <div className="menu-field menu-config-half">
+            <label className="text-surface-300">Bucket buffer <span className="text-surface-500">(optional)</span></label>
+            <input type="number" min="0" max="60" value={form.batchBufferMinutes} onChange={e => setForm({ ...form, batchBufferMinutes: e.target.value })} className="input-field" placeholder="Default 0" id="form-batch-buffer" disabled={savingItem} />
+          </div>
+          <div className="menu-field menu-config-half">
+            <label className="text-surface-300">Max order</label>
+            <input type="number" min="1" max="999" value={form.maxOrder} onChange={e => setForm({ ...form, maxOrder: e.target.value })} className="input-field" placeholder="15" id="form-max-order" disabled={savingItem} />
+          </div>
+          <label className="menu-availability-toggle glass-card-static text-surface-300">
+            <input type="checkbox" checked={form.isAvailable} onChange={e => setForm({ ...form, isAvailable: e.target.checked })} className="rounded" disabled={savingItem} />
+            <span>Available on menu</span>
+          </label>
+        </div>
+
+        <div>
+          <div className="menu-nutrition-heading">
+            <p className="text-xs text-surface-500 uppercase tracking-wider font-semibold">Nutrition per serving</p>
+            <span className={`menu-ai-status ${nutritionFetched ? 'is-ready' : ''}`}>
+              {analyzingNutrition ? 'Analyzing nutrition...' : nutritionFetched ? 'AI locked' : 'Auto fetched'}
+            </span>
+          </div>
+          <div className="menu-nutrition-grid">
+            {['calories', 'protein', 'carbs', 'fat', 'fiber'].map((n, index) => (
+              <div className={`menu-field ${index < 2 ? 'menu-nutrition-half' : 'menu-nutrition-third'}`} key={n}>
+                <label className="text-surface-300 capitalize">{n}</label>
+                <input
+                  type="number"
+                  value={form.nutrition[n]}
+                  readOnly
+                  className="input-field menu-nutrition-input-locked"
+                  placeholder={analyzingNutrition ? '...' : '0'}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="menu-form-actions">
+          <button type="button" onClick={resetForm} className="btn-secondary text-[14px] min-h-[44px] px-5 py-2.5" disabled={savingItem}>Cancel</button>
+          <button type="submit" className="btn-primary text-[14px] min-h-[48px] px-5 py-2.5" id="form-submit" disabled={analyzingNutrition || savingItem}>
+            {savingItem ? 'Saving...' : analyzingNutrition ? 'Analyzing...' : editId ? 'Update Item' : 'Create Item'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+
   return (
     <div className="menu-manage-page animate-fadeIn">
       <div className="menu-manage-header">
@@ -279,7 +424,7 @@ export default function MenuManage() {
           <p className="text-surface-400 mt-2 text-[14px]">Create, edit, and control live availability for kitchen items.</p>
         </div>
         <button
-          onClick={() => { resetForm(); setShowForm(true); }}
+          onClick={handleAddClick}
           className="btn-primary menu-add-btn text-[14px]"
           id="add-menu-item"
           disabled={savingItem || Boolean(pendingAction)}
@@ -303,99 +448,9 @@ export default function MenuManage() {
         </div>
       </div>
 
-      {showForm && (
-        <div className="menu-form-popover-backdrop" onClick={resetForm}>
-          <div className="menu-form-card glass-card-static animate-slideUp" onClick={(event) => event.stopPropagation()}>
-            <div className="menu-form-header">
-              <div>
-                <h3 className="font-semibold text-lg">{editId ? 'Edit Menu Item' : 'Add Menu Item'}</h3>
-                <p className="text-[14px] text-surface-400 mt-1">Keep names short and use realistic prep times for better kitchen flow.</p>
-              </div>
-            </div>
-
-            <form onSubmit={handleSubmit} className="menu-manage-form">
-            <div className="menu-form-grid menu-form-grid-two">
-              <div className="menu-field menu-name-field">
-                <label className="text-surface-300">Item name</label>
-                <input
-                  value={form.name}
-                  onChange={e => handleNameChange(e.target.value)}
-                  onBlur={() => fetchNutrition()}
-                  className="input-field"
-                  placeholder="Paneer sandwich"
-                  required
-                  id="form-name"
-                  disabled={savingItem}
-                />
-              </div>
-              <div className="menu-field menu-image-field">
-                <label className="text-surface-300">Image</label>
-                <div className="menu-image-input-row">
-                  <input type="file" accept="image/*" onChange={e => handleImageChange(e.target.files[0])} className="input-field" disabled={savingItem || analyzingNutrition} />
-                  {imagePreview && <img src={getImageUrl(imagePreview)} alt={form.name || 'Menu item preview'} className="menu-image-preview" decoding="async" />}
-                </div>
-              </div>
-            </div>
-
-            <div className="menu-form-grid menu-form-config-grid">
-              <div className="menu-field menu-config-category">
-                <label className="text-surface-300">Category</label>
-                <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="input-field" id="form-category" disabled={savingItem}>
-                  <option value="snacks">Snacks</option>
-                  <option value="meals">Meals</option>
-                  <option value="beverages">Beverages</option>
-                  <option value="desserts">Desserts</option>
-                </select>
-              </div>
-              <div className="menu-field">
-                <label className="text-surface-300">Price</label>
-                <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })} className="input-field" placeholder="Rs." required id="form-price" disabled={savingItem} />
-              </div>
-              <div className="menu-field">
-                <label className="text-surface-300">Prep time</label>
-                <input type="number" value={form.prepTime} onChange={e => setForm({ ...form, prepTime: e.target.value })} className="input-field" placeholder="Minutes" required id="form-prep" disabled={savingItem} />
-              </div>
-              <div className="menu-field">
-                <label className="text-surface-300">Max order</label>
-                <input type="number" min="1" max="999" value={form.maxOrder} onChange={e => setForm({ ...form, maxOrder: e.target.value })} className="input-field" placeholder="15" id="form-max-order" disabled={savingItem} />
-              </div>
-              <label className="menu-availability-toggle glass-card-static text-surface-300">
-                <input type="checkbox" checked={form.isAvailable} onChange={e => setForm({ ...form, isAvailable: e.target.checked })} className="rounded" disabled={savingItem} />
-                <span>Available on menu</span>
-              </label>
-            </div>
-
-            <div>
-              <div className="menu-nutrition-heading">
-                <p className="text-xs text-surface-500 uppercase tracking-wider font-semibold">Nutrition per serving</p>
-                <span className={`menu-ai-status ${nutritionFetched ? 'is-ready' : ''}`}>
-                  {analyzingNutrition ? 'Analyzing with Hugging Face...' : nutritionFetched ? 'AI locked' : 'Auto fetched'}
-                </span>
-              </div>
-              <div className="menu-nutrition-grid">
-                {['calories', 'protein', 'carbs', 'fat', 'fiber'].map(n => (
-                  <div className="menu-field" key={n}>
-                    <label className="text-surface-300 capitalize">{n}</label>
-                    <input
-                      type="number"
-                      value={form.nutrition[n]}
-                      readOnly
-                      className="input-field menu-nutrition-input-locked"
-                      placeholder={analyzingNutrition ? '...' : '0'}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="menu-form-actions">
-              <button type="button" onClick={resetForm} className="btn-secondary text-[14px] min-h-[44px] px-5 py-2.5" disabled={savingItem}>Cancel</button>
-              <button type="submit" className="btn-primary text-[14px] min-h-[48px] px-5 py-2.5" id="form-submit" disabled={analyzingNutrition || savingItem}>
-                {savingItem ? 'Saving...' : analyzingNutrition ? 'Analyzing...' : editId ? 'Update Item' : 'Create Item'}
-              </button>
-            </div>
-            </form>
-          </div>
+      {showForm && !editId && (
+        <div className="menu-form-inline-wrap">
+          {renderMenuForm()}
         </div>
       )}
 
@@ -437,63 +492,70 @@ export default function MenuManage() {
             </div>
 
             {visibleItems.map(item => (
-              <div key={item._id} className="menu-manage-row" id={`manage-item-${item._id}`}>
-                <div className="menu-item-main">
-                  <div className="menu-category-mark bg-surface-800 text-primary-400 border border-surface-700">
-                    {(categoryLabels[item.category] || item.category || 'Item').charAt(0).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-semibold truncate text-surface-100">{item.name}</p>
-                      {!item.isAvailable && <span className="badge badge-danger text-xs shrink-0">Unavailable</span>}
+              <Fragment key={item._id}>
+                <div className="menu-manage-row" id={`manage-item-${item._id}`}>
+                  <div className="menu-item-main">
+                    <div className="menu-category-mark bg-surface-800 text-primary-400 border border-surface-700">
+                      {(categoryLabels[item.category] || item.category || 'Item').charAt(0).toUpperCase()}
                     </div>
-                    <p className="text-xs text-surface-500 mt-1 truncate">
-                      {item.prepTime} min prep - {item.nutrition?.calories || 0} cal
-                    </p>
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-semibold truncate text-surface-100">{item.name}</p>
+                        {!item.isAvailable && <span className="badge badge-danger text-xs shrink-0">Unavailable</span>}
+                      </div>
+                      <p className="text-xs text-surface-500 mt-1 truncate">
+                        {item.prepTime} min prep{hasCustomBucket(item) ? ` - bucket x${item.batchCapacity || 1} in ${item.batchPrepTime || item.prepTime} min` : ''} - {item.nutrition?.calories || 0} cal
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="menu-row-price text-surface-100">Rs. {item.price}</div>
+                  <div className="menu-row-status">
+                    <button
+                      type="button"
+                      onClick={() => handleToggle(item._id)}
+                      className={`badge text-xs menu-status-toggle ${item.isAvailable ? 'badge-success' : 'badge-danger'}`}
+                      disabled={Boolean(pendingAction)}
+                      title={item.isAvailable ? 'Click to hide item' : 'Click to make item live'}
+                    >
+                      {item.isAvailable ? 'Live' : 'Hide'}
+                    </button>
+                  </div>
+
+                  <div className="menu-row-stock">
+                    <input
+                      value={stockDrafts[item._id] ?? getStockDisplay(item)}
+                      onChange={e => handleStockDraftChange(item._id, e.target.value)}
+                      onBlur={() => handleStockCommit(item)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') e.currentTarget.blur();
+                        if (e.key === 'Escape') {
+                          setStockDrafts(prev => ({ ...prev, [item._id]: getStockDisplay(item) }));
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      className="menu-stock-input"
+                      disabled={!item.isAvailable}
+                      aria-label={`${item.name} available stock`}
+                      title={item.isAvailable ? 'Enter a whole number' : 'Make item live to edit stock'}
+                    />
+                  </div>
+
+                  <div className="menu-row-actions">
+                    <button onClick={() => handleEdit(item)} className="menu-icon-btn hover:bg-white/5 text-surface-400" title="Edit" disabled={Boolean(pendingAction)}>
+                      <HiOutlinePencil className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => handleDelete(item._id, item.name)} className="menu-icon-btn hover:bg-red-500/10 text-red-400" title="Delete" disabled={Boolean(pendingAction)}>
+                      <HiOutlineTrash className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
-
-                <div className="menu-row-price text-surface-100">Rs. {item.price}</div>
-                <div className="menu-row-status">
-                  <button
-                    type="button"
-                    onClick={() => handleToggle(item._id)}
-                    className={`badge text-xs menu-status-toggle ${item.isAvailable ? 'badge-success' : 'badge-danger'}`}
-                    disabled={Boolean(pendingAction)}
-                    title={item.isAvailable ? 'Click to hide item' : 'Click to make item live'}
-                  >
-                    {item.isAvailable ? 'Live' : 'Hide'}
-                  </button>
-                </div>
-
-                <div className="menu-row-stock">
-                  <input
-                    value={stockDrafts[item._id] ?? getStockDisplay(item)}
-                    onChange={e => handleStockDraftChange(item._id, e.target.value)}
-                    onBlur={() => handleStockCommit(item)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') e.currentTarget.blur();
-                      if (e.key === 'Escape') {
-                        setStockDrafts(prev => ({ ...prev, [item._id]: getStockDisplay(item) }));
-                        e.currentTarget.blur();
-                      }
-                    }}
-                    className="menu-stock-input"
-                    disabled={!item.isAvailable}
-                    aria-label={`${item.name} available stock`}
-                    title={item.isAvailable ? 'Enter a whole number' : 'Make item live to edit stock'}
-                  />
-                </div>
-
-                <div className="menu-row-actions">
-                  <button onClick={() => handleEdit(item)} className="menu-icon-btn hover:bg-white/5 text-surface-400" title="Edit" disabled={Boolean(pendingAction)}>
-                    <HiOutlinePencil className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => handleDelete(item._id, item.name)} className="menu-icon-btn hover:bg-red-500/10 text-red-400" title="Delete" disabled={Boolean(pendingAction)}>
-                    <HiOutlineTrash className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+                {showForm && editId === item._id && (
+                  <div className="menu-row-edit-panel">
+                    {renderMenuForm()}
+                  </div>
+                )}
+              </Fragment>
             ))}
           </div>
         )}

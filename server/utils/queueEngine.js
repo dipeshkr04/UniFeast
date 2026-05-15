@@ -1,231 +1,240 @@
-/**
- * UniFeast Queue Engine
- *
- * Student-facing ETA is a strict FCFS workload estimate:
- * ETA = unfinished work ahead + this order's remaining prep work.
- *
- * Item quantity matters. Example: 2 parathas at 10 min each = 20 min.
- * If another 1 paratha order is behind it, that second order gets 30 min.
- */
-
 const Order = require('../models/Order');
 
-// Math helpers
+const ACTIVE_QUEUE_STATUSES = ['queued', 'preparing'];
+const DEFAULT_PREP_MINUTES = 10;
+const DEFAULT_ARRIVAL_WINDOW_MINUTES = 30;
 
-function factorial(n) {
-  if (n <= 1) return 1;
-  let result = 1;
-  for (let i = 2; i <= n; i++) result *= i;
-  return result;
+function positiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
-// Arrival-rate helpers
+function nonNegativeNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
 
-/**
- * Calculate arrival rate Î» (orders per minute) from recent order history
- * Uses a sliding window of the last `windowMinutes` minutes
- */
-async function calculateArrivalRate(windowMinutes = 30) {
-  const windowStart = new Date(Date.now() - windowMinutes * 60 * 1000);
-  
+function wholeNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.round(parsed) : fallback;
+}
+
+function getActiveStations(fallback = 3) {
+  return Math.max(1, wholeNumber(process.env.KITCHEN_ACTIVE_STATIONS || process.env.KITCHEN_STATIONS, fallback));
+}
+
+async function calculateArrivalRate(windowMinutes = DEFAULT_ARRIVAL_WINDOW_MINUTES) {
+  const minutes = wholeNumber(windowMinutes, DEFAULT_ARRIVAL_WINDOW_MINUTES);
+  const windowStart = new Date(Date.now() - minutes * 60 * 1000);
+
   const count = await Order.countDocuments({
     createdAt: { $gte: windowStart },
     status: { $nin: ['cancelled'] },
   });
 
-  // Î» = orders / time window (in minutes)
-  const lambda = count / windowMinutes;
-  
-  // Return at least a small value to avoid division by zero
-  return Math.max(lambda, 0.1);
+  return count / minutes;
 }
 
-// Service-rate helpers
-
-/**
- * Calculate service rate Î¼ (orders per minute per station)
- * Based on item prep time
- */
-function calculateServiceRate(prepTimeMinutes) {
-  // Î¼ = 1 / average service time
-  return 1 / Math.max(prepTimeMinutes, 1);
+function getLineQuantity(item) {
+  const quantity = Number(item?.quantity || 0);
+  return Number.isFinite(quantity) && quantity > 0 ? Math.round(quantity) : 1;
 }
 
-// Legacy Erlang-C helpers retained for queue metrics
+function getAssignedReadyQuantity(item) {
+  const quantity = getLineQuantity(item);
+  const assignedReadyQty = Number(item?.assignedReadyQty || 0);
+  return Math.min(Number.isFinite(assignedReadyQty) ? assignedReadyQty : 0, quantity);
+}
 
-/**
- * Calculate Pâ‚€ using summation method (exact, for low traffic)
- */
-function calculateP0Summation(a, c, rho) {
-  let sum = 0;
-  
-  // Summation: Î£(k=0 to c-1) (a^k / k!)
-  for (let k = 0; k < c; k++) {
-    sum += Math.pow(a, k) / factorial(k);
+function getRemainingQuantity(item) {
+  return Math.max(0, getLineQuantity(item) - getAssignedReadyQuantity(item));
+}
+
+function getBasePrepMinutes(item) {
+  return Math.max(1, positiveNumber(item?.prepTime ?? item?.menuItem?.prepTime, DEFAULT_PREP_MINUTES));
+}
+
+function getBatchCapacity(item) {
+  return Math.max(1, wholeNumber(item?.batchCapacity ?? item?.menuItem?.batchCapacity, 1));
+}
+
+function getBatchPrepMinutes(item) {
+  return Math.max(1, positiveNumber(item?.batchPrepTime ?? item?.menuItem?.batchPrepTime, getBasePrepMinutes(item)));
+}
+
+function getBatchBufferMinutes(item) {
+  return Math.max(0, nonNegativeNumber(item?.batchBufferMinutes ?? item?.menuItem?.batchBufferMinutes, 0));
+}
+
+function calculateLineBucketWorkMinutes(item, options = {}) {
+  const quantity = Math.max(0, wholeNumber(options.quantity ?? getRemainingQuantity(item), 0));
+  if (quantity <= 0) return 0;
+
+  const capacity = getBatchCapacity(item);
+  const batches = Math.max(1, Math.ceil(quantity / capacity));
+  const prepMinutes = getBatchPrepMinutes(item);
+  const bufferMinutes = getBatchBufferMinutes(item);
+
+  return (batches * prepMinutes) + (Math.max(0, batches - 1) * bufferMinutes);
+}
+
+function getLineBucketDetails(item, options = {}) {
+  const quantity = Math.max(0, wholeNumber(options.quantity ?? getRemainingQuantity(item), 0));
+  const capacity = getBatchCapacity(item);
+  const batches = quantity > 0 ? Math.max(1, Math.ceil(quantity / capacity)) : 0;
+  const bucketPrepMinutes = getBatchPrepMinutes(item);
+  const bucketBufferMinutes = getBatchBufferMinutes(item);
+
+  return {
+    menuItemId: item?.menuItem?._id?.toString() || item?.menuItem?.toString() || item?._id?.toString() || null,
+    name: item?.menuItem?.name || item?.name || 'Item',
+    quantity,
+    bucketCapacity: capacity,
+    bucketPrepMinutes,
+    bucketBufferMinutes,
+    batches,
+    workMinutes: calculateLineBucketWorkMinutes(item, { quantity }),
+  };
+}
+
+function calculateOrderWorkMinutes(order) {
+  const items = order?.items || [];
+  const work = items.reduce((total, item) => total + calculateLineBucketWorkMinutes(item), 0);
+  return Math.max(1, work);
+}
+
+function getOrderBucketDetails(order) {
+  return (order?.items || [])
+    .map((item) => getLineBucketDetails(item))
+    .filter((detail) => detail.quantity > 0);
+}
+
+function estimateRemainingOrderWorkMinutes(order, orderWorkMinutes = null) {
+  const workMinutes = Math.max(1, orderWorkMinutes ?? calculateOrderWorkMinutes(order));
+
+  if (order?.status !== 'preparing' || !order.startedAt) {
+    return workMinutes;
   }
-  
-  // Add the last term: (a^c / c!) * (1 / (1 - Ï))
-  const lastTerm = (Math.pow(a, c) / factorial(c)) * (1 / (1 - rho));
-  sum += lastTerm;
-  
-  return 1 / sum;
+
+  const startedAtMs = new Date(order.startedAt).getTime();
+  if (!Number.isFinite(startedAtMs)) return workMinutes;
+
+  const elapsedMinutes = Math.max(0, (Date.now() - startedAtMs) / 60000);
+  return Math.max(0.5, workMinutes - elapsedMinutes);
 }
 
-/**
- * Calculate Pâ‚€ using averaging method (approximate, for peak traffic)
- * Uses Stirling's approximation for large factorials
- */
-function calculateP0Averaging(a, c, rho) {
-  // For high traffic, use a simplified approximation
-  // that's more numerically stable
-  const utilization = rho;
-  
-  // Approximate Pâ‚€ â‰ˆ (1 - Ï) for high utilization
-  // More accurate: use the Jagerman approximation
-  const approxP0 = (1 - rho) * (1 + rho) / (1 + 2 * rho);
-  return Math.max(approxP0, 0.001);
+async function getActiveQueueOrders() {
+  return Order.find({
+    status: { $in: ACTIVE_QUEUE_STATUSES },
+  }).populate('items.menuItem').sort({ createdAt: 1 });
 }
 
-// Erlang-C probability helper
+async function calculateIncomingOrderETA(orderLike) {
+  const activeOrders = await getActiveQueueOrders();
 
-/**
- * Calculate Erlang-C probability C(c, a)
- * This is the probability that an arriving customer has to wait
- */
-function erlangC(c, a, rho, p0) {
-  if (rho >= 1) return 1; // System is overloaded
-  
-  const numerator = (Math.pow(a, c) / factorial(c)) * (1 / (1 - rho));
-  return numerator * p0;
-}
+  const activeWork = activeOrders.map((order) => {
+    const orderWorkMinutes = calculateOrderWorkMinutes(order);
+    return {
+      order,
+      orderWorkMinutes,
+      remainingWorkMinutes: estimateRemainingOrderWorkMinutes(order, orderWorkMinutes),
+    };
+  });
 
-// Main ETA calculator
-
-/**
- * Calculate ETA for an order
- * 
- * @param {number} itemPrepTime - Average prep time of items in minutes
- * @param {number} activeStations - Number of active kitchen stations (c)
- * @param {number} currentPendingOrders - Number of orders currently in queue
- * @returns {object} { eta, waitTime, serviceTime, utilization, method }
- */
-async function calculateETA(itemPrepTime, activeStations = 3, currentPendingOrders = null) {
-  const serviceTime = Math.max(Number(itemPrepTime || 0), 1);
-  const lambda = await calculateArrivalRate();
-  const eta = Math.max(Math.round(serviceTime), 1);
+  const workloadAhead = activeWork.reduce((total, entry) => total + entry.remainingWorkMinutes, 0);
+  const serviceMinutes = calculateOrderWorkMinutes(orderLike);
+  const eta = Math.max(1, Math.ceil(workloadAhead + serviceMinutes));
 
   return {
     eta,
-    waitTime: 0,
-    serviceTime,
-    utilization: 0,
-    method: 'strict-workload',
-    erlangC: 0,
-    arrivalRate: Math.round(lambda * 100) / 100,
-    serviceRate: Math.round((1 / serviceTime) * 100) / 100,
-    p0: 1,
+    waitTime: Math.round(workloadAhead * 100) / 100,
+    serviceTime: Math.round(serviceMinutes * 100) / 100,
+    serviceMinutes: Math.round(serviceMinutes * 100) / 100,
+    workloadAhead: Math.round(workloadAhead * 100) / 100,
+    itemBuckets: getOrderBucketDetails(orderLike),
+    queuePosition: activeOrders.filter((order) => order.status === 'queued').length + 1,
+    method: 'bucket-fcfs-snapshot',
   };
 }
 
-// Helpers
-
 async function getPendingOrderCount() {
-  return await Order.countDocuments({
-    status: { $in: ['pending', 'queued', 'preparing'] },
+  return Order.countDocuments({
+    status: { $in: ['pending', ...ACTIVE_QUEUE_STATUSES] },
   });
 }
 
-/**
- * Recalculate ETAs for all active orders
- * Should be called when an order status changes (especially to 'ready')
- */
-async function recalculateAllETAs(activeStations = 3) {
-  const activeOrders = await Order.find({
-    status: { $in: ['pending', 'queued', 'preparing'] },
-  }).populate('items.menuItem').sort({ createdAt: 1 });
-
-  const stations = Math.max(activeStations, 1);
-  const estimateOrderServiceMinutes = (order) => {
-    // Queue-aware workload: only unfinished item quantities contribute to ETA.
-    const total = (order.items || []).reduce((sum, item) => {
-      const prepTime = Number(item.menuItem?.prepTime || 10);
-      const qty = Number(item.quantity || 1);
-      const readyQty = Math.min(Number(item.assignedReadyQty || 0), qty);
-      const remainingQty = Math.max(0, qty - readyQty);
-      return sum + prepTime * remainingQty;
-    }, 0);
-    return Math.max(1, total);
-  };
-  const estimateRemainingMinutes = (order, serviceMinutes) => {
-    if (order.status !== 'preparing' || !order.startedAt) return serviceMinutes;
-    const elapsedMinutes = (Date.now() - new Date(order.startedAt).getTime()) / 60000;
-    return Math.max(0, serviceMinutes - elapsedMinutes);
-  };
+async function recalculateAllETAs() {
+  const activeOrders = await getActiveQueueOrders();
+  if (!activeOrders.length) return [];
 
   const updates = [];
   let backlogWorkMinutes = 0;
-  
-  for (let i = 0; i < activeOrders.length; i++) {
+
+  for (let i = 0; i < activeOrders.length; i += 1) {
     const order = activeOrders[i];
+    const orderWorkMinutes = calculateOrderWorkMinutes(order);
+    const remainingWorkMinutes = estimateRemainingOrderWorkMinutes(order, orderWorkMinutes);
+    const eta = Math.max(1, Math.ceil(backlogWorkMinutes + remainingWorkMinutes));
 
-    const orderServiceMinutes = estimateOrderServiceMinutes(order);
-    const remainingServiceMinutes = estimateRemainingMinutes(order, orderServiceMinutes);
-    const etaResult = await calculateETA(remainingServiceMinutes, stations, i);
-
-    // Strict FCFS cumulative delay for student-facing ETA:
-    // every order waits for total workload ahead in the queue.
-    const queueDelayMinutes = backlogWorkMinutes;
-    const queueAwareEta = Math.max(
-      1,
-      Math.ceil(queueDelayMinutes + remainingServiceMinutes)
-    );
-
-    order.estimatedTime = queueAwareEta;
-    order.estimatedReadyAt = new Date(Date.now() + queueAwareEta * 60 * 1000);
+    order.estimatedTime = eta;
+    order.estimatedReadyAt = new Date(Date.now() + eta * 60 * 1000);
     await order.save();
-    
+
     updates.push({
       orderId: order._id,
       userId: order.user,
       estimatedReadyAt: order.estimatedReadyAt,
       queuePosition: i + 1,
-      serviceMinutes: orderServiceMinutes,
-      remainingServiceMinutes,
-      ...etaResult,
-      eta: queueAwareEta,
+      serviceMinutes: Math.round(orderWorkMinutes * 100) / 100,
+      remainingServiceMinutes: Math.round(remainingWorkMinutes * 100) / 100,
+      waitTime: Math.round(backlogWorkMinutes * 100) / 100,
+      workloadAhead: Math.round(backlogWorkMinutes * 100) / 100,
+      eta,
+      itemBuckets: getOrderBucketDetails(order),
+      method: 'bucket-fcfs-recalculation',
     });
 
-    backlogWorkMinutes += remainingServiceMinutes;
+    backlogWorkMinutes += remainingWorkMinutes;
   }
-  
+
   return updates;
 }
 
-/**
- * Get current queue statistics
- */
-async function getQueueStats(activeStations = 3) {
-  const pendingCount = await Order.countDocuments({ status: 'pending' });
-  const preparingCount = await Order.countDocuments({ status: 'preparing' });
-  const queuedCount = await Order.countDocuments({ status: 'queued' });
-  const lambda = await calculateArrivalRate();
-  
+async function getQueueStats() {
+  const [pendingCount, preparingCount, queuedCount, lambda, activeOrders] = await Promise.all([
+    Order.countDocuments({ status: 'pending' }),
+    Order.countDocuments({ status: 'preparing' }),
+    Order.countDocuments({ status: 'queued' }),
+    calculateArrivalRate(),
+    getActiveQueueOrders(),
+  ]);
+
+  const totalBucketWorkMinutes = activeOrders.reduce((total, order) => {
+    const orderWorkMinutes = calculateOrderWorkMinutes(order);
+    return total + estimateRemainingOrderWorkMinutes(order, orderWorkMinutes);
+  }, 0);
+  const activeQueueCount = preparingCount + queuedCount;
+  const averageBucketWorkMinutes = activeQueueCount > 0 ? totalBucketWorkMinutes / activeQueueCount : DEFAULT_PREP_MINUTES;
+
   return {
     pendingOrders: pendingCount,
     preparingOrders: preparingCount,
     queuedOrders: queuedCount,
     totalActive: pendingCount + preparingCount + queuedCount,
-    arrivalRate: Math.round(lambda * 100) / 100,
-    activeStations,
+    arrivalRate: Math.round(lambda * 1000) / 1000,
+    averageBucketWorkMinutes: Math.round(averageBucketWorkMinutes * 100) / 100,
+    activeBucketWorkMinutes: Math.round(totalBucketWorkMinutes * 100) / 100,
+    method: 'bucket-arithmetic',
   };
 }
 
 module.exports = {
-  calculateETA,
+  calculateIncomingOrderETA,
   recalculateAllETAs,
   calculateArrivalRate,
-  calculateServiceRate,
+  getPendingOrderCount,
   getQueueStats,
-  erlangC,
+  getActiveStations,
+  calculateLineBucketWorkMinutes,
+  calculateOrderWorkMinutes,
 };
-

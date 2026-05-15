@@ -16,6 +16,21 @@ const orderItemSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  batchCapacity: {
+    type: Number,
+    default: 1,
+    min: 1,
+  },
+  batchPrepTime: {
+    type: Number,
+    default: null,
+    min: 1,
+  },
+  batchBufferMinutes: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
   quantity: {
     type: Number,
     required: true,

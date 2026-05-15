@@ -6,7 +6,11 @@ const KitchenStock = require('../models/KitchenStock');
 const Payment = require('../models/paymentModel');
 const crypto = require('crypto');
 const bcrypt = require('bcryptjs');
-const { calculateETA, recalculateAllETAs } = require('../utils/queueEngine');
+const {
+  calculateIncomingOrderETA,
+  recalculateAllETAs,
+  calculateLineBucketWorkMinutes,
+} = require('../utils/queueEngine');
 const { recalculateQueueETAs, getKitchenSummary } = require('../services/queueService');
 const lockManager = require('../config/lockManager');
 const {
@@ -111,7 +115,7 @@ async function autoAllocateForMenuItem(menuItemId, app) {
     item.assignedReadyQty = getItemAssignedQty(item) + assign;
     availableToAllocate -= assign;
 
-    if (isOrderFullyAssigned(order) && order.status !== 'ready') {
+    if (isOrderFullyAssigned(order) && order.status === 'preparing') {
       order.status = 'ready';
       order.preparedAt = new Date();
       order.estimatedTime = 0;
@@ -129,7 +133,7 @@ async function autoAllocateForMenuItem(menuItemId, app) {
 
   const populatedTouched = await Promise.all(
     touchedOrders.map((o) => Order.findById(o._id)
-      .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+      .populate('items.menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition')
       .populate('user', 'name email'))
   );
 
@@ -249,7 +253,7 @@ exports.createOrder = async (req, res) => {
 
     if (razorpayPaymentId) {
       const existingOrder = await Order.findOne({ user: req.user.id, razorpayPaymentId })
-        .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+        .populate('items.menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition')
         .populate('user', 'name email');
 
       if (existingOrder) {
@@ -282,8 +286,8 @@ exports.createOrder = async (req, res) => {
 
     // Fetch menu items and calculate total
     let totalAmount = 0;
-    let orderServiceTime = 0;
     const orderItems = [];
+    const estimationItems = [];
 
     for (const item of items) {
       const menuItem = await MenuItem.findById(item.menuItem);
@@ -304,15 +308,20 @@ exports.createOrder = async (req, res) => {
       }
 
       totalAmount += menuItem.price * quantity;
-      // Queue-aware service load: quantity contributes to ETA.
-      orderServiceTime += (menuItem.prepTime || 10) * quantity;
-
       orderItems.push({
         menuItem: menuItem._id,
         name: menuItem.name,
         price: menuItem.price,
         imageUrl: normalizeImageUrl(menuItem.imageUrl),
         category: menuItem.category || '',
+        batchCapacity: menuItem.batchCapacity || 1,
+        batchPrepTime: menuItem.batchPrepTime || menuItem.prepTime,
+        batchBufferMinutes: menuItem.batchBufferMinutes || 0,
+        quantity,
+        assignedReadyQty: 0,
+      });
+      estimationItems.push({
+        menuItem,
         quantity,
         assignedReadyQty: 0,
       });
@@ -325,8 +334,8 @@ exports.createOrder = async (req, res) => {
     const stockReservation = await validateOrderStockWithCartReservations(req.user.id, orderItems, req.app.get('io'));
     reservedStock = stockReservation.directReserved;
 
-    // Calculate the order's own workload; recalculateAllETAs adds existing queue backlog.
-    const etaResult = await calculateETA(Math.max(1, orderServiceTime));
+    // Snapshot ETA only for this incoming order. Existing active orders keep their promised ETA.
+    const etaResult = await calculateIncomingOrderETA({ items: estimationItems });
 
     const order = await Order.create({
       user: req.user.id,
@@ -352,19 +361,15 @@ exports.createOrder = async (req, res) => {
     const distinctMenuItemIds = [...new Set(orderItems.map((i) => i.menuItem.toString()))];
     await Promise.all(distinctMenuItemIds.map((id) => autoAllocateForMenuItem(id, req.app)));
 
-    // Recalculate ETA snapshot immediately so later orders include queue backlog.
-    const etaUpdates = await recalculateAllETAs();
-
     // Populate for response
     const populatedOrder = await Order.findById(order._id)
-      .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+      .populate('items.menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition')
       .populate('user', 'name email');
 
     // Emit socket events
     if (req.app.get('socketHandlers')) {
       const handlers = req.app.get('socketHandlers');
       handlers.notifyNewOrder(populatedOrder);
-      handlers.notifyAllETAUpdates(etaUpdates);
       handlers.notifyQueueStats();
     }
     if (reservedStock.length && req.app.get('io')) {
@@ -388,7 +393,7 @@ exports.createOrder = async (req, res) => {
 
     if (error.code === 11000 && attemptedRazorpayPaymentId) {
       const existingOrder = await Order.findOne({ user: req.user.id, razorpayPaymentId: attemptedRazorpayPaymentId })
-        .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+        .populate('items.menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition')
         .populate('user', 'name email');
 
       if (existingOrder) {
@@ -419,7 +424,7 @@ exports.getMyOrders = async (req, res) => {
     }
 
     const query = Order.find(filter)
-      .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+      .populate('items.menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition')
       .sort({ createdAt: -1 })
       .lean();
 
@@ -455,7 +460,7 @@ exports.getAllOrders = async (req, res) => {
     }
 
     const orders = await Order.find(filter)
-      .populate('items.menuItem', 'name price imageUrl prepTime')
+      .populate('items.menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes')
       .populate('user', 'name email')
       .sort({ createdAt: -1 })
       .limit(parseInt(limit))
@@ -474,7 +479,7 @@ exports.getLiveQueue = async (req, res) => {
     const activeOrders = await Order.find({
       status: { $in: ['queued', 'preparing'] },
     })
-      .populate('items.menuItem', 'name prepTime imageUrl')
+      .populate('items.menuItem', 'name prepTime batchCapacity batchPrepTime batchBufferMinutes imageUrl')
       .select('items status estimatedReadyAt estimatedTime createdAt')
       .sort({ createdAt: 1 });
 
@@ -487,8 +492,6 @@ exports.getLiveQueue = async (req, res) => {
 
         const menuItem = item.menuItem || {};
         const itemId = menuItem._id?.toString() || item.menuItem?.toString() || item._id?.toString();
-        const prepTime = Math.max(1, Number(menuItem.prepTime || 10));
-        const delayMinutes = prepTime * quantity;
         const current = queue.get(itemId) || {
           menuItemId: itemId,
           name: menuItem.name || item.name || 'Item',
@@ -496,16 +499,24 @@ exports.getLiveQueue = async (req, res) => {
           quantity: 0,
           orders: 0,
           delayMinutes: 0,
+          sampleItem: item,
         };
 
         current.quantity += quantity;
         current.orders += 1;
-        current.delayMinutes += delayMinutes;
         queue.set(itemId, current);
       });
     });
 
     const data = Array.from(queue.values())
+      .map((item) => {
+        const delayMinutes = calculateLineBucketWorkMinutes(item.sampleItem, { quantity: item.quantity });
+        const { sampleItem, ...safeItem } = item;
+        return {
+          ...safeItem,
+          delayMinutes: Math.round(delayMinutes * 100) / 100,
+        };
+      })
       .filter((item) => item.delayMinutes > 0)
       .sort((a, b) => b.delayMinutes - a.delayMinutes || a.name.localeCompare(b.name));
 
@@ -560,7 +571,7 @@ exports.updateOrderStatus = async (req, res) => {
     await order.save();
 
     const populatedOrder = await Order.findById(order._id)
-      .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+      .populate('items.menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition')
       .populate('user', 'name email');
 
     // Recalculate all ETAs when an order status changes
@@ -700,7 +711,7 @@ exports.markOrderItemReady = async (req, res) => {
     const io = req.app.get('io');
 
     const order = await Order.findById(id)
-      .populate('items.menuItem', 'name imageUrl prepTime nutrition')
+      .populate('items.menuItem', 'name imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition')
       .populate('user', 'name email _id btId');
 
     if (!order) {
@@ -709,6 +720,10 @@ exports.markOrderItemReady = async (req, res) => {
 
     if (['completed', 'cancelled'].includes(order.status)) {
       return res.status(400).json({ success: false, message: 'Completed or cancelled orders cannot be changed' });
+    }
+
+    if (order.status !== 'preparing') {
+      return res.status(400).json({ success: false, message: 'Items can be marked ready only after the order is preparing' });
     }
 
     const item = order.items.id(itemId) || order.items.find((x) => x.menuItem?._id?.toString() === itemId || x.menuItem?.toString() === itemId);
@@ -730,13 +745,16 @@ exports.markOrderItemReady = async (req, res) => {
       });
     }
 
+    const now = new Date();
     item.assignedReadyQty = requestedQty;
 
-    const now = new Date();
     const becameFullyReady = isOrderFullyAssigned(order);
     if (becameFullyReady && order.status !== 'ready') {
       order.status = 'ready';
       order.preparedAt = now;
+      if (order.startedAt) {
+        order.actualCompletionTime = now.getTime() - new Date(order.startedAt).getTime();
+      }
       order.estimatedTime = 0;
       order.estimatedReadyAt = now;
       order.statusHistory.push({ status: 'ready', timestamp: now });
@@ -750,7 +768,7 @@ exports.markOrderItemReady = async (req, res) => {
     const queueStats = await recalculateQueueETAs(io);
 
     const populatedOrder = await Order.findById(order._id)
-      .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+      .populate('items.menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition')
       .populate('user', 'name email _id btId');
 
     const readyQty = getItemAssignedQty(
@@ -867,7 +885,7 @@ exports.getKitchenStock = async (req, res) => {
 exports.getOrder = async (req, res) => {
   try {
     const order = await Order.findById(req.params.id)
-      .populate('items.menuItem', 'name price imageUrl prepTime nutrition')
+      .populate('items.menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition')
       .populate('user', 'name email');
 
     if (!order) {

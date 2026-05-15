@@ -2,7 +2,7 @@ const Pool = require('../models/Pool');
 const Order = require('../models/Order');
 const MenuItem = require('../models/MenuItem');
 const { findOrCreatePool, joinPool, closePool, getActivePools } = require('../utils/poolEngine');
-const { calculateETA } = require('../utils/queueEngine');
+const { calculateIncomingOrderETA } = require('../utils/queueEngine');
 const {
   resetExpiredDailyStocks,
   reserveDailyStock,
@@ -27,7 +27,7 @@ exports.getActivePools = async (req, res) => {
 exports.getPoolDetails = async (req, res) => {
   try {
     const pool = await Pool.findById(req.params.id)
-      .populate('menuItem', 'name price imageUrl prepTime nutrition')
+      .populate('menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition')
       .populate('members.user', 'name email');
 
     if (!pool) {
@@ -73,7 +73,9 @@ exports.joinOrCreatePool = async (req, res) => {
     const updatedPool = await joinPool(pool._id, req.user.id, quantity);
 
     // Create individual order linked to pool
-    const etaResult = await calculateETA(menuItem.prepTime);
+    const etaResult = await calculateIncomingOrderETA({
+      items: [{ menuItem, quantity, assignedReadyQty: 0 }],
+    });
     const order = await Order.create({
       user: req.user.id,
       userSnapshot: buildUserSnapshot(req.user),
@@ -82,6 +84,10 @@ exports.joinOrCreatePool = async (req, res) => {
         name: menuItem.name,
         price: menuItem.price,
         imageUrl: normalizeImageUrl(menuItem.imageUrl),
+        category: menuItem.category || '',
+        batchCapacity: menuItem.batchCapacity || 1,
+        batchPrepTime: menuItem.batchPrepTime || menuItem.prepTime,
+        batchBufferMinutes: menuItem.batchBufferMinutes || 0,
         quantity,
         poolId: pool._id,
       }],
@@ -103,7 +109,7 @@ exports.joinOrCreatePool = async (req, res) => {
     }
 
     const populatedPool = await Pool.findById(updatedPool._id)
-      .populate('menuItem', 'name price imageUrl prepTime')
+      .populate('menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes')
       .populate('members.user', 'name email');
 
     const costSplit = populatedPool.getCostSplit();
@@ -153,7 +159,7 @@ exports.checkPoolForItem = async (req, res) => {
       status: 'open',
       closesAt: { $gt: new Date() },
     })
-      .populate('menuItem', 'name price imageUrl')
+      .populate('menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes')
       .populate('members.user', 'name');
 
     if (!pool) {

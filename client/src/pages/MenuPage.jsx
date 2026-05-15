@@ -6,6 +6,7 @@ import { MdOutlineLocalDining } from 'react-icons/md';
 import toast from 'react-hot-toast';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/SocketContext';
+import { getImageUrl } from '../utils/imageUrl';
 
 const COLORS = ['#e06449', '#facc15', '#3b82f6', '#10b981'];
 const MENU_CACHE_KEY = 'unifeast_student_menu_items';
@@ -86,8 +87,12 @@ function menuItemsMatch(previous = [], next = []) {
       a?.name !== b?.name ||
       a?.description !== b?.description ||
       a?.category !== b?.category ||
+      a?.imageUrl !== b?.imageUrl ||
       Number(a?.price || 0) !== Number(b?.price || 0) ||
       Number(a?.prepTime || 0) !== Number(b?.prepTime || 0) ||
+      Number(a?.batchCapacity || 0) !== Number(b?.batchCapacity || 0) ||
+      Number(a?.batchPrepTime || 0) !== Number(b?.batchPrepTime || 0) ||
+      Number(a?.batchBufferMinutes || 0) !== Number(b?.batchBufferMinutes || 0) ||
       getStockLeft(a) !== getStockLeft(b) ||
       getMaxOrder(a) !== getMaxOrder(b) ||
       Number(a?.nutrition?.calories || 0) !== Number(b?.nutrition?.calories || 0) ||
@@ -117,6 +122,38 @@ const fallbackIcons = {
   desserts: '🍮',
 };
 
+const MenuItemImage = memo(function MenuItemImage({
+  item,
+  imageClassName = 'student-menu-card-image',
+  fallbackClassName = 'student-menu-card-fallback',
+}) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageSrc = imageFailed ? '' : getImageUrl(item?.imageUrl);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [item?.imageUrl]);
+
+  if (imageSrc) {
+    return (
+      <img
+        src={imageSrc}
+        alt={item?.name || 'Menu item'}
+        className={imageClassName}
+        loading="lazy"
+        decoding="async"
+        onError={() => setImageFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <div className={fallbackClassName}>
+      <span>{fallbackIcons[item?.category] || fallbackIcons.desserts}</span>
+    </div>
+  );
+});
+
 const MenuItemCard = memo(function MenuItemCard({
   item,
   qty,
@@ -133,9 +170,7 @@ const MenuItemCard = memo(function MenuItemCard({
   return (
     <article className="student-menu-card group">
       <div className="student-menu-card-media bg-surface-900">
-        <div className="student-menu-card-fallback">
-          <span>{fallbackIcons[item.category] || fallbackIcons.desserts}</span>
-        </div>
+        <MenuItemImage item={item} />
 
         <div className="student-menu-card-overlay" />
 

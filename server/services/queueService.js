@@ -55,11 +55,7 @@ exports.getKitchenSummary = async () => {
     COMPLETED: raw.completed,
     CANCELLED: raw.cancelled,
     totalActive: raw.pending + raw.queued + raw.preparing + raw.ready,
-    queueStats: {
-      ...queueStats,
-      rho: typeof queueStats?.arrivalRate === 'number' ? queueStats.arrivalRate : 0,
-      isOverloaded: (queueStats?.arrivalRate || 0) > 0.8,
-    },
+    queueStats,
   };
 };
 

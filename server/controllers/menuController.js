@@ -18,14 +18,34 @@ function parseMaxOrder(value, fallback = 15) {
   return Math.min(parsed, 999);
 }
 
+function parsePositiveNumber(value, fallback) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function parseNonNegativeNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function parseBatchCapacity(value, fallback = 1) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) return fallback;
+  return Math.min(parsed, 999);
+}
+
 function buildMenuPayload(body, imageUrl) {
+  const prepTime = parsePositiveNumber(body.prepTime, 10);
   return {
     name: body.name,
     description: '',
     price: body.price,
     category: body.category,
     imageUrl: normalizeImageUrl(imageUrl),
-    prepTime: body.prepTime,
+    prepTime,
+    batchCapacity: parseBatchCapacity(body.batchCapacity, 1),
+    batchPrepTime: parsePositiveNumber(body.batchPrepTime, prepTime),
+    batchBufferMinutes: Math.min(parseNonNegativeNumber(body.batchBufferMinutes, 0), 60),
     maxOrder: parseMaxOrder(body.maxOrder, 15),
     isAvailable: parseBoolean(body.isAvailable, true),
     tags: [],
@@ -163,6 +183,9 @@ exports.updateMenuItem = async (req, res) => {
       price: req.body.price ?? existingItem.price,
       category: req.body.category ?? existingItem.category,
       prepTime: req.body.prepTime ?? existingItem.prepTime,
+      batchCapacity: req.body.batchCapacity ?? existingItem.batchCapacity ?? 1,
+      batchPrepTime: req.body.batchPrepTime ?? existingItem.batchPrepTime ?? existingItem.prepTime,
+      batchBufferMinutes: req.body.batchBufferMinutes ?? existingItem.batchBufferMinutes ?? 0,
       maxOrder: req.body.maxOrder ?? existingItem.maxOrder ?? 15,
       isAvailable: req.body.isAvailable ?? existingItem.isAvailable,
     }, imageUrl);

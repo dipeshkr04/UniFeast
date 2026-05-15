@@ -31,6 +31,15 @@ const getFallbackThumb = (name = 'Food') => {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 };
 
+const isFullyReadyOrder = (nextOrder) => {
+  const items = nextOrder?.items || [];
+  return items.length > 0 && items.every((item) => {
+    const quantity = Number(item.quantity || 0);
+    const readyQuantity = Number(item.assignedReadyQty || 0);
+    return quantity > 0 && readyQuantity >= quantity;
+  });
+};
+
 const OrderCard = ({ order, onStatusUpdate, onItemReady, busyOrderIds, busyItemIds }) => {
   const normalizedStatus = (order.status || 'pending').toLowerCase();
   const status = normalizedStatus.toUpperCase();
@@ -91,26 +100,6 @@ const OrderCard = ({ order, onStatusUpdate, onItemReady, busyOrderIds, busyItemI
     return null;
   };
 
-  const isFullyReadyOrder = (nextOrder) => (
-    (nextOrder?.items || []).length > 0 &&
-    (nextOrder.items || []).every((item) => {
-      const quantity = Number(item.quantity || 0);
-      const ready = Number(item.assignedReadyQty || 0);
-      return quantity > 0 && ready >= quantity;
-    })
-  );
-
-  const wouldCompleteAfterItemReady = (targetItemId) => (
-    ['QUEUED', 'PREPARING'].includes(status) &&
-    (order.items || []).length > 0 &&
-    (order.items || []).every((item, index) => {
-      const quantity = Number(item.quantity || 0);
-      const ready = Number(item.assignedReadyQty || 0);
-      const itemId = getOrderItemId(order, item, index);
-      return quantity > 0 && (itemId === targetItemId || ready >= quantity);
-    })
-  );
-
   const handleItemToggle = async (itemId, canMarkItemReady) => {
     if (busyOrderIds?.has(order._id) || busyItemIds?.has(`${order._id}:${itemId}`)) return;
 
@@ -129,13 +118,12 @@ const OrderCard = ({ order, onStatusUpdate, onItemReady, busyOrderIds, busyItemI
     }
 
     if (canMarkItemReady) {
-      if (wouldCompleteAfterItemReady(itemId)) {
-        await onStatusUpdate?.(order._id, 'COMPLETED');
-        return;
-      }
       const updatedOrder = await onItemReady?.(order._id, itemId);
-      if (updatedOrder && isFullyReadyOrder(updatedOrder)) {
-        await onStatusUpdate?.(order._id, 'COMPLETED');
+      if (updatedOrder && typeof updatedOrder === 'object') {
+        const updatedStatus = String(updatedOrder.status || '').toUpperCase();
+        if (updatedStatus === 'READY' || isFullyReadyOrder(updatedOrder)) {
+          await onStatusUpdate?.(updatedOrder._id || order._id, 'COMPLETED');
+        }
       }
     }
   };
@@ -200,7 +188,7 @@ const OrderCard = ({ order, onStatusUpdate, onItemReady, busyOrderIds, busyItemI
           const itemId = getOrderItemId(order, it, idx);
           const isPickupChecked = isOrderCompleted || pickupChecked.has(itemId);
           const isVisuallyChecked = isOrderReady ? isPickupChecked : isItemReady || isPickupChecked;
-          const canMarkItemReady = !isItemReady && !['READY', 'COMPLETED', 'CANCELLED'].includes(status);
+          const canMarkItemReady = status === 'PREPARING' && !isItemReady;
           const isToggleDisabled =
             (!canMarkItemReady && !isOrderReady && !isOrderCompleted) ||
             busyOrderIds?.has(order._id) ||

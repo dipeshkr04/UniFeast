@@ -134,7 +134,7 @@ async function getActivePools() {
     status: 'open',
     closesAt: { $gt: new Date() },
   })
-    .populate('menuItem', 'name price imageUrl prepTime')
+    .populate('menuItem', 'name price imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes')
     .populate('members.user', 'name email')
     .sort({ createdAt: -1 });
 

@@ -3,6 +3,7 @@ const KitchenStock = require('../models/KitchenStock');
 const NutritionLog = require('../models/NutritionLog');
 const { validateTransition } = require('../middleware/orderStateMachine');
 const { recalculateQueueETAs, getKitchenSummary } = require('../services/queueService');
+const { getActiveStations } = require('../utils/queueEngine');
 const lockManager = require('../config/lockManager');
 
 const redisClient = lockManager.client;
@@ -107,17 +108,48 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(400).json({ error: 'wasteReason is required when cancelling a preparing order' });
     }
 
+    if (requestedStatus === 'preparing') {
+      const activeStations = await getActiveStations();
+      const activePreparing = await Order.countDocuments({
+        _id: { $ne: currentOrder._id },
+        status: 'preparing',
+      });
+
+      if (activePreparing >= activeStations) {
+        return res.status(409).json({
+          error: 'Kitchen capacity is full. Wait for a station to become available.',
+          activePreparing,
+          activeStations,
+        });
+      }
+    }
+
     const now = new Date();
     const timestamps = {};
     if (requestedStatus === 'preparing') timestamps.startedAt = now;
-    if (requestedStatus === 'ready') timestamps.preparedAt = now;
-    if (requestedStatus === 'completed') {
-      timestamps.completedAt = now;
+    if (requestedStatus === 'ready') {
+      timestamps.preparedAt = now;
+      timestamps.estimatedTime = 0;
+      timestamps.estimatedReadyAt = now;
       const preparingStartedAt =
         currentOrder.startedAt ||
-        currentOrder.statusHistory.find((h) => h.status === 'preparing')?.timestamp ||
-        currentOrder.createdAt;
-      timestamps.actualCompletionTime = now.getTime() - new Date(preparingStartedAt).getTime();
+        currentOrder.statusHistory.find((h) => h.status === 'preparing')?.timestamp;
+      if (preparingStartedAt) {
+        timestamps.actualCompletionTime = now.getTime() - new Date(preparingStartedAt).getTime();
+      }
+    }
+    if (requestedStatus === 'completed') {
+      timestamps.completedAt = now;
+      timestamps.estimatedTime = 0;
+      timestamps.estimatedReadyAt = now;
+      if (!currentOrder.actualCompletionTime && currentOrder.startedAt && currentOrder.preparedAt) {
+        timestamps.actualCompletionTime =
+          new Date(currentOrder.preparedAt).getTime() - new Date(currentOrder.startedAt).getTime();
+      }
+    }
+    if (requestedStatus === 'cancelled') {
+      timestamps.estimatedTime = 0;
+      timestamps.estimatedReadyAt = null;
     }
 
     const updateDoc = {
@@ -141,7 +173,7 @@ exports.updateOrderStatus = async (req, res) => {
       { _id: id, status: currentOrder.status, __v: currentOrder.__v },
       updateDoc,
       { new: true }
-    ).populate('user', 'name email _id').populate('items.menuItem', 'name imageUrl');
+    ).populate('user', 'name email _id').populate('items.menuItem', 'name imageUrl prepTime batchCapacity batchPrepTime batchBufferMinutes nutrition');
 
     if (!updatedOrder) {
       return res.status(409).json({ error: 'Concurrent modification — retry' });
@@ -189,7 +221,10 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     const queueStats = await recalculateQueueETAs(io);
-    const responsePayload = { order: updatedOrder, queueStats };
+    const responsePayload = {
+      order: updatedOrder,
+      queueStats,
+    };
 
     if (idempotencyKey && redisClient?.setex) {
       await redisClient.setex(toRedisKey(idempotencyKey), 30, JSON.stringify(responsePayload));

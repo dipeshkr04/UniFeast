@@ -245,7 +245,7 @@ export const useKitchenOrders = () => {
         return false;
       }
       setOrders(previousMap);
-      toast.error('Failed to update status. Please retry.');
+      toast.error(err.response?.data?.message || err.response?.data?.error || 'Failed to update status. Please retry.');
       return false;
     } finally {
       setBusyOrder(orderId, false);
@@ -373,8 +373,6 @@ export const useKitchenOrders = () => {
     return [...arr].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   }, [orderList, activeFilter, dishFilter, searchQuery, getItemName, getOrderSearchText, normalizeDishName]);
 
-  const isOverloaded = Boolean(summary?.queueStats?.isOverloaded);
-
   return {
     orders,
     filteredOrders,
@@ -389,7 +387,6 @@ export const useKitchenOrders = () => {
     summary,
     isConnected,
     reconnecting,
-    isOverloaded,
     updateOrderStatus,
     markItemReady,
     busyOrderIds,

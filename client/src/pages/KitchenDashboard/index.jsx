@@ -293,7 +293,6 @@ const KitchenDashboardContent = () => {
     selectedDish,
     summary,
     isConnected,
-    isOverloaded,
     reconnecting,
     updateOrderStatus,
     markItemReady,
@@ -314,7 +313,6 @@ const KitchenDashboardContent = () => {
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         queueStats={summary.queueStats}
-        isOverloaded={isOverloaded}
         isConnected={isConnected}
       />
       

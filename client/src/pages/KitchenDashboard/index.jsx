@@ -78,7 +78,7 @@ const QRScannerModal = ({ open, onClose, onStatusUpdate, onItemReady, busyOrderI
       try {
         setScanState('requesting');
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: 'user' } },
+          video: { facingMode: { ideal: 'environment' } },
           audio: false,
         });
         if (cancelled) {

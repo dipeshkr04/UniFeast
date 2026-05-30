@@ -5,7 +5,7 @@
 ### Campus Dining OS for IIIT Nagpur
 
 <p>
-  A private, full-stack dining platform connecting students, kitchen teams, admins, pooled orders, live queue visibility, nutrition intelligence, and analytics.
+  A private, full-stack dining platform connecting students, kitchen teams, admins, pooled orders, live queue visibility, nutrition intelligence,and analytics.
 </p>
 
 <p>

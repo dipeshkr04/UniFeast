@@ -587,7 +587,7 @@ export default function NutritionPage() {
                     <div>
                       <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center">Qty</label>
                       <input type="number" value={logForm.quantity} onChange={e => setLogForm({ ...logForm, quantity: e.target.value })} 
-                        className={`input-field w-full text-center px-1 font-bold ${aiResult?.quantity ? 'border-primary-500/50 text-white' : ''}`} placeholder="1" min="1" step="0.1" required />
+                        className={`input-field w-full text-center px-1 font-bold ${aiResult?.quantity ? 'border-primary-500/50 text-white' : ''}`} placeholder="1" min="1" step="1" required />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-surface-400 mb-1 uppercase text-center leading-tight">Kcal / Unit</label>
@@ -869,7 +869,7 @@ export default function NutritionPage() {
                       >
                         {qty <= 1 ? <HiOutlineTrash className="w-3.5 h-3.5 text-red-400" /> : <HiMinus className="w-3.5 h-3.5" />}
                       </button>
-                      <span className="min-w-5 text-center font-semibold text-[14px] text-surface-100">{qty}</span>
+                      <span className="min-w-[32px] h-[44px] text-center font-semibold text-[14px] text-surface-100 flex items-center justify-center">{qty}</span>
                       <button
                         onClick={() => handleUpdateQuantity(daily._id, meal._id, qty + 1)}
                         className="min-w-[44px] min-h-[44px] rounded-lg bg-surface-700/60 flex items-center justify-center hover:bg-surface-600/60 text-surface-300 hover:text-white transition-colors"

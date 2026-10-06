@@ -8,10 +8,8 @@ import { GoogleLogin } from '@react-oauth/google';
 import { motion as Motion } from 'framer-motion';
 import { useTheme } from '../contexts/ThemeContext';
 
-const INSTITUTE_EMAIL_DOMAIN = '@iiitn.ac.in';
-
-function isAllowedInstituteEmail(value) {
-  return String(value || '').trim().toLowerCase().endsWith(INSTITUTE_EMAIL_DOMAIN);
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 
 export default function Login() {
@@ -27,8 +25,8 @@ export default function Login() {
   const handleAuthSubmit = async (e) => {
     e.preventDefault();
 
-    if (!isAllowedInstituteEmail(email)) {
-      toast.error(`Use your college BT-ID email (${INSTITUTE_EMAIL_DOMAIN})`);
+    if (!isValidEmail(email)) {
+      toast.error('Enter a valid email address');
       return;
     }
 
@@ -161,7 +159,7 @@ export default function Login() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center"
-                  placeholder="bt23xxx@iiitn.ac.in"
+                  placeholder="you@example.com"
                   required
                 />
               </div>

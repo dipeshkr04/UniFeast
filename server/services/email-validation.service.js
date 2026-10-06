@@ -1,7 +1,6 @@
 const { resolveMx } = require('dns').promises;
 
 const BASIC_EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const ALLOWED_EMAIL_DOMAIN = String(process.env.ALLOWED_EMAIL_DOMAIN || 'iiitn.ac.in').trim().toLowerCase();
 const DEFAULT_ADMIN_ALLOWED_EMAILS = ['admin@iiitn.ac.in'];
 const DEFAULT_KITCHEN_ALLOWED_EMAILS = ['kitchen@iiitn.ac.in'];
 
@@ -66,19 +65,10 @@ function validateInstitutionEmail(email) {
     };
   }
 
-  const domain = normalizedEmail.split('@')[1];
-  if (domain !== ALLOWED_EMAIL_DOMAIN) {
-    return {
-      acceptable: false,
-      normalizedEmail,
-      reason: `Only @${ALLOWED_EMAIL_DOMAIN} email addresses are allowed.`
-    };
-  }
-
   return {
     acceptable: true,
     normalizedEmail,
-    reason: `Email matches @${ALLOWED_EMAIL_DOMAIN}.`
+    reason: 'Email format is valid.'
   };
 }
 

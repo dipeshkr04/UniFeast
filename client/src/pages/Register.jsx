@@ -6,10 +6,8 @@ import { HiEye, HiEyeOff } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 import { motion as Motion, AnimatePresence } from 'framer-motion';
 
-const INSTITUTE_EMAIL_DOMAIN = '@iiitn.ac.in';
-
-function isAllowedInstituteEmail(value) {
-  return String(value || '').trim().toLowerCase().endsWith(INSTITUTE_EMAIL_DOMAIN);
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim());
 }
 
 export default function Register() {
@@ -32,8 +30,8 @@ export default function Register() {
 
     try {
       if (step === 1) {
-        if (!isAllowedInstituteEmail(form.email)) {
-            toast.error(`Use your college BT-ID email (${INSTITUTE_EMAIL_DOMAIN})`);
+        if (!isValidEmail(form.email)) {
+          toast.error('Enter a valid email address');
             setLoading(false);
             return;
         }
@@ -178,7 +176,7 @@ export default function Register() {
 
                       <div className="text-left flex flex-col gap-2">
                         <label className="block text-[13px] font-medium text-surface-300">Email Address</label>
-                        <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center" placeholder="bt23xxx@iiitn.ac.in" required />
+                        <input name="email" type="email" value={form.email} onChange={handleChange} className="input-field py-3 bg-[#121214] border-surface-800 text-[14px] text-center" placeholder="you@example.com" required />
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
